@@ -1,15 +1,16 @@
 # Memory — Houdini Bet
 
 ## Decisiones
+- **Baseline:** restored to HoudiniBet-v1.0 (`1a8cf9b`) + Analytics logos/icons only (`brand/` + `icons/ui/`, shell `hb130`). Rebuild features carefully from here.
 - CF Worker + D1; FD + FotMob + AF enrich
 - Tips: anti-trivial (no O0.5 / U4.5); **nunca SHOTS_***; lane **P≥75%** + cuota≥1.25; **solo playable** en `tip_results`; display **P≥75%**; tipTier `none` → schema + `tip_tier`; BTTS secondary-only; secondary diversa
 - UI: Partidos · Top 10 · Stats · Semanal · Ligas; `#top3` / `#ligas/<apiId>` / `#premium` / `#perfil`
 - Auth bloqueante tras consent (sin sesión no hay app); cookie `hb_auth`; register/login/Google; Telegram UI **Pronto**
 - Free vs Premium: tip/winProb/live probs/tabs = Premium; **General key cards free**; H2H + tabla liga + chrome OK; censor → `closePanel` + `#premium`
-- Nav: desktop header icons; mobile `.app-tabbar` bottom (safe-area); SW `hb86`
-- General key cards: o25/o15 portería; goals balón; btts 2 balones; corners/cards intactos; Tiros ≠ SOT; i18n ES↔EN P0+P1
+- Nav: PNG `icons/ui/` (partidos/top10/aciertos/ligas + crown); Semanal SVG; mobile `.app-tabbar`; SW `hb130`
+- General key cards: o25/o15 SVG; goals/btts/cards PNG; corners SVG flag; wordmark in panel VS; Tiros ≠ SOT; i18n ES↔EN P0+P1
 - Top 10 = solo primary (`suggestedBet`); panel-suggest misma tip (sin ALL CAPS); trend summary total centrado
-- URL producto: solo `houdini-bet.pages.dev` (workers.dev = origen técnico)
+- URL producto día a día: `houdini-analytics.pages.dev` (workers.dev = origen técnico)
 - SOT Overs 0.5–11.5; córners 1.5–11.5; totalShots display degraded si n<4; FotMob stats prioriza equipos ventana
 - Premium tabs Oddster-style (rojo): summary + trend Metric|H|A|Partido; free = `lockedTrendTableHtml`; goles + scoregrid debajo
 - Promo (0036+0037): types `free_days`|`free_month`|`discount_20`|`discount_40`; soft-delete `active=0`; discount → `users.pending_promo_*` + Stripe `%_off` en checkout; admin create/list/delete
@@ -27,7 +28,8 @@
 - Premium tables + promo + badge + dark-only + `#premium` compact
 - `#premium` / `#perfil` / settings / menú cuenta; admin hits/stats/users/promo + Activar/Quitar Premium
 - Auth v1 + Google; Ligas explorer; live cron; tip lock; ban SHOTS_*
-- Free General key cards + icons; tabs Tiros; i18n P0+P1; SOT/córners ranges; promo types+delete; admin Stats cards homogéneas; tip sync Top10=panel; Under tables + BTTS block; Tiros 14.5–24.5; `hb86`
+- Free General key cards + icons; tabs Tiros; i18n P0+P1; SOT/córners ranges; promo types+delete; admin Stats cards homogéneas; tip sync Top10=panel; Under tables + BTTS block; Tiros 14.5–24.5
+- Full restore to v1.0 + Analytics brand/UI icons wired; shell `hb130`
 
 ## Pendiente
 - **API_FOOTBALL_KEY** válida (book real)
@@ -37,6 +39,7 @@
 - Dominio custom `houdini-bet.dev` más adelante
 
 ## Deploy
+- App Pages: `npx wrangler pages deploy pages --project-name houdini-analytics --branch main`
 - Worker: `cd cloudflare; npx wrangler deploy`
 - Migrate: `npx wrangler d1 migrations apply houdini-bet-db --remote`
 - Admin: `npx wrangler pages deploy admin-pages --project-name houdini-bet-admin --branch main`

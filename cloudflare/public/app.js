@@ -1654,11 +1654,16 @@ function mpVsMidLabel(m, live) {
   return { text: 'VS', score: false };
 }
 
+function mpVsBrandMarkHtml() {
+  return `<img class="mp-vs__brand" src="/brand/houdini-bet-wordmark.png?v=hb130" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
+}
+
 function mpVsMidHtml(m, live) {
   const mid = mpVsMidLabel(m, live);
   const labelCls = mid.score ? ' mp-vs__label--score' : '';
   return `<div class="mp-vs">
     <span class="mp-vs__label${labelCls}">${escapeHtml(mid.text)}</span>
+    ${mpVsBrandMarkHtml()}
     <span class="mp-status">${escapeHtml(matchStatusPill(m))}</span>
   </div>`;
 }
@@ -1890,19 +1895,22 @@ function sumRecentAvg(recentAvgs, key) {
   return Number(((Number(h) || 0) + (Number(a) || 0)).toFixed(2));
 }
 
+const UI_ICON_V = 'hb130';
+const mpStatImg = (file, size = 18) => {
+  const lg = size > 18 ? ' mp-stat__icon--lg' : '';
+  return `<img class="mp-stat__icon mp-stat__icon--img${lg}" src="/icons/ui/${file}?v=${UI_ICON_V}" width="${size}" height="${size}" alt="" aria-hidden="true" decoding="async" />`;
+};
+
 const MP_STAT_ICONS = {
   /* O2.5: portería + dos balones (más denso) */
   o25: `<svg class="mp-stat__icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M5 19V8h14v11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9.2" cy="13.2" r="2.35" fill="none" stroke="currentColor" stroke-width="1.35"/><circle cx="14.8" cy="13.2" r="2.35" fill="none" stroke="currentColor" stroke-width="1.35"/></svg>`,
   /* O1.5: misma portería + un balón (más simple) */
   o15: `<svg class="mp-stat__icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M5 19V8h14v11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="13.4" r="2.6" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>`,
-  /* BTTS: dos balones pequeños (ambos equipos) */
-  btts: `<svg class="mp-stat__icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><circle cx="8.2" cy="12" r="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="15.8" cy="12" r="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>`,
-  /* Goles: balón simple */
-  goals: `<svg class="mp-stat__icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="6.2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>`,
+  btts: mpStatImg('btts.png'),
+  goals: mpStatImg('goals.png'),
   /* Córners: banderín de córner */
   corners: `<svg class="mp-stat__icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M7 21V4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M7 4.2l11 3.4-11 3.4V4.2z" fill="currentColor" opacity=".88"/><path d="M4 21h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
-  /* Tarjetas: amarilla + roja superpuestas */
-  cards: `<svg class="mp-stat__icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><rect x="5.5" y="4.5" width="8.5" height="13.5" rx="1.2" fill="#eab308" stroke="currentColor" stroke-width="1.15" transform="rotate(-12 9.75 11.25)"/><rect x="10" y="5.5" width="8.5" height="13.5" rx="1.2" fill="#ef4444" stroke="currentColor" stroke-width="1.15" transform="rotate(10 14.25 12.25)"/></svg>`,
+  cards: mpStatImg('cards.png', 22),
 };
 
 function keyStatCard({ title, valueHtml, barPct, tone = 'accent', sub = '', iconHtml = '' }) {

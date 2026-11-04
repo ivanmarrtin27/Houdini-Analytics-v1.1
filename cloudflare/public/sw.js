@@ -11,7 +11,7 @@
  * the shell changes, so clients pick the new files.
  */
 
-const VERSION = 'hb-v86';
+const VERSION = 'hb-v130';
 const SHELL_CACHE = `houdini-shell-${VERSION}`;
 const DATA_CACHE = `houdini-data-${VERSION}`;
 const DATA_TTL_MS = 60_000;
@@ -19,8 +19,8 @@ const DATA_TTL_MS = 60_000;
 const SHELL_ASSETS = [
   '/',
   '/index.html',
-  '/app.js?v=hb86',
-  '/styles.css?v=hb86',
+  '/app.js?v=hb130',
+  '/styles.css?v=hb130',
   '/manifest.webmanifest',
   '/icons/icon.svg',
   '/icons/icon-192.png',
@@ -28,6 +28,15 @@ const SHELL_ASSETS = [
   '/icons/apple-touch-icon.png',
   '/icons/favicon-32.png',
   '/icons/favicon-48.png',
+  '/icons/ui/partidos.png',
+  '/icons/ui/top10.png',
+  '/icons/ui/aciertos.png',
+  '/icons/ui/ligas.png',
+  '/icons/ui/premium-crown.png',
+  '/icons/ui/btts.png',
+  '/icons/ui/goals.png',
+  '/icons/ui/cards.png',
+  '/brand/houdini-bet-wordmark.png',
   '/brand/houdini-bet-logo.png',
   '/brand/houdini-bet-logo-512.png',
 ];
