@@ -1,7 +1,7 @@
-# AGENTS.md — Houdini Analytics
+# AGENTS.md — Houdini Analytics v1.1
 
 ## Qué es
-App de predicciones de fútbol (Poisson).
+App de predicciones de fútbol (Poisson). Producto: **Houdini Analytics v1.1**.
 
 ## Baseline
 - Workspace restored to **HoudiniBet-v1.0** (`origin/main` @ `1a8cf9b`) + **only** Analytics brand logos (`cloudflare/public/brand/`) and UI icons (`cloudflare/public/icons/ui/`). Future feature work starts from this baseline; do not re-port post-v1.0 tip-band / Premium rewrite / Semanal purge logic unless asked.

@@ -1,8 +1,8 @@
 {
-  "name": "houdini-bet",
-  "version": "1.0.0",
+  "name": "houdini-analytics",
+  "version": "1.1.0",
   "private": true,
-  "description": "Houdini Bet — Cloudflare Workers + D1 + static UI",
+  "description": "Houdini Analytics v1.1 — Cloudflare Workers + D1 + static UI",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",

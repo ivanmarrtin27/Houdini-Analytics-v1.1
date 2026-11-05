@@ -1,21 +1,22 @@
 <p align="center">
-  <img src="cloudflare/public/brand/houdini-bet-logo.png" alt="Houdini Bet" width="360" />
+  <img src="cloudflare/public/brand/houdini-bet-wordmark.png" alt="Houdini Analytics" width="360" />
 </p>
 
-<h1 align="center">Houdini Bet</h1>
+<h1 align="center">Houdini Analytics v1.1</h1>
 
 <p align="center">
   <strong>Predicciones de fútbol con modelo Poisson</strong> (shrinkage + Dixon–Coles) · Worker + D1 en Cloudflare · PWA estática
 </p>
 
 <p align="center">
-  <a href="https://houdini-bet.pages.dev"><img src="https://img.shields.io/badge/demo-pages.dev-DC2626?style=for-the-badge" alt="Live demo"></a>
+  <a href="https://houdini-analytics.pages.dev"><img src="https://img.shields.io/badge/demo-pages.dev-DC2626?style=for-the-badge" alt="Live demo"></a>
   <a href="./cloudflare"><img src="https://img.shields.io/badge/runtime-Workers%20%2B%20D1-0A0A0A?style=for-the-badge" alt="Stack"></a>
+  <img src="https://img.shields.io/badge/version-v1.1-3B82F6?style=for-the-badge" alt="Version v1.1">
   <img src="https://img.shields.io/badge/status-MVP%20%2F%20beta-F59E0B?style=for-the-badge" alt="Status">
 </p>
 
 <p align="center">
-  <a href="https://houdini-bet.pages.dev">Abrir app</a>
+  <a href="https://houdini-analytics.pages.dev">Abrir app</a>
   ·
   <a href="#desarrollo">Desarrollo local</a>
   ·
@@ -28,7 +29,7 @@
 
 | | URL |
 |---|---|
-| **App (día a día)** | https://houdini-bet.pages.dev |
+| **App (día a día)** | https://houdini-analytics.pages.dev |
 | **Worker / API** | https://houdini-bet.ivanmarrtin2703.workers.dev |
 | **Health** | `/health` |
 | **REST** | `/api/v1/...` |
@@ -67,7 +68,7 @@ Código de producción: [`cloudflare/`](./cloudflare). Backend Express + MySQL a
 ## Estructura del proyecto
 
 ```
-Houdini Bet/
+Houdini Analytics/
 ├── cloudflare/          # Worker, D1, UI estática, scripts de test
 │   ├── public/          # PWA (app.js, styles, brand, icons)
 │   ├── src/             # index.js, servicios, modelo live
@@ -95,7 +96,7 @@ npm run dev
 cd cloudflare
 npm run deploy
 # alias Pages (proxy estático):
-npx wrangler pages deploy pages --project-name houdini-bet --branch main
+npx wrangler pages deploy pages --project-name houdini-analytics --branch main
 ```
 
 **Migraciones remotas:**
