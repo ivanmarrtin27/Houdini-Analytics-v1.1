@@ -641,7 +641,7 @@ function hbCensorWrap(html, { block = false } = {}) {
   )}">
     <div class="hb-censor__veil" aria-hidden="true">${html}</div>
     <div class="hb-censor__lock" aria-hidden="true">
-      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb148" width="22" height="22" alt="" decoding="async" />
+      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb150" width="22" height="22" alt="" decoding="async" />
       <span class="hb-censor__lock-title">${escapeHtml(t('censor.title'))}</span>
       <span class="hb-censor__lock-sub">${escapeHtml(t('censor.sub'))}</span>
     </div>
@@ -876,19 +876,22 @@ function bttsPanelHtml(pred, { leagueRate = null } = {}) {
 
 function premiumBannerHtml() {
   if (!authUser || contentUnlocked()) return '';
-  return `<aside class="premium-banner" data-hb-censor role="button" tabindex="0" aria-label="Ver planes Premium">
-    <span class="premium-banner__badge">OFERTA ESPECIAL</span>
+  return `<aside class="premium-banner" data-hb-censor role="button" tabindex="0" aria-label="${escapeHtml(
+    t('premium.ariaPlans')
+  )}">
+    <span class="premium-banner__badge">${escapeHtml(t('premium.bannerBadge'))}</span>
     <div class="premium-banner__body">
       <div class="premium-banner__copy">
-        <h3 class="premium-banner__title">Houdini Premium</h3>
-        <p class="premium-banner__lead">Tip Houdini y estadísticas avanzadas del partido.</p>
+        <img class="premium-banner__mark" src="/brand/houdini-analytics-mark.png?v=${UI_ICON_V}" width="96" height="54" alt="" decoding="async" />
+        <h3 class="premium-banner__title">${escapeHtml(t('premium.bannerTitle'))}</h3>
+        <p class="premium-banner__lead">${escapeHtml(t('premium.bannerLead'))}</p>
         <ul class="premium-banner__list">
-          <li>Tip del partido + 1X2</li>
-          <li>Tablas Goles · Tiros · Córners · Tarjetas</li>
-          <li>Top 10 y combinadas Semanal</li>
-          <li>Probabilidades en vivo</li>
+          <li>${escapeHtml(t('premium.bannerFeat1'))}</li>
+          <li>${escapeHtml(t('premium.bannerFeat2'))}</li>
+          <li>${escapeHtml(t('premium.bannerFeat3'))}</li>
+          <li>${escapeHtml(t('premium.bannerFeat4'))}</li>
         </ul>
-        <span class="premium-banner__cta">Ver planes</span>
+        <span class="premium-banner__cta">${escapeHtml(t('premium.bannerCta'))}</span>
       </div>
     </div>
   </aside>`;
@@ -1638,7 +1641,7 @@ function formatMatchTimeShort(value) {
 function matchStatusPill(m) {
   if (m.status === 'live') {
     const min = m.elapsedMinute != null ? `${Number(m.elapsedMinute)}'` : 'LIVE';
-    return `${min} · EN VIVO`;
+    return `${min} · ${t('chip.liveFull')}`;
   }
   return '';
 }
@@ -1657,7 +1660,7 @@ function mpVsMidLabel(m, live) {
 }
 
 function mpVsBrandMarkHtml() {
-  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb148" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
+  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb150" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
 }
 
 function mpVsMidHtml(m, live) {
@@ -1863,7 +1866,7 @@ function livePanelHtml(live, homeName, awayName) {
   return `
     <section class="mp-live">
       <div class="mp-live__head">
-        <span class="mp-live__badge"><span class="league-match__live-dot"></span>EN VIVO · ${escapeHtml(
+        <span class="mp-live__badge"><span class="league-match__live-dot"></span>${escapeHtml(t('chip.liveFull'))} · ${escapeHtml(
           minute
         )}</span>
         ${score ? `<span class="mp-live__score">${escapeHtml(score)}</span>` : ''}
@@ -1948,7 +1951,7 @@ function sumRecentAvg(recentAvgs, key) {
   return Number(((Number(h) || 0) + (Number(a) || 0)).toFixed(2));
 }
 
-const UI_ICON_V = 'hb148';
+const UI_ICON_V = 'hb150';
 const MP_STAT_ICON_PX = 20;
 const mpStatImg = (file) =>
   `<img class="mp-stat__icon mp-stat__icon--img" src="/icons/ui/${file}?v=${UI_ICON_V}" width="${MP_STAT_ICON_PX}" height="${MP_STAT_ICON_PX}" alt="" aria-hidden="true" decoding="async" />`;
@@ -2258,8 +2261,8 @@ function ladderProbRows(side, lines) {
     const over = map.get(Number(line));
     if (over == null) return;
     const label = marketLineLabel(line);
-    rows.push(probBar(`Más de ${label}`, over));
-    rows.push(probBar(`Menos de ${label}`, 1 - over));
+    rows.push(probBar(t('panel.overLine', { n: label }), over));
+    rows.push(probBar(t('panel.underLine', { n: label }), 1 - over));
   });
   return rows.join('');
 }
@@ -2283,28 +2286,26 @@ function marketAveragesHtml({
       : null;
   const format = (value) => {
     if (value == null || !Number.isFinite(Number(value))) return '—';
-    return Number(value).toFixed(1).replace('.', ',');
+    return Number(value).toFixed(1).replace('.', getUiLang() === 'en' ? '.' : ',');
   };
-  const leagueLabel = leagueProxy
-    ? 'Media proxy (sin muestra liga)'
-    : 'Media liga / equipo';
-  let caption = `${unit} por partido (últimos partidos)`;
+  const leagueLabel = leagueProxy ? t('panel.avgProxy') : t('panel.avgLeague');
+  let caption = t('panel.avgCaption', { unit });
   if (!hasTeamAvgs && leagueProxy) {
-    caption = `Sin muestras de equipo · media proxy de referencia`;
+    caption = t('panel.avgCaptionNoTeam');
   } else if (leagueProxy) {
-    caption = `${unit} por partido · liga sin muestra → proxy`;
+    caption = t('panel.avgCaptionProxy', { unit });
   }
   return hbCensorWrap(
     `
-    <section class="market-averages" aria-label="Promedios recientes de ${escapeHtml(unit)}">
-      <h3 class="market-averages__title">Promedios recientes · ${escapeHtml(unit)}</h3>
+    <section class="market-averages" aria-label="${escapeHtml(t('panel.avgAria', { unit }))}">
+      <h3 class="market-averages__title">${escapeHtml(t('panel.avgTitle', { unit }))}</h3>
       <div class="market-averages__grid">
         <div class="market-averages__item">
-          <span class="market-averages__label">${escapeHtml(homeName || 'Local')}</span>
+          <span class="market-averages__label">${escapeHtml(homeName || t('panel.home'))}</span>
           <strong class="market-averages__value">${format(home)}</strong>
         </div>
         <div class="market-averages__item">
-          <span class="market-averages__label">${escapeHtml(awayName || 'Visitante')}</span>
+          <span class="market-averages__label">${escapeHtml(awayName || t('panel.awayShort'))}</span>
           <strong class="market-averages__value">${format(away)}</strong>
         </div>
         <div class="market-averages__item market-averages__item--league">
@@ -2906,11 +2907,13 @@ function formatRoundLabel(m) {
   const hasN = n != null && Number.isFinite(n);
   if (!hasN && !g) return '';
   const apiId = Number(m.leagueApiId);
-  const enMatchday = apiId === 39;
+  const useMatchday = apiId === 39 || getUiLang() === 'en';
   let base = '';
-  if (hasN) base = enMatchday ? `Matchday ${n}` : `Jornada ${n}`;
+  if (hasN) {
+    base = t(useMatchday ? 'round.matchday' : 'round.jornada', { n: String(n) });
+  }
   if (g) {
-    const grupo = /^[A-H]$/i.test(g) ? `Grupo ${g.toUpperCase()}` : g;
+    const grupo = /^[A-H]$/i.test(g) ? t('round.group', { g: g.toUpperCase() }) : g;
     return base ? `${grupo} · ${base}` : grupo;
   }
   return base;
@@ -3180,7 +3183,7 @@ async function showLigasTable(apiId, { pushHash = true } = {}) {
 
   const folderLeague = LIGAS_FOLDERS.flatMap((f) => f.leagues).find((l) => l.apiId === aid);
   if (nameEl) nameEl.textContent = folderLeague?.name || leagueLabelEs('', aid) || `Liga ${aid}`;
-  if (metaEl) metaEl.textContent = 'Cargando clasificación…';
+  if (metaEl) metaEl.textContent = t('ligas.loadingTable');
   setLigasDetailLogo(folderLeague?.logoUrl || null);
   tableEl.innerHTML = Array.from({ length: 6 }, () => `<div class="skeleton" aria-hidden="true"></div>`).join('');
 
@@ -3534,7 +3537,8 @@ const PREMIUM_LIST_PRICES = { weekly: 9.99, monthly: 19.9 };
 function formatEuroPrice(n) {
   const v = Number(n);
   if (!Number.isFinite(v)) return '—';
-  return `${v.toFixed(2).replace('.', ',')} €`;
+  const dec = getUiLang() === 'en' ? '.' : ',';
+  return `${v.toFixed(2).replace('.', dec)} €`;
 }
 
 function discountedListPrice(base, percent) {
@@ -3567,14 +3571,19 @@ async function loadPremiumState() {
   return premiumState;
 }
 
-async function startPremiumCheckout() {
+async function startPremiumCheckout(plan = 'monthly') {
   if (!premiumState.loaded) await loadPremiumState();
   if (!premiumState.stripeConfigured) {
     showBanner(t('toast.payUnconfigured'), 'info');
     return;
   }
+  const chosen = plan === 'weekly' ? 'weekly' : 'monthly';
   try {
-    const data = await api(`/api/v1/premium/session`, { method: 'POST' });
+    const data = await api(`/api/v1/premium/session`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan: chosen }),
+    });
     if (data.checkoutUrl) {
       window.location.href = data.checkoutUrl;
     } else {
@@ -3592,9 +3601,11 @@ function premiumUpsellHtml(source) {
       <span class="premium-upsell__lock" aria-hidden="true">🔒</span>
       <div class="premium-upsell__text">
         <strong>Premium</strong>
-        <span>Tips, ROI y estadísticas avanzadas van con el plan de pago.</span>
+        <span>${escapeHtml(t('premium.upsellText'))}</span>
       </div>
-      <button type="button" class="btn premium-upsell__btn" data-go-premium>Ver planes</button>
+      <button type="button" class="btn premium-upsell__btn" data-go-premium>${escapeHtml(
+        t('premium.seePlans')
+      )}</button>
     </div>`;
 }
 
@@ -3604,7 +3615,8 @@ function bindPremiumActivate(root = document) {
     btn.dataset.premiumBound = '1';
     btn.addEventListener('click', (e) => {
       e.preventDefault();
-      startPremiumCheckout();
+      const plan = btn.getAttribute('data-premium-plan') || 'monthly';
+      startPremiumCheckout(plan);
     });
   });
 }
@@ -3640,10 +3652,11 @@ function syncPremiumView() {
     const base = PREMIUM_LIST_PRICES[plan];
     if (base == null) return;
     const discounted = pct > 0 ? discountedListPrice(base, pct) : null;
+    const period = plan === 'weekly' ? t('premium.perWeek') : t('premium.perMonth');
     if (discounted != null) {
-      el.innerHTML = `<strong>${escapeHtml(formatEuroPrice(discounted))}</strong> <span class="premium-card__was">${escapeHtml(formatEuroPrice(base))}</span> <span>${plan === 'weekly' ? '/ semana' : '/ mes'}</span>`;
+      el.innerHTML = `<strong>${escapeHtml(formatEuroPrice(discounted))}</strong> <span class="premium-card__was">${escapeHtml(formatEuroPrice(base))}</span> <span>${escapeHtml(period)}</span>`;
     } else {
-      el.innerHTML = `<strong>${escapeHtml(formatEuroPrice(base))}</strong> <span>${plan === 'weekly' ? '/ semana' : '/ mes'}</span>`;
+      el.innerHTML = `<strong>${escapeHtml(formatEuroPrice(base))}</strong> <span>${escapeHtml(period)}</span>`;
     }
   });
   let badge = root.querySelector('[data-premium-discount-badge]');
@@ -3652,8 +3665,8 @@ function syncPremiumView() {
       badge = document.createElement('p');
       badge.className = 'premium-promo__badge';
       badge.setAttribute('data-premium-discount-badge', '1');
-      const grid = root.querySelector('.premium-grid');
-      if (grid) grid.before(badge);
+      const plans = root.querySelector('.premium-plans') || root.querySelector('.premium-grid');
+      if (plans) plans.before(badge);
       else root.appendChild(badge);
     }
     badge.hidden = false;
@@ -3865,6 +3878,123 @@ const I18N = {
     'perfil.help': 'Ayuda',
     'perfil.logout': 'Cerrar sesión',
     'perfil.delete': 'Eliminar cuenta',
+
+    'premium.eyebrow': 'Houdini Premium',
+    'premium.title': 'Todos los datos del partido',
+    'premium.planWeekly': 'Semanal',
+    'premium.planMonthly': 'Mensual',
+    'premium.perWeek': '/ semana',
+    'premium.perMonth': '/ mes',
+    'premium.popular': 'Más popular',
+    'premium.featLine': 'Goles · Tiros · Córners · Tarjetas · Top 10',
+    'premium.note': 'Pago seguro. Sin Stripe verás «Pago no configurado».',
+    'premium.bannerBadge': 'OFERTA ESPECIAL',
+    'premium.bannerTitle': 'Houdini Premium',
+    'premium.bannerLead': 'Tip Houdini y estadísticas avanzadas del partido.',
+    'premium.bannerCta': 'Ver planes',
+    'premium.bannerFeat1': 'Tip del partido + 1X2',
+    'premium.bannerFeat2': 'Tablas Goles · Tiros · Córners · Tarjetas',
+    'premium.bannerFeat3': 'Top 10 y combinadas Semanal',
+    'premium.bannerFeat4': 'Probabilidades en vivo',
+    'premium.upsellText': 'Tips, ROI y estadísticas avanzadas van con el plan de pago.',
+    'premium.seePlans': 'Ver planes',
+    'premium.ariaPlans': 'Ver planes Premium',
+    'premiumModal.stripeLater': 'Pago no configurado todavía. Podrás activarlo más adelante.',
+    'aciertos.soonEyebrow': 'En preparación',
+    'aciertos.soonTitle': 'Próximamente',
+    'aciertos.soonLead': 'Aquí llegará una nueva función de seguimiento. Mientras tanto, revisa Top 10 y las probabilidades de cada partido.',
+    'stats.heroTitle': 'Estadísticas de partidos',
+    'stats.heroLead': 'Compara la forma reciente de cada enfrentamiento.',
+    'stats.sortHigh': 'Más altos',
+    'stats.sortLow': 'Más bajos',
+    'stats.prevDay': 'Día anterior',
+    'stats.nextDay': 'Día siguiente',
+    'stats.sortGroup': 'Orden de resultados',
+    'stats.metricGroup': 'Métrica',
+    'stats.metric.goals': 'Goles',
+    'stats.metric.shots': 'Tiros',
+    'stats.metric.corners': 'Córners',
+    'stats.metric.cards': 'Tarjetas',
+    'stats.byLeague': 'Por liga',
+    'stats.backLeagues': '← Ligas',
+    'stats.team': 'Equipo',
+    'stats.allTeams': 'Todos los equipos',
+    'stats.colLeague': 'Liga',
+    'stats.colTotal': 'Partidos totales',
+    'stats.colPlayed': 'Partidos jugados',
+    'stats.colScore': 'Score',
+    'stats.emptyMatches': 'No hay partidos con datos para este día',
+    'stats.label.goals': 'goles',
+    'stats.label.shots': 'tiros',
+    'stats.label.sot': 'tiros a puerta',
+    'stats.label.corners': 'córners',
+    'stats.label.cards': 'tarjetas',
+    'stats.market.OVER_05': 'Total de goles: +0.5',
+    'stats.market.UNDER_05': 'Total de goles: −0.5',
+    'stats.market.OVER_15': 'Total de goles: +1.5',
+    'stats.market.UNDER_15': 'Total de goles: −1.5',
+    'stats.market.OVER_25': 'Total de goles: +2.5',
+    'stats.market.UNDER_25': 'Total de goles: −2.5',
+    'stats.market.OVER_35': 'Total de goles: +3.5',
+    'stats.market.UNDER_35': 'Total de goles: −3.5',
+    'stats.market.OVER_45': 'Total de goles: +4.5',
+    'stats.market.UNDER_45': 'Total de goles: −4.5',
+    'stats.market.OVER_55': 'Total de goles: +5.5',
+    'stats.market.UNDER_55': 'Total de goles: −5.5',
+    'stats.market.BTTS_YES': 'Ambos equipos marcan: SI',
+    'stats.market.BTTS_NO': 'Ambos equipos marcan: NO',
+    'stats.market.HOME_WIN': '1',
+    'stats.market.DRAW': 'X',
+    'stats.market.AWAY_WIN': '2',
+    'stats.market.AVG_YELLOW': 'Media de tarjetas amarillas por partido',
+    'stats.market.AVG_RED': 'Media de tarjetas rojas por partido',
+    'stats.market.AVG_CORNERS': 'Media de córners por partido',
+    'panel.avgTitle': 'Promedios recientes · {unit}',
+    'panel.avgLeague': 'Media liga / equipo',
+    'panel.avgProxy': 'Media proxy (sin muestra liga)',
+    'panel.avgCaption': '{unit} por partido (últimos partidos)',
+    'panel.avgCaptionProxy': '{unit} por partido · liga sin muestra → proxy',
+    'panel.avgCaptionNoTeam': 'Sin muestras de equipo · media proxy de referencia',
+    'panel.avgAria': 'Promedios recientes de {unit}',
+    'chip.liveFull': 'EN VIVO',
+    'round.matchday': 'Matchday {n}',
+    'round.jornada': 'Jornada {n}',
+    'round.group': 'Grupo {g}',
+    'ligas.searchPlaceholder': 'Buscar liga o país…',
+    'ligas.loadingTable': 'Cargando clasificación…',
+    'ligas.noMatchSearch': 'No hay ligas que coincidan',
+    'ligas.unavailable': 'No disponible en datos',
+    'privacy.lead': 'Los tips son informativos. Usamos datos de partidos y cuotas para calcular predicciones. No vendemos datos personales con fines publicitarios. Puedes retirar o cambiar el consentimiento opcional con los interruptores de abajo.',
+    'privacy.legalNav': 'Documentos legales',
+    'privacy.linkPrivacy': 'Privacidad',
+    'privacy.linkCookies': 'Cookies',
+    'privacy.linkNotice': 'Aviso',
+    'privacy.linkTerms': 'Condiciones',
+    'privacy.prefsGroup': 'Preferencias locales',
+    'privacy.analyticsTitle': 'Analytics / telemetría',
+    'privacy.analyticsHint': 'Stub local (consola). No enviamos telemetría de terceros.',
+    'privacy.searchTitle': 'Guardar búsqueda reciente',
+    'privacy.searchHint': 'Recuerda el último equipo buscado en este dispositivo.',
+    'privacy.filtersTitle': 'Recordar filtros',
+    'privacy.filtersHint': 'Conserva fecha y ámbito entre sesiones.',
+    'privacy.manageCookies': 'Gestionar cookies',
+    'privacy.clearDevice': 'Borrar datos de este dispositivo',
+    'privacy.dataTitle': 'Qué se guarda',
+    'privacy.responsible': 'Juega con responsabilidad. Si apuestas, hazlo solo con dinero que puedas permitirte perder.',
+    'privacy.close': 'Cerrar',
+    'consent.optPrefs': 'Preferencias opcionales',
+    'consent.saveCustom': 'Guardar preferencias',
+    'consent.docTitle': 'Documento',
+    'consent.backDoc': '← Volver',
+    'consent.analyticsHintShort': 'Stub local (consola).',
+    'consent.searchTitle': 'Guardar búsqueda',
+    'consent.searchHintShort': 'Último equipo buscado.',
+    'consent.filtersHintShort': 'Fecha y ámbito.',
+    'auth.deleteConfirm': '¿Eliminar tu cuenta de forma permanente? Se borrarán tu sesión y tus datos de acceso.',
+    'toast.apiOffline': 'No hay conexión con la API. Revisa la red e inténtalo de nuevo.',
+    'nav.sections': 'Secciones',
+    'weekly.other': 'Otra',
+    'weekly.days14': '14 días',
     'premium.statusFree': 'Plan gratuito — desbloquea tip y estadísticas avanzadas',
     'premium.statusOn': 'Plan Premium activo',
     'premium.statusUntil': 'Plan Premium activo · hasta {date}',
@@ -4134,6 +4264,123 @@ const I18N = {
     'perfil.help': 'Help',
     'perfil.logout': 'Log out',
     'perfil.delete': 'Delete account',
+
+    'premium.eyebrow': 'Houdini Premium',
+    'premium.title': 'Every match insight unlocked',
+    'premium.planWeekly': 'Weekly',
+    'premium.planMonthly': 'Monthly',
+    'premium.perWeek': '/ week',
+    'premium.perMonth': '/ month',
+    'premium.popular': 'Most popular',
+    'premium.featLine': 'Goals · Shots · Corners · Cards · Top 10',
+    'premium.note': 'Secure checkout. Without Stripe you will see “Payment not configured”.',
+    'premium.bannerBadge': 'SPECIAL OFFER',
+    'premium.bannerTitle': 'Houdini Premium',
+    'premium.bannerLead': 'Houdini tip and advanced match stats.',
+    'premium.bannerCta': 'See plans',
+    'premium.bannerFeat1': 'Match tip + 1X2',
+    'premium.bannerFeat2': 'Goals · Shots · Corners · Cards tables',
+    'premium.bannerFeat3': 'Top 10 and weekly combos',
+    'premium.bannerFeat4': 'Live probabilities',
+    'premium.upsellText': 'Tips, ROI and advanced stats come with Premium.',
+    'premium.seePlans': 'See plans',
+    'premium.ariaPlans': 'See Premium plans',
+    'premiumModal.stripeLater': 'Payment is not configured yet. You can activate later.',
+    'aciertos.soonEyebrow': 'In preparation',
+    'aciertos.soonTitle': 'Coming soon',
+    'aciertos.soonLead': 'A new tracking feature is on the way. Meanwhile, check Top 10 and each match’s probabilities.',
+    'stats.heroTitle': 'Match statistics',
+    'stats.heroLead': 'Compare recent form for every fixture.',
+    'stats.sortHigh': 'Highest',
+    'stats.sortLow': 'Lowest',
+    'stats.prevDay': 'Previous day',
+    'stats.nextDay': 'Next day',
+    'stats.sortGroup': 'Result order',
+    'stats.metricGroup': 'Metric',
+    'stats.metric.goals': 'Goals',
+    'stats.metric.shots': 'Shots',
+    'stats.metric.corners': 'Corners',
+    'stats.metric.cards': 'Cards',
+    'stats.byLeague': 'By league',
+    'stats.backLeagues': '← Leagues',
+    'stats.team': 'Team',
+    'stats.allTeams': 'All teams',
+    'stats.colLeague': 'League',
+    'stats.colTotal': 'Total matches',
+    'stats.colPlayed': 'Played',
+    'stats.colScore': 'Score',
+    'stats.emptyMatches': 'No matches with data for this day',
+    'stats.label.goals': 'goals',
+    'stats.label.shots': 'shots',
+    'stats.label.sot': 'shots on target',
+    'stats.label.corners': 'corners',
+    'stats.label.cards': 'cards',
+    'stats.market.OVER_05': 'Total goals: +0.5',
+    'stats.market.UNDER_05': 'Total goals: −0.5',
+    'stats.market.OVER_15': 'Total goals: +1.5',
+    'stats.market.UNDER_15': 'Total goals: −1.5',
+    'stats.market.OVER_25': 'Total goals: +2.5',
+    'stats.market.UNDER_25': 'Total goals: −2.5',
+    'stats.market.OVER_35': 'Total goals: +3.5',
+    'stats.market.UNDER_35': 'Total goals: −3.5',
+    'stats.market.OVER_45': 'Total goals: +4.5',
+    'stats.market.UNDER_45': 'Total goals: −4.5',
+    'stats.market.OVER_55': 'Total goals: +5.5',
+    'stats.market.UNDER_55': 'Total goals: −5.5',
+    'stats.market.BTTS_YES': 'Both teams to score: YES',
+    'stats.market.BTTS_NO': 'Both teams to score: NO',
+    'stats.market.HOME_WIN': '1',
+    'stats.market.DRAW': 'X',
+    'stats.market.AWAY_WIN': '2',
+    'stats.market.AVG_YELLOW': 'Avg yellow cards per match',
+    'stats.market.AVG_RED': 'Avg red cards per match',
+    'stats.market.AVG_CORNERS': 'Avg corners per match',
+    'panel.avgTitle': 'Recent averages · {unit}',
+    'panel.avgLeague': 'League / team average',
+    'panel.avgProxy': 'Proxy average (no league sample)',
+    'panel.avgCaption': '{unit} per match (recent matches)',
+    'panel.avgCaptionProxy': '{unit} per match · no league sample → proxy',
+    'panel.avgCaptionNoTeam': 'No team samples · reference proxy average',
+    'panel.avgAria': 'Recent averages for {unit}',
+    'chip.liveFull': 'LIVE',
+    'round.matchday': 'Matchday {n}',
+    'round.jornada': 'Matchday {n}',
+    'round.group': 'Group {g}',
+    'ligas.searchPlaceholder': 'Search league or country…',
+    'ligas.loadingTable': 'Loading table…',
+    'ligas.noMatchSearch': 'No leagues match',
+    'ligas.unavailable': 'Not available in data',
+    'privacy.lead': 'Tips are informational. We use match and odds data to compute predictions. We do not sell personal data for ads. You can withdraw or change optional consent with the toggles below.',
+    'privacy.legalNav': 'Legal documents',
+    'privacy.linkPrivacy': 'Privacy',
+    'privacy.linkCookies': 'Cookies',
+    'privacy.linkNotice': 'Notice',
+    'privacy.linkTerms': 'Terms',
+    'privacy.prefsGroup': 'Local preferences',
+    'privacy.analyticsTitle': 'Analytics / telemetry',
+    'privacy.analyticsHint': 'Local stub (console). We do not send third-party telemetry.',
+    'privacy.searchTitle': 'Save recent search',
+    'privacy.searchHint': 'Remembers the last team searched on this device.',
+    'privacy.filtersTitle': 'Remember filters',
+    'privacy.filtersHint': 'Keeps date and scope between sessions.',
+    'privacy.manageCookies': 'Manage cookies',
+    'privacy.clearDevice': 'Clear data on this device',
+    'privacy.dataTitle': 'What is stored',
+    'privacy.responsible': 'Play responsibly. If you bet, only use money you can afford to lose.',
+    'privacy.close': 'Close',
+    'consent.optPrefs': 'Optional preferences',
+    'consent.saveCustom': 'Save preferences',
+    'consent.docTitle': 'Document',
+    'consent.backDoc': '← Back',
+    'consent.analyticsHintShort': 'Local stub (console).',
+    'consent.searchTitle': 'Save search',
+    'consent.searchHintShort': 'Last team searched.',
+    'consent.filtersHintShort': 'Date and scope.',
+    'auth.deleteConfirm': 'Permanently delete your account? Your session and login data will be removed.',
+    'toast.apiOffline': 'No connection to the API. Check your network and try again.',
+    'nav.sections': 'Sections',
+    'weekly.other': 'Another',
+    'weekly.days14': '14 days',
     'premium.statusFree': 'Free plan — unlock tip and advanced stats',
     'premium.statusOn': 'Premium plan active',
     'premium.statusUntil': 'Premium plan active · until {date}',
@@ -4359,6 +4606,21 @@ function refreshUiAfterLangChange() {
   try {
     if (typeof renderLigasView === 'function') renderLigasView();
   } catch (_) {}
+  try {
+    if (typeof renderLeagueStatsMenu === 'function') renderLeagueStatsMenu();
+  } catch (_) {}
+  try {
+    const marketLabel = document.getElementById('league-stats-market-label');
+    if (marketLabel) marketLabel.textContent = t(`stats.market.${leagueStatsMarket}`);
+  } catch (_) {}
+  try {
+    if (typeof loadMatchStatsView === 'function') loadMatchStatsView();
+  } catch (_) {}
+  try {
+    if (typeof loadLeagueStatsView === 'function') loadLeagueStatsView();
+  } catch (_) {}
+  const ligasSearch = document.getElementById('ligas-search');
+  if (ligasSearch) ligasSearch.setAttribute('placeholder', t('ligas.searchPlaceholder'));
   if (selectedMatchId && document.getElementById('panel')?.classList.contains('is-open')) {
     openPrediction(selectedMatchId).catch(() => {});
   }
@@ -4440,9 +4702,7 @@ function closeSettingsModal() {
 }
 
 async function deleteOwnAccount() {
-  const ok = window.confirm(
-    '¿Eliminar tu cuenta de forma permanente? Se borrarán tu sesión y tus datos de acceso.'
-  );
+  const ok = window.confirm(t('auth.deleteConfirm'));
   if (!ok) return;
   try {
     await api('/api/v1/auth/delete', { method: 'POST' });
@@ -5546,7 +5806,9 @@ function matchBoardRowHtml(raw) {
   const tipOdds = raw.tipOdds;
   const prob = tipProbPct(raw);
   const liveBadge =
-    raw.status === 'live' ? '<span class="badge live">EN VIVO</span>' : '';
+    raw.status === 'live'
+      ? `<span class="badge live">${escapeHtml(t('chip.liveFull'))}</span>`
+      : '';
   const score =
     raw.homeGoals != null && raw.awayGoals != null
       ? `<span class="match-score">${Number(raw.homeGoals)}-${Number(raw.awayGoals)}</span>`
@@ -5784,7 +6046,7 @@ function perfTipDisplayHtml(tip) {
   )}">
     <span class="perf-row__tip-blur" aria-hidden="true">${tip}</span>
     <span class="perf-row__tip-premium" aria-hidden="true">
-      <img src="/icons/ui/premium-crown.png?v=hb148" width="13" height="13" alt="" />
+      <img src="/icons/ui/premium-crown.png?v=hb150" width="13" height="13" alt="" />
       Premium
     </span>
   </span>`;
@@ -5936,25 +6198,30 @@ async function loadPerformance() {
   }
 }
 
-const LEAGUE_STATS_MARKETS = [
+const LEAGUE_STATS_MARKET_CODES = [
   ...[0.5, 1.5, 2.5, 3.5, 4.5, 5.5].flatMap((line) => {
     const key = String(line).replace('.', '');
-    const overCode = `OVER_${key[0]}5`;
-    const underCode = `UNDER_${key[0]}5`;
-    return [
-      { code: overCode, label: `Total de goles: +${line}` },
-      { code: underCode, label: `Total de goles: −${line}` },
-    ];
+    return [`OVER_${key[0]}5`, `UNDER_${key[0]}5`];
   }),
-  { code: 'BTTS_YES', label: 'Ambos equipos marcan: SI' },
-  { code: 'BTTS_NO', label: 'Ambos equipos marcan: NO' },
-  { code: 'HOME_WIN', label: '1' },
-  { code: 'DRAW', label: 'X' },
-  { code: 'AWAY_WIN', label: '2' },
-  { code: 'AVG_YELLOW', label: 'Media de tarjetas amarillas por partido' },
-  { code: 'AVG_RED', label: 'Media de tarjetas rojas por partido' },
-  { code: 'AVG_CORNERS', label: 'Media de córners por partido' },
+  'BTTS_YES',
+  'BTTS_NO',
+  'HOME_WIN',
+  'DRAW',
+  'AWAY_WIN',
+  'AVG_YELLOW',
+  'AVG_RED',
+  'AVG_CORNERS',
 ];
+
+function leagueStatsMarkets() {
+  return LEAGUE_STATS_MARKET_CODES.map((code) => ({
+    code,
+    label: t(`stats.market.${code}`),
+  }));
+}
+
+/** @deprecated prefer leagueStatsMarkets() for live locale */
+const LEAGUE_STATS_MARKETS = LEAGUE_STATS_MARKET_CODES.map((code) => ({ code, label: code }));
 
 let leagueStatsMarket = 'OVER_25';
 let leagueStatsActiveOnly = false;
@@ -5968,13 +6235,9 @@ let matchStatsSort = 'high';
 let matchStatsBound = false;
 let matchStatsLoadSeq = 0;
 
-const MATCH_STATS_LABELS = {
-  goals: 'goles',
-  shots: 'tiros',
-  sot: 'tiros a puerta',
-  corners: 'córners',
-  cards: 'tarjetas',
-};
+function matchStatsLabel(metric) {
+  return t(`stats.label.${metric || 'goals'}`);
+}
 
 function formatStatsDate(ymd) {
   const [year, month, day] = String(ymd).split('-').map(Number);
@@ -6024,7 +6287,7 @@ function renderMatchStatsRows(rows) {
           </span>
         </span>
         <span class="match-stats-row__value" aria-label="${escapeHtml(
-          `${MATCH_STATS_LABELS[matchStatsMetric]}: ${matchStatsValue(row.matchAvg)}`
+          `${matchStatsLabel(matchStatsMetric)}: ${matchStatsValue(row.matchAvg)}`
         )}">${escapeHtml(matchStatsValue(row.matchAvg))}</span>
       </button>`;
     })
@@ -6117,20 +6380,23 @@ async function loadMatchStatsView() {
 }
 
 function leagueStatsMarketMeta(code) {
-  return LEAGUE_STATS_MARKETS.find((m) => m.code === code) || LEAGUE_STATS_MARKETS[4];
+  const markets = leagueStatsMarkets();
+  return markets.find((m) => m.code === code) || markets[4];
 }
 
 function renderLeagueStatsMenu() {
   const menu = document.getElementById('league-stats-market-menu');
   if (!menu) return;
-  menu.innerHTML = LEAGUE_STATS_MARKETS.map(
-    (m) =>
-      `<button type="button" class="league-stats__option${
-        m.code === leagueStatsMarket ? ' is-active' : ''
-      }" role="option" data-market="${escapeHtml(m.code)}" aria-selected="${
-        m.code === leagueStatsMarket ? 'true' : 'false'
-      }">${escapeHtml(m.label)}</button>`
-  ).join('');
+  menu.innerHTML = leagueStatsMarkets()
+    .map(
+      (m) =>
+        `<button type="button" class="league-stats__option${
+          m.code === leagueStatsMarket ? ' is-active' : ''
+        }" role="option" data-market="${escapeHtml(m.code)}" aria-selected="${
+          m.code === leagueStatsMarket ? 'true' : 'false'
+        }">${escapeHtml(m.label)}</button>`
+    )
+    .join('');
 }
 
 function setLeagueStatsMarketOpen(open) {
@@ -6463,7 +6729,6 @@ function setActiveNav(hash, { pushHash = true } = {}) {
   if (views) views.dataset.view = view;
   const track = document.getElementById('views-track');
   if (track) track.style.transform = '';
-  if (views) views.classList.remove('views--dragging');
   document.querySelectorAll('.v2-nav__link, .dock__link, .app-tabbar__link').forEach((link) => {
     const target = normalizeViewHash(link.getAttribute('href') || '');
     const active = target === view || (view === 'premium' && false);
@@ -6761,12 +7026,16 @@ const WEEKLY_FAMILY_LABELS = {
   shots: 'tiros / SOT',
 };
 
-const WEEKLY_WINDOW_LABELS = {
-  weekend: 'Fin de semana',
-  this_week: 'Esta semana',
-  next7: 'Próximos 7 días',
-  next14: 'Próximos 14 días',
-};
+function weeklyWindowLabel(win) {
+  const map = {
+    weekend: 'weekly.weekend',
+    this_week: 'weekly.thisWeek',
+    next7: 'weekly.next7',
+    next14: 'weekly.next14',
+  };
+  const key = map[win];
+  return key ? t(key) : win || t('weekly.days14');
+}
 
 
 function weeklyAggressivePicks(data) {
@@ -6839,7 +7108,7 @@ function weeklyEmptyMessage(data) {
       ? WEEKLY_LEAGUE_LABELS[leagueApiId] || `liga ${leagueApiId}`
       : 'las cinco grandes';
   const fam = family ? WEEKLY_FAMILY_LABELS[family] || family : null;
-  const jornada = win ? WEEKLY_WINDOW_LABELS[win] || win : null;
+  const jornada = win ? weeklyWindowLabel(win) : null;
   if (data?.emptyReason === 'no_legs_filtered') {
     const scope = [jornada, liga, fam].filter(Boolean).join(' · ');
     return `No hay selecciones válidas (${scope}) con cuota ≥1,20. Sin inventar mercados.`;
@@ -7050,7 +7319,7 @@ function renderWeeklyCombos(data) {
 
   const af = data?.meta?.activeFilters || {};
   const filterBadge = [
-    af.window ? WEEKLY_WINDOW_LABELS[af.window] || af.window : null,
+    af.window ? weeklyWindowLabel(af.window) : null,
     af.leagueApiId != null
       ? WEEKLY_LEAGUE_LABELS[af.leagueApiId] || `AF ${af.leagueApiId}`
       : null,
@@ -7115,7 +7384,7 @@ async function loadCuotasTarget({ excludeIds = null, resetCycle = true } = {}) {
   loadWeeklySourcesPanel().catch(() => {});
   loadCrestAuditPanel().catch(() => {});
   const scopeHint = [
-    WEEKLY_WINDOW_LABELS[win] || win || '14 días',
+    weeklyWindowLabel(win),
     leagueApiId != null ? WEEKLY_LEAGUE_LABELS[leagueApiId] || String(leagueApiId) : 'top 5',
     family ? WEEKLY_FAMILY_LABELS[family] || family : null,
   ]
@@ -7679,7 +7948,7 @@ async function load() {
   await Promise.allSettled(refreshP ? [statusP, summaryP, refreshP] : [statusP, summaryP]);
 
   if (errors.length >= 2) {
-    showBanner('No hay conexión con la API. Revisa la red e inténtalo de nuevo.', 'error');
+    showBanner(t('toast.apiOffline'), 'error');
   } else if (errors.length) {
     showBanner(`Algunas secciones fallaron (${errors.join(', ')}). El resto sigue disponible.`, 'error');
   } else {
@@ -8117,7 +8386,7 @@ async function openPremiumUpsellModal() {
   if (activate) {
     activate.disabled = !premiumState.stripeConfigured;
     if (!premiumState.stripeConfigured) {
-      setPremiumModalNote('Pago no configurado todavía. Podrás activarlo más adelante.');
+      setPremiumModalNote(t('premiumModal.stripeLater'));
     }
   }
   modal.hidden = false;
@@ -8444,7 +8713,7 @@ document.querySelectorAll('[data-premium-close]').forEach((el) => {
   el.addEventListener('click', closePremiumUpsellModal);
 });
 document.getElementById('premium-modal-activate')?.addEventListener('click', () => {
-  startPremiumCheckout().catch(() => {});
+  startPremiumCheckout('monthly').catch(() => {});
 });
 
 document.addEventListener('keydown', (e) => {
@@ -8656,113 +8925,7 @@ function isDaySwipeExcludedTarget(target, zone) {
   );
 })();
 
-const viewsEl = document.getElementById('views');
-const viewsTrack = document.getElementById('views-track');
-let swipeStartX = 0;
-let swipeStartY = 0;
-let swipeDx = 0;
-let swipeActive = false;
-let swipeLocked = null; // 'h' | 'v'
-
-function currentViewIndex() {
-  const v = viewsEl?.dataset.view;
-  if (v === 'top3') return 1;
-  if (v === 'aciertos') return 2;
-  if (v === 'stats') return 3;
-  if (v === 'ligas') return 4;
-  if (
-    v === 'ajustes' ||
-    v === 'premium' ||
-    v === 'privacidad' ||
-    v === 'cookies' ||
-    v === 'aviso' ||
-    v === 'condiciones'
-  ) {
-    return -1;
-  }
-  return 0;
-}
-
-/** Primary swipe nav between main sections. */
-const VIEW_HASHES = ['#partidos', '#top3', '#aciertos', '#stats', '#ligas'];
-
-function onSwipeStart(x, y, target) {
-  if (document.body.classList.contains('panel-open')) return;
-  // A gesture that starts in the match list is reserved for date navigation.
-  if (document.getElementById('listScreen')?.contains(target)) return;
-  swipeStartX = x;
-  swipeStartY = y;
-  swipeDx = 0;
-  swipeActive = true;
-  swipeLocked = null;
-  viewsEl?.classList.add('views--dragging');
-}
-
-function onSwipeMove(x, y) {
-  if (!swipeActive || !viewsTrack || !viewsEl) return;
-  const dx = x - swipeStartX;
-  const dy = y - swipeStartY;
-  if (!swipeLocked) {
-    if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
-    swipeLocked = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
-    if (swipeLocked === 'v') {
-      swipeActive = false;
-      viewsEl.classList.remove('views--dragging');
-      viewsTrack.style.transform = '';
-      return;
-    }
-  }
-  if (swipeLocked !== 'h') return;
-  swipeDx = dx;
-  const idx = currentViewIndex();
-  if (idx < 0) return; // bandas: no drag preview
-  const base = idx * -100;
-  const width = viewsEl.clientWidth || 1;
-  const pct = (dx / width) * 100;
-  let next = base + pct;
-  if (idx === 0 && dx > 0) next = pct * 0.25;
-  if (idx === VIEW_HASHES.length - 1 && dx < 0) next = -(VIEW_HASHES.length - 1) * 100 + pct * 0.25;
-  viewsTrack.style.transform = `translateX(${next}%)`;
-}
-
-function onSwipeEnd() {
-  if (!viewsEl || !viewsTrack) return;
-  viewsEl.classList.remove('views--dragging');
-  viewsTrack.style.transform = '';
-  if (!swipeActive || swipeLocked !== 'h') {
-    swipeActive = false;
-    return;
-  }
-  swipeActive = false;
-  let idx = currentViewIndex();
-  if (idx < 0) return;
-  const width = viewsEl.clientWidth || 1;
-  if (!hasValidConsent()) return;
-  if (Math.abs(swipeDx) > width * 0.22) {
-    if (swipeDx < 0) idx = Math.min(VIEW_HASHES.length - 1, idx + 1);
-    else idx = Math.max(0, idx - 1);
-  }
-  setActiveNav(VIEW_HASHES[idx]);
-}
-
-viewsEl?.addEventListener(
-  'touchstart',
-  (e) => {
-    if (e.touches.length !== 1) return;
-    onSwipeStart(e.touches[0].clientX, e.touches[0].clientY, e.target);
-  },
-  { passive: true }
-);
-viewsEl?.addEventListener(
-  'touchmove',
-  (e) => {
-    if (!swipeActive || e.touches.length !== 1) return;
-    onSwipeMove(e.touches[0].clientX, e.touches[0].clientY);
-  },
-  { passive: true }
-);
-viewsEl?.addEventListener('touchend', onSwipeEnd);
-viewsEl?.addEventListener('touchcancel', onSwipeEnd);
+/* Tab changes: nav / tabbar taps only — no finger swipe between main views. */
 
 window.addEventListener('hashchange', () => {
   const h = location.hash || '#hoy';

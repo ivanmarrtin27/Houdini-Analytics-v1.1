@@ -223,8 +223,19 @@ export function stripeConfigured(env) {
   return Boolean(
     env &&
       String(env.STRIPE_SECRET_KEY || '').trim() &&
-      String(env.STRIPE_PRICE_ID || '').trim()
+      (String(env.STRIPE_PRICE_ID || '').trim() ||
+        String(env.STRIPE_PRICE_ID_MONTHLY || '').trim() ||
+        String(env.STRIPE_PRICE_ID_WEEKLY || '').trim())
   );
+}
+
+/** Resolve Stripe price for weekly|monthly with fallback to STRIPE_PRICE_ID. */
+export function resolveStripePriceId(env, plan = 'monthly') {
+  const monthly = String(env?.STRIPE_PRICE_ID_MONTHLY || '').trim();
+  const weekly = String(env?.STRIPE_PRICE_ID_WEEKLY || '').trim();
+  const fallback = String(env?.STRIPE_PRICE_ID || '').trim();
+  if (plan === 'weekly') return weekly || fallback || monthly;
+  return monthly || fallback || weekly;
 }
 
 /** Form-encoded body for the Checkout Sessions API (no SDK needed). */
@@ -282,13 +293,15 @@ async function createStripePercentCoupon(env, percentOff, { fetchImpl = fetch } 
 export async function createStripeCheckout(
   env,
   clientReferenceId,
-  { fetchImpl = fetch, percentOff = null, origin: originOpt = null } = {}
+  { fetchImpl = fetch, percentOff = null, origin: originOpt = null, plan = 'monthly' } = {}
 ) {
   if (!stripeConfigured(env)) return { error: 'stripe_not_configured' };
   const origin =
     String(originOpt || '').trim() ||
     String(env.PREMIUM_SUCCESS_URL || '').trim() ||
-    'https://houdini-bet.pages.dev';
+    'https://houdini-analytics.pages.dev';
+  const priceId = resolveStripePriceId(env, plan);
+  if (!priceId) return { error: 'stripe_price_missing' };
   let couponId = null;
   const pct = percentOff != null ? Math.round(Number(percentOff) || 0) : 0;
   if (pct > 0) {
@@ -305,7 +318,7 @@ export async function createStripeCheckout(
     body: checkoutFormBody({
       clientReferenceId,
       origin,
-      priceId: String(env.STRIPE_PRICE_ID).trim(),
+      priceId,
       couponId,
       percentOff: pct > 0 ? pct : null,
     }),

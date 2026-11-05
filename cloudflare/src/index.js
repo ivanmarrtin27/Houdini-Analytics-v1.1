@@ -1198,6 +1198,13 @@ async function handleApi(request, env, ctx) {
 
   if (method === 'POST' && path === '/api/v1/premium/session') {
     const user = await authUserOf(request, db);
+    let plan = 'monthly';
+    try {
+      const body = await request.json();
+      if (body?.plan === 'weekly' || body?.plan === 'monthly') plan = body.plan;
+    } catch (_) {
+      /* empty / non-JSON body → monthly */
+    }
     const cookieValue = premiumService.sessionCookieFromHeader(request.headers.get('cookie'));
     let { premium, session } = await premiumService.resolvePremiumSession(db, cookieValue);
     let setCookie = null;
@@ -1221,6 +1228,7 @@ async function handleApi(request, env, ctx) {
       const checkout = await premiumService.createStripeCheckout(env, String(session.id), {
         origin: new URL(request.url).origin,
         percentOff: pending.percent || null,
+        plan,
       });
       checkoutUrl = checkout.url || null;
       appliedPercentOff = checkout.percentOff || null;
