@@ -14,7 +14,7 @@ App de predicciones de fútbol (Poisson). Producto: **Houdini Analytics v1.1**.
 - Código: carpeta [`cloudflare/`](cloudflare/)
 - Secrets: `SYNC_SECRET`, opcional `API_FOOTBALL_KEY`
 - Vars: `LEAGUE_IDS=140,141,39,135,78,61,5,2,3` (top5 + Segunda + UNL + UCL + UEL)
-- Sync sin key: FixtureDownload (domésticas + UNL + Champions + Europa) + FotMob Friendlies + **Segunda** (LaLiga2); con `API_FOOTBALL_KEY`: odds/stats AF vía `POST /api/v1/sync/enrich` (cron `30 6 * * *`)
+- Sync sin key: FixtureDownload (domésticas + UNL + Champions + Europa) + FotMob Friendlies + **Segunda** (LaLiga2; jornada desde FotMob `round`/`roundName`); con `API_FOOTBALL_KEY`: odds/stats AF vía `POST /api/v1/sync/enrich` (cron `30 6 * * *`)
 - Lista: ventana **hoy + 14 días**; solo ligas allowlist (sin ASEAN / AFC / CAF / CONCACAF NL / WCQ / etc.)
 - Auto-sync si stale >12h
 - En vivo: `POST /api/v1/matches/refresh-live` (cooldown 45 s) + `POST /api/v1/matches/:id/live`; proyección en `src/services/liveModel.js`
@@ -28,10 +28,11 @@ HTML/JS en `cloudflare/public` (mínima). Pulir con `frontend-design` / `web-des
 - Auth: D1 `users`/`auth_sessions`; cookie `hb_auth`; register (username+name+email+phone+password) / login (username|email) /me/logout + Google OAuth; post-register welcome 3s + Premium modal; secrets `AUTH_SECRET` + Google; Aciertos `#aciertos` = Próximamente; Stats vía `#stats`
 - Admin microsite: `https://houdini-bet-admin.pages.dev` ([`cloudflare/admin-pages/`](cloudflare/admin-pages/); DocuForge dark+red; PIN=`SYNC_SECRET`); usage today + daily chart + Web Analytics + D1 `page_hits` (preview 5 + `#hits` historial/búsqueda, limit≤500) + panel Stats tips (`/tips/performance`; público se retirará luego); promo create/list/delete (tipos free_days|free_month|discount_20|40); users search + revoke/enable/delete; secrets `CF_ACCOUNT_ID`/`CF_API_TOKEN` (+ opc. `CF_WEB_ANALYTICS_SITE_TAG`); dominio `houdini-bet.dev` later; ver `cloudflare/docs/ADMIN_PANEL.md`
 - Consent v2 obligatorio: sin `houdini_consent_v1` (choice + ageConfirmed) la app pública queda bloqueada (shell oculto); legales leíbles dentro del gate
-- Nav: desktop `.v2-nav` + PNG icons (`icons/ui/`); mobile bottom `.app-tabbar` (Partidos/Top 10/Aciertos/Stats/Ligas); Premium chip uses `premium-crown.png`; PWA icons derive from the simple Analytics logo; shell cache `hb140`
+- Nav: desktop `.v2-nav` + PNG icons (`icons/ui/`); mobile bottom `.app-tabbar` (Partidos/Top 10/Aciertos/Stats/Ligas); Premium chip uses `premium-crown.png`; brand `houdini-analytics-{mark,icon,lockup}`; header/splash = **isotipo** `icon` (fondo `#000`); panel mid mark **transparente**; PWA desde isotipo; share/canonical `houdini-analytics.pages.dev`; OG = isotipo encuadrado; shell cache `hb148`; panel XI FotMob + tabla completa; search/Ligas nextMatch scoped por liga
 - Free censor: `hbCensorWrap` + `data-hb-censor` → `#premium`; Aciertos tab = **Próximamente** (no tip board público); tip % raw market; admin tips intactos
-- Match chrome: `.league-match` + hero `.mp-teams`; panel mid scheduled = **hora** (no VS/NS); **panel sin tip banner**; logos + jornada (`round_number` / `round_group`); brand/logo wrappers fondo `#000`
-- Prob pills/barras: ≥60% verde · 40–59% ámbar · 25–39% neutro · &lt;25% rojo soft (`hbPillTone` / `mp-stat__fill--*`)
+- Match chrome: `.league-match` + hero `.mp-teams`; panel mid scheduled = **hora** (no VS/NS); **panel sin tip banner**; logos; jornada en panel meta (`round_number` / `round_group`), **no** en lista Partidos; escudos contain sin crop circular (móvil mayores); splash/header pad `#000`
+- Prob pills/barras: &gt;80% verde · 60–80% ámbar · 50–59% gris · &lt;50% rojo soft (`hbPillTone` / `mp-stat__fill--*`)
+- Stats: date-sort fecha|sort en todos los anchos; metrics PNG homogéneos (avg-/shots/sot); `matchAvg` = xG/expected panel (no raw histórico); sin `match-stats-row__samples`; Ligas detail head: chevron + logo + hairline
 - Stats móvil: `.match-stats__metric` una línea homogénea (flex equal / snap)
 - Ligas móvil: tabla slide-desde-derecha (mismo patrón que panel análisis); `#ligas/<apiId>` + atrás
 - Partidos chrome: chips estado (Todos/En vivo/Finalizados/Próximos); **sin** scope Todas/clubs/intl (siempre all)
@@ -43,7 +44,7 @@ HTML/JS en `cloudflare/public` (mínima). Pulir con `frontend-design` / `web-des
 - Top 10 (hash `#top3`): **día seleccionado**; fill `min(10, N)`; P≥78% + backfill ≥69%; cuota **max 3.50**; **no hard-min 1.30**; anti-trivial / no SHOTS_*; diversity labels/familias; **solo tip primary**; tip_results / tip board ricos → **admin**; Aciertos público = Próximamente
 - Panel General: O1.5 / O2.5 / BTTS + Media liga n≥20; **sin** tip/suggest
 - 1X2 · DC/DNB · O/U 0.5–4.5 · BTTS (secondary) · corners/cards/SOT · value ≥5% (book); **nunca SHOTS_***
-- Panel ladders: SOT 0.5–11.5; córners 1.5–11.5; tarjetas 0.5–5.5; Tiros 14.5–24.5; Over+Under; BTTS en Goles; shell `hb140`
+- Panel ladders: SOT 0.5–11.5; córners 1.5–11.5; tarjetas 0.5–5.5; Tiros 14.5–24.5; Over+Under; BTTS en Goles; General icons `over-goals`/`avg-*` PNG (BTTS intacto); shell `hb148`
 - Top 10: tip label + % only
 - Tips: anti-trivial; lane **P≥78%** + cuota≥1.25; solo playable en `tip_results`; BTTS secondary-only
 - Stats primario = `/stats/match-averages` (métricas en una línea móvil); tip % = tipMarketProb raw

@@ -66,6 +66,18 @@ function parseElapsed(st) {
   return null;
 }
 
+/** FotMob league fixtures: roundName (number) or round ("1" / "Round 1"). */
+export function parseFotmobRoundNumber(match) {
+  const fromName = Number(match?.roundName);
+  if (Number.isFinite(fromName) && fromName > 0) return fromName;
+  const raw = String(match?.round ?? '').trim();
+  if (!raw) return null;
+  const m = raw.match(/(\d+)/);
+  if (!m) return null;
+  const n = Number(m[1]);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 function mapMatch(match) {
   const status = mapStatus(match.status);
   if (!status) return null;
@@ -90,6 +102,8 @@ function mapMatch(match) {
     homeGoals: status === 'finished' || status === 'live' ? homeGoals : null,
     awayGoals: status === 'finished' || status === 'live' ? awayGoals : null,
     elapsed_minute: status === 'live' ? parseElapsed(match.status) : null,
+    roundNumber: parseFotmobRoundNumber(match),
+    roundGroup: null,
     api_id: FOTMOB_DOMESTIC_MATCH_BASE + fmId,
     homeTeamApiId: teamApiId(SEGUNDA.leagueApiId, homeName),
     awayTeamApiId: teamApiId(SEGUNDA.leagueApiId, awayName),

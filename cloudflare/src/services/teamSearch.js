@@ -81,7 +81,7 @@ export function leagueSearchPriority(leagueName) {
   return 5;
 }
 
-function clubDedupeKey(row) {
+export function clubDedupeKey(row) {
   const logo = String(row.logo_url || '');
   const af = logo.match(/\/(?:football\/)?teams\/(\d+)\./i);
   if (af) return `af:${af[1]}`;

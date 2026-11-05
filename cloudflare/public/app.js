@@ -641,20 +641,20 @@ function hbCensorWrap(html, { block = false } = {}) {
   )}">
     <div class="hb-censor__veil" aria-hidden="true">${html}</div>
     <div class="hb-censor__lock" aria-hidden="true">
-      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb140" width="22" height="22" alt="" decoding="async" />
+      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb148" width="22" height="22" alt="" decoding="async" />
       <span class="hb-censor__lock-title">${escapeHtml(t('censor.title'))}</span>
       <span class="hb-censor__lock-sub">${escapeHtml(t('censor.sub'))}</span>
     </div>
   </div>`;
 }
 
-/** Prob bands: ≥60% hi · 40–59% mid · 25–39% neu · <25% lo */
+/** Prob bands: >80% hi · 60–80% mid · 50–59% neu · <50% lo */
 function hbPillTone(v) {
   const n = Number(v);
   if (!Number.isFinite(n)) return 'muted';
-  if (n >= 0.6) return 'hi';
-  if (n >= 0.4) return 'mid';
-  if (n >= 0.25) return 'neu';
+  if (n > 0.8) return 'hi';
+  if (n >= 0.6) return 'mid';
+  if (n >= 0.5) return 'neu';
   return 'lo';
 }
 
@@ -1325,9 +1325,9 @@ function flagUrlForTeam(name) {
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/ø/g, 'o')
     .replace(/æ/g, 'ae')
-    .replace(/å/g, 'a')
-    .replace(/ł/g, 'l')
-    .replace(/đ/g, 'd')
+    .replace(/Ã¥/g, 'a')
+    .replace(/Å'/g, 'l')
+    .replace(/Ä'/g, 'd')
     .replace(/&/g, ' and ')
     .replace(/\//g, ' ')
     .replace(/nott'?m\b/g, 'nottm')
@@ -1544,9 +1544,9 @@ function normalizeCrestKey(name) {
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/ø/g, 'o')
     .replace(/æ/g, 'ae')
-    .replace(/å/g, 'a')
-    .replace(/ł/g, 'l')
-    .replace(/đ/g, 'd')
+    .replace(/Ã¥/g, 'a')
+    .replace(/Å'/g, 'l')
+    .replace(/Ä'/g, 'd')
     .replace(/&/g, ' and ')
     .replace(/\//g, ' ')
     .replace(/[^a-z0-9.\s'-]/g, ' ')
@@ -1657,7 +1657,7 @@ function mpVsMidLabel(m, live) {
 }
 
 function mpVsBrandMarkHtml() {
-  return `<img class="mp-vs__brand" src="/brand/houdini-bet-wordmark.png?v=hb140" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
+  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb148" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
 }
 
 function mpVsMidHtml(m, live) {
@@ -1911,11 +1911,9 @@ function livePanelHtml(live, homeName, awayName) {
     </section>`;
 }
 
-function browseRoundHtml(m) {
-  const round = formatRoundLabel(m);
-  return round
-    ? `<span class="league-match__round">${escapeHtml(round)}</span>`
-    : '';
+function browseRoundHtml(_m) {
+  /* Lista Partidos: sin jornada (sigue en panel .mp-meta). */
+  return '';
 }
 
 function browseMidHtml(m) {
@@ -1950,21 +1948,18 @@ function sumRecentAvg(recentAvgs, key) {
   return Number(((Number(h) || 0) + (Number(a) || 0)).toFixed(2));
 }
 
-const UI_ICON_V = 'hb140';
+const UI_ICON_V = 'hb148';
 const MP_STAT_ICON_PX = 20;
 const mpStatImg = (file) =>
   `<img class="mp-stat__icon mp-stat__icon--img" src="/icons/ui/${file}?v=${UI_ICON_V}" width="${MP_STAT_ICON_PX}" height="${MP_STAT_ICON_PX}" alt="" aria-hidden="true" decoding="async" />`;
 
 const MP_STAT_ICONS = {
-  /* O2.5: portería + dos balones (más denso) */
-  o25: `<svg class="mp-stat__icon" viewBox="0 0 24 24" width="${MP_STAT_ICON_PX}" height="${MP_STAT_ICON_PX}" aria-hidden="true" focusable="false"><path d="M5 19V8h14v11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9.2" cy="13.2" r="2.35" fill="none" stroke="currentColor" stroke-width="1.35"/><circle cx="14.8" cy="13.2" r="2.35" fill="none" stroke="currentColor" stroke-width="1.35"/></svg>`,
-  /* O1.5: misma portería + un balón (más simple) */
-  o15: `<svg class="mp-stat__icon" viewBox="0 0 24 24" width="${MP_STAT_ICON_PX}" height="${MP_STAT_ICON_PX}" aria-hidden="true" focusable="false"><path d="M5 19V8h14v11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="13.4" r="2.6" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>`,
+  o25: mpStatImg('over-goals.png'),
+  o15: mpStatImg('over-goals.png'),
   btts: mpStatImg('btts.png'),
-  goals: mpStatImg('goals.png'),
-  /* Córners: banderín de córner */
-  corners: `<svg class="mp-stat__icon" viewBox="0 0 24 24" width="${MP_STAT_ICON_PX}" height="${MP_STAT_ICON_PX}" aria-hidden="true" focusable="false"><path d="M7 21V4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M7 4.2l11 3.4-11 3.4V4.2z" fill="currentColor" opacity=".88"/><path d="M4 21h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
-  cards: mpStatImg('cards.png'),
+  goals: mpStatImg('avg-goals.png'),
+  corners: mpStatImg('avg-corners.png'),
+  cards: mpStatImg('avg-cards.png'),
 };
 
 function keyStatCard({ title, valueHtml, barPct, tone = 'accent', sub = '', iconHtml = '' }) {
@@ -2003,7 +1998,7 @@ function pctStatCard(title, prob, leagueRate = null, iconHtml = '') {
     });
   }
   const n = Math.trunc(p * 100);
-  const tone = n >= 60 ? 'hi' : n >= 40 ? 'mid' : n >= 25 ? 'neu' : 'lo';
+  const tone = n > 80 ? 'hi' : n >= 60 ? 'mid' : n >= 50 ? 'neu' : 'lo';
   return keyStatCard({
     title,
     valueHtml: `<span class="mp-stat__num" data-count-to="${n}" data-count-suffix="%">0%</span>`,
@@ -2449,6 +2444,48 @@ function h2hHtml(h2h, homeName) {
       <div class="mp-section-title">Últimos enfrentamientos</div>
       <ul class="mp-h2h__list">${list}</ul>
     </section>`;
+}
+
+function lineupSideHtml(side, label) {
+  if (!side?.starters?.length) return '';
+  const formation = side.formation
+    ? `<div class="mp-lineups__formation muted">${escapeHtml(side.formation)}</div>`
+    : '';
+  const players = side.starters
+    .map((p) => {
+      const shirt =
+        p.shirt != null ? `<span class="mp-lineups__shirt">${escapeHtml(String(p.shirt))}</span>` : '';
+      return `<li class="mp-lineups__player">${shirt}<span class="mp-lineups__name">${escapeHtml(
+        p.name || ''
+      )}</span></li>`;
+    })
+    .join('');
+  return `<div class="mp-lineups__side">
+    <div class="mp-lineups__side-title">${escapeHtml(label)}</div>
+    ${formation}
+    <ul class="mp-lineups__list">${players}</ul>
+  </div>`;
+}
+
+/** XI above the table; muted empty state when FotMob has no lineup yet. */
+function lineupsHtml(lineups, homeName, awayName) {
+  const home = lineups?.home || null;
+  const away = lineups?.away || null;
+  const hasAny = Boolean(home?.starters?.length || away?.starters?.length);
+  const title = escapeHtml(t('panel.lineups'));
+  if (!hasAny) {
+    return `<section class="mp-lineups">
+      <div class="mp-section-title">${title}</div>
+      <p class="mp-lineups__empty muted">${escapeHtml(t('panel.lineupsPending'))}</p>
+    </section>`;
+  }
+  return `<section class="mp-lineups">
+    <div class="mp-section-title">${title}</div>
+    <div class="mp-lineups__cols">
+      ${lineupSideHtml(home, homeName || 'Local') || '<div class="mp-lineups__side muted">—</div>'}
+      ${lineupSideHtml(away, awayName || 'Visitante') || '<div class="mp-lineups__side muted">—</div>'}
+    </div>
+  </section>`;
 }
 
 /** Mini league table with the two teams of the match highlighted. */
@@ -3075,13 +3112,19 @@ function bindLigasStandingsRows(root) {
       if (!Number.isFinite(teamId) || teamId <= 0) return;
       try {
         showBanner(t('toast.nextMatchSearch'), 'info');
-        const insight = await api(`/api/v1/teams/${teamId}`);
+        const leagueQ =
+          Number.isFinite(Number(ligasActiveD1Id)) && Number(ligasActiveD1Id) > 0
+            ? `?leagueId=${Number(ligasActiveD1Id)}`
+            : '';
+        const insight = await api(`/api/v1/teams/${teamId}${leagueQ}`);
         const nextId = Number(insight?.nextMatch?.id);
         if (!Number.isFinite(nextId) || nextId <= 0) {
           showBanner(t('toast.noNextMatch'), 'info');
           return;
         }
         showBanner('');
+        closeLigasMobileOverlay();
+        setLigasSelectionVisible(false);
         setActiveNav('#partidos');
         selectedMatchId = nextId;
         openPrediction(nextId).catch((err) => showBanner(err.message || 'Error al abrir', 'error'));
@@ -3099,6 +3142,22 @@ function bindLigasStandingsRows(root) {
       }
     });
   });
+}
+
+function setLigasDetailLogo(url) {
+  const logoEl = document.getElementById('ligas-detail-logo');
+  if (!logoEl) return;
+  const src = url ? String(url).trim() : '';
+  if (!src) {
+    logoEl.removeAttribute('src');
+    logoEl.hidden = true;
+    return;
+  }
+  logoEl.src = src;
+  logoEl.hidden = false;
+  logoEl.onerror = () => {
+    logoEl.hidden = true;
+  };
 }
 
 async function showLigasTable(apiId, { pushHash = true } = {}) {
@@ -3122,6 +3181,7 @@ async function showLigasTable(apiId, { pushHash = true } = {}) {
   const folderLeague = LIGAS_FOLDERS.flatMap((f) => f.leagues).find((l) => l.apiId === aid);
   if (nameEl) nameEl.textContent = folderLeague?.name || leagueLabelEs('', aid) || `Liga ${aid}`;
   if (metaEl) metaEl.textContent = 'Cargando clasificación…';
+  setLigasDetailLogo(folderLeague?.logoUrl || null);
   tableEl.innerHTML = Array.from({ length: 6 }, () => `<div class="skeleton" aria-hidden="true"></div>`).join('');
 
   try {
@@ -3130,10 +3190,12 @@ async function showLigasTable(apiId, { pushHash = true } = {}) {
     if (!known) {
       ligasActiveD1Id = null;
       if (metaEl) metaEl.textContent = 'No disponible en datos';
+      setLigasDetailLogo(null);
       tableEl.innerHTML = `<p class="ligas-standings__empty">${escapeHtml(t('ligas.noTable'))}</p>`;
       return;
     }
     ligasActiveD1Id = known.id;
+    setLigasDetailLogo(known.logoUrl || folderLeague?.logoUrl || null);
     const data = await api(`/api/v1/leagues/${aid}/table`);
     const league = data.league || known;
     ligasActiveD1Id = Number(league.id) || known.id;
@@ -3145,6 +3207,9 @@ async function showLigasTable(apiId, { pushHash = true } = {}) {
       const bits = [countryLabel(league.country), folderLeague?.tag].filter(Boolean);
       metaEl.textContent = bits.length ? bits.join(' · ') : 'Clasificación';
     }
+    setLigasDetailLogo(
+      league.logoUrl || league.logo_url || known.logoUrl || folderLeague?.logoUrl || null
+    );
     tableEl.innerHTML = ligasStandingsHtml(data.table || []);
     bindLigasStandingsRows(tableEl);
   } catch (err) {
@@ -3176,6 +3241,7 @@ function hideLigasTable({ pushHash = true } = {}) {
   if (pushHash && location.hash !== '#ligas') history.replaceState(null, '', '#ligas');
   const tableEl = document.getElementById('ligas-table');
   if (tableEl) tableEl.innerHTML = '';
+  setLigasDetailLogo(null);
 }
 
 function renderLigasFolders(catalog) {
@@ -3828,6 +3894,9 @@ const I18N = {
     'panel.tabGoals': 'Goles',
     'panel.tabShots': 'Tiros',
     'panel.tabSot': 'Tiros a puerta',
+    'stats.metric.sot': 'Tiros a puerta',
+    'panel.lineups': 'Alineaciones',
+    'panel.lineupsPending': 'Alineaciones aún no publicadas',
     'panel.tabCorners': 'Córners',
     'panel.tabCards': 'Tarjetas',
     'panel.keyProbs': 'Probabilidades clave',
@@ -4094,6 +4163,9 @@ const I18N = {
     'panel.tabGoals': 'Goals',
     'panel.tabShots': 'Shots',
     'panel.tabSot': 'Shots on target',
+    'stats.metric.sot': 'Shots on target',
+    'panel.lineups': 'Lineups',
+    'panel.lineupsPending': 'Lineups not published yet',
     'panel.tabCorners': 'Corners',
     'panel.tabCards': 'Cards',
     'panel.keyProbs': 'Key probabilities',
@@ -5712,7 +5784,7 @@ function perfTipDisplayHtml(tip) {
   )}">
     <span class="perf-row__tip-blur" aria-hidden="true">${tip}</span>
     <span class="perf-row__tip-premium" aria-hidden="true">
-      <img src="/icons/ui/premium-crown.png?v=hb140" width="13" height="13" alt="" />
+      <img src="/icons/ui/premium-crown.png?v=hb148" width="13" height="13" alt="" />
       Premium
     </span>
   </span>`;
@@ -5933,8 +6005,6 @@ function renderMatchStatsRows(rows) {
     .map((row, index) => {
       const home = row.homeTeam || {};
       const away = row.awayTeam || {};
-      const homeN = Number(row.homeAverage?.sample) || 0;
-      const awayN = Number(row.awayAverage?.sample) || 0;
       const league = leagueLabelEs(row);
       const leagueLogo = leagueLogoHtml(row.leagueLogo, 'match-stats-row__league-logo');
       return `<button type="button" class="match-stats-row" data-analyze="${Number(row.id)}" role="listitem">
@@ -5952,9 +6022,6 @@ function renderMatchStatsRows(rows) {
               league
             )}</span>
           </span>
-          <span class="match-stats-row__samples">Local ${homeN} · Visitante ${awayN} · ${escapeHtml(
-            formatMatchTimeShort(row.matchDate) || 'Sin hora'
-          )}</span>
         </span>
         <span class="match-stats-row__value" aria-label="${escapeHtml(
           `${MATCH_STATS_LABELS[matchStatsMetric]}: ${matchStatsValue(row.matchAvg)}`
@@ -7426,6 +7493,7 @@ async function openPrediction(id) {
             <h3 class="mp-section-title">${escapeHtml(t('panel.keyProbs'))}</h3>
             <div class="mp-grid">${keyCards}</div>
             ${h2hHtml(bundle.h2h, homeName)}
+            ${lineupsHtml(bundle.lineups, homeName, awayName)}
             ${leagueTableHtml(bundle.leagueTable, homeName, awayName)}
           </div>
           <div class="mp-panel" data-mp-panel="goles" role="tabpanel" hidden>${goalsPanel}</div>
@@ -7462,29 +7530,44 @@ async function searchTeam(q) {
       return;
     }
     box.innerHTML = teams
-      .map(
-        (t) => `
-    <button class="search-hit" type="button" data-team="${Number(t.id)}" role="option">
-      ${crestHtml(t.name, t.logo_url || t.logo, 'sm')}
+      .map((hit) => {
+        const matchId = Number(hit.nextMatchId);
+        return `
+    <button class="search-hit" type="button" data-match="${
+      Number.isFinite(matchId) && matchId > 0 ? matchId : ''
+    }" data-team="${Number(hit.id)}" role="option">
+      ${crestHtml(hit.name, hit.logo_url || hit.logo, 'sm')}
       <span>
-        <span class="search-hit__name">${escapeHtml(t.name)}</span>
+        <span class="search-hit__name">${escapeHtml(hit.name)}</span>
         <span class="search-hit__meta">${escapeHtml(
-          formatLeagueLine(t.league_country || t.country || '', t.league_name || '', t.league_api_id)
+          formatLeagueLine(
+            hit.league_country || hit.country || '',
+            hit.league_name || '',
+            hit.league_api_id
+          )
         )}</span>
       </span>
       <span class="search-hit__go">Abrir</span>
-    </button>`
-      )
+    </button>`;
+      })
       .join('');
-    box.querySelectorAll('[data-team]').forEach((btn) => {
+    box.querySelectorAll('.search-hit').forEach((btn) => {
       btn.addEventListener('click', async () => {
         try {
-          const insight = await api(`/api/v1/teams/${btn.dataset.team}`);
           document.getElementById('team-search').value = '';
           box.classList.add('hidden');
           box.innerHTML = '';
+          const matchId = Number(btn.dataset.match);
+          if (Number.isFinite(matchId) && matchId > 0) {
+            openPrediction(matchId);
+            return;
+          }
+          const insight = await api(`/api/v1/teams/${btn.dataset.team}`);
           if (insight.nextMatch?.id) openPrediction(insight.nextMatch.id);
-          else openPanel(`<div class="muted">Sin próximo partido para ${escapeHtml(insight.team?.name)}.</div>`);
+          else
+            openPanel(
+              `<div class="muted">Sin próximo partido para ${escapeHtml(insight.team?.name)}.</div>`
+            );
         } catch (err) {
           openPanel(`<div class="conf-lo">${escapeHtml(err.message)}</div>`);
         }

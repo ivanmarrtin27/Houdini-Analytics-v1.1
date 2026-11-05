@@ -1649,7 +1649,7 @@ async function handleApi(request, env, ctx) {
   if (method === 'GET' && path === '/api/v1/teams/search') {
     const q = (url.searchParams.get('q') || '').trim();
     if (!q) return json({ error: 'Parámetro q requerido' }, 400);
-    const teams = await store.searchTeams(db, q);
+    const teams = await store.searchTeamsMultiLeague(db, q, 20);
     return json({
       teams: teams.map((t) => ({
         ...t,
@@ -1664,7 +1664,11 @@ async function handleApi(request, env, ctx) {
     const team = await store.findTeamById(db, id);
     if (!team) return json({ error: 'Equipo no encontrado' }, 404);
     const stats = await store.lastNForTeam(db, id, 5);
-    const nextMatch = await store.getNextForTeam(db, id);
+    const leagueIdParam = Number(url.searchParams.get('leagueId'));
+    const nextMatch =
+      Number.isFinite(leagueIdParam) && leagueIdParam > 0
+        ? await store.getNextForTeamInLeague(db, id, leagueIdParam)
+        : await store.getNextForTeam(db, id);
     let prediction = null;
     if (nextMatch) prediction = await getPredictionBundle(db, nextMatch.id);
     return json({

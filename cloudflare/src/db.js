@@ -9,9 +9,12 @@ import {
 import { buildCombos, comboOptsForBand } from './services/combos.js';
 import { ALLOWED_LEAGUE_SQL } from './services/leagueAllowlist.js';
 import {
+  clubDedupeKey,
+  leagueSearchPriority,
   rankTeamSearchRows,
   searchNameVariants,
   sqlLikePatternsForVariant,
+  teamSearchScore,
 } from './services/teamSearch.js';
 import { computeStakeResults, computeStakeResultsBy } from './services/roi.js';
 
@@ -216,6 +219,8 @@ export async function listMatchAveragesForDate(
   const safeSort = sort === 'low' ? 'low' : 'high';
   const sampleSize = Math.max(1, Math.min(30, Number(n) || 10));
   const matches = await getByDate(db, date);
+  const leagueAvgCache = new Map();
+  const { metricExpectedMatchAvg } = await import('./services/predictionService.js');
   const rows = await Promise.all(
     matches.map(async (match) => {
       const [homeRows, awayRows] = await Promise.all([
@@ -224,10 +229,32 @@ export async function listMatchAveragesForDate(
       ]);
       const home = teamMetricAverage(homeRows, safeMetric);
       const away = teamMetricAverage(awayRows, safeMetric);
-      const matchAvg =
-        home.avg != null || away.avg != null
-          ? Number(((home.avg || 0) + (away.avg || 0)).toFixed(2))
-          : null;
+      let matchAvg = null;
+      if (safeMetric === 'goals') {
+        const pred = await db.first(
+          `SELECT home_xg, away_xg FROM predictions WHERE match_id = ?`,
+          match.id
+        );
+        const hx = pred?.home_xg != null ? Number(pred.home_xg) : null;
+        const ax = pred?.away_xg != null ? Number(pred.away_xg) : null;
+        if (hx != null && Number.isFinite(hx) && ax != null && Number.isFinite(ax)) {
+          matchAvg = Number((hx + ax).toFixed(2));
+        }
+      } else {
+        const leagueId = Number(match.leagueId ?? match.league_id);
+        let league = leagueAvgCache.get(leagueId);
+        if (!league && Number.isFinite(leagueId) && leagueId > 0) {
+          league = await leagueGoalAverages(db, leagueId);
+          leagueAvgCache.set(leagueId, league);
+        }
+        if (league) {
+          matchAvg = metricExpectedMatchAvg(homeRows, awayRows, league, safeMetric);
+        }
+      }
+      /* Fallback: raw historical sum (legacy) if model/xg missing */
+      if (matchAvg == null && (home.avg != null || away.avg != null)) {
+        matchAvg = Number(((home.avg || 0) + (away.avg || 0)).toFixed(2));
+      }
       return {
         ...match,
         metric: safeMetric,
@@ -388,6 +415,49 @@ export async function getNextForTeam(db, teamId) {
   return mapMatch(row);
 }
 
+/** Next scheduled/live match for a team in one league (D1 league id). */
+export async function getNextForTeamInLeague(db, teamId, leagueId) {
+  const tid = Number(teamId);
+  const lid = Number(leagueId);
+  if (!Number.isFinite(tid) || tid <= 0 || !Number.isFinite(lid) || lid <= 0) return null;
+  const row = await db.first(
+    `${MATCH_SELECT}
+     WHERE (m.home_team_id = ? OR m.away_team_id = ?)
+       AND m.league_id = ?
+       AND m.status IN ('scheduled', 'live')
+       AND m.match_date >= datetime('now')
+       ${EXCLUDE_DEMO_SCHEDULED_M}
+       ${ALLOWED_LEAGUE_SQL}
+     ORDER BY m.match_date ASC
+     LIMIT 1`,
+    tid,
+    tid,
+    lid
+  );
+  return mapMatch(row);
+}
+
+/** Upcoming allowlisted matches for a team, soonest first (for search multi-league). */
+export async function listUpcomingMatchesForTeam(db, teamId, limit = 12) {
+  const tid = Number(teamId);
+  if (!Number.isFinite(tid) || tid <= 0) return [];
+  const lim = Math.max(1, Math.min(30, Number(limit) || 12));
+  const rows = await db.all(
+    `${MATCH_SELECT}
+     WHERE (m.home_team_id = ? OR m.away_team_id = ?)
+       AND m.status IN ('scheduled', 'live')
+       AND m.match_date >= datetime('now')
+       ${EXCLUDE_DEMO_SCHEDULED_M}
+       ${ALLOWED_LEAGUE_SQL}
+     ORDER BY m.match_date ASC
+     LIMIT ?`,
+    tid,
+    tid,
+    lim
+  );
+  return rows.map(mapMatch).filter(Boolean);
+}
+
 export async function listLeagues(db) {
   return db.all(
     `SELECT * FROM leagues l
@@ -419,7 +489,7 @@ export async function searchTeams(db, q, limit = 15) {
   const likeSql = patterns.map(() => 'LOWER(t.name) LIKE ?').join(' OR ');
 
   const rows = await db.all(
-    `SELECT t.*, l.name AS league_name, l.api_id AS league_api_id
+    `SELECT t.*, l.name AS league_name, l.api_id AS league_api_id, l.country AS league_country
      FROM teams t JOIN leagues l ON l.id = t.league_id
      WHERE (${likeSql})
      ${ALLOWED_LEAGUE_SQL}
@@ -428,6 +498,88 @@ export async function searchTeams(db, q, limit = 15) {
     fetchLimit
   );
   return rankTeamSearchRows(rows, raw).slice(0, Math.max(1, Math.min(30, Number(limit) || 15)));
+}
+
+/**
+ * Search hits as (club × upcoming league): one row per competition with a next match.
+ * Uses scored team rows (no early club collapse) + upcoming fixtures grouped by league.
+ */
+export async function searchTeamsMultiLeague(db, q, limit = 20) {
+  const raw = String(q || '').trim();
+  if (!raw) return [];
+  const lim = Math.max(1, Math.min(30, Number(limit) || 20));
+  const variants = searchNameVariants(raw);
+  const patterns = [...new Set(variants.flatMap(sqlLikePatternsForVariant))];
+  if (!patterns.length) return [];
+
+  const fetchLimit = Math.min(100, lim * 6);
+  const likeSql = patterns.map(() => 'LOWER(t.name) LIKE ?').join(' OR ');
+  const rows = await db.all(
+    `SELECT t.*, l.name AS league_name, l.api_id AS league_api_id, l.country AS league_country
+     FROM teams t JOIN leagues l ON l.id = t.league_id
+     WHERE (${likeSql})
+     ${ALLOWED_LEAGUE_SQL}
+     LIMIT ?`,
+    ...patterns,
+    fetchLimit
+  );
+
+  const scored = (rows || [])
+    .map((row) => ({
+      row,
+      score: teamSearchScore(raw, row.name),
+      leaguePri: leagueSearchPriority(row.league_name),
+    }))
+    .filter((x) => x.score >= 75)
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        a.leaguePri - b.leaguePri ||
+        String(a.row.name).localeCompare(String(b.row.name))
+    );
+
+  const hits = [];
+  const seenClubLeague = new Set();
+  const visitedTeam = new Set();
+
+  for (const item of scored) {
+    const team = item.row;
+    const tid = Number(team.id);
+    if (!Number.isFinite(tid) || tid <= 0 || visitedTeam.has(tid)) continue;
+    visitedTeam.add(tid);
+
+    const upcoming = await listUpcomingMatchesForTeam(db, tid, 12);
+    const byLeague = new Map();
+    for (const m of upcoming) {
+      const lid = Number(m.leagueId);
+      if (!Number.isFinite(lid) || lid <= 0) continue;
+      if (!byLeague.has(lid)) byLeague.set(lid, m);
+    }
+
+    // Also cover the team's home-league row when fixtures use sibling ids.
+    if (team.league_id != null && !byLeague.has(Number(team.league_id))) {
+      const nextInHome = await getNextForTeamInLeague(db, tid, team.league_id);
+      if (nextInHome) byLeague.set(Number(team.league_id), nextInHome);
+    }
+
+    for (const [lid, m] of byLeague) {
+      const key = `${clubDedupeKey(team)}:${lid}`;
+      if (seenClubLeague.has(key)) continue;
+      seenClubLeague.add(key);
+      hits.push({
+        ...team,
+        league_id: lid,
+        league_name: m.leagueName || team.league_name,
+        league_api_id: m.leagueApiId ?? team.league_api_id,
+        league_country: m.leagueCountry || team.league_country || null,
+        nextMatchId: m.id,
+        score: item.score,
+      });
+      if (hits.length >= lim) return hits;
+    }
+  }
+
+  return hits;
 }
 
 export async function findTeamById(db, id) {

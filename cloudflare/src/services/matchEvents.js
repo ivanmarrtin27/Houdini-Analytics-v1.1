@@ -228,6 +228,85 @@ export async function fetchFotmobMatchDetails(fotmobId) {
   return res.json();
 }
 
+function lineupPlayerName(p) {
+  if (!p || typeof p !== 'object') return null;
+  return (
+    p.name ||
+    p.fullName ||
+    p.nameStr ||
+    p.playerName ||
+    p.player?.name ||
+    null
+  );
+}
+
+function lineupShirt(p) {
+  if (!p || typeof p !== 'object') return null;
+  const n = p.shirtNumber ?? p.shirt ?? p.number ?? p.jerseyNumber ?? null;
+  const num = Number(n);
+  return Number.isFinite(num) && num > 0 ? num : null;
+}
+
+function parseLineupSide(side) {
+  if (!side || typeof side !== 'object') return null;
+  const startersRaw =
+    side.starters ||
+    side.startXI ||
+    side.players ||
+    side.lineup ||
+    side.members ||
+    [];
+  const list = Array.isArray(startersRaw) ? startersRaw : [];
+  const starters = list
+    .map((p) => {
+      const name = lineupPlayerName(p);
+      if (!name) return null;
+      return { name: String(name), shirt: lineupShirt(p) };
+    })
+    .filter(Boolean)
+    .slice(0, 11);
+  if (!starters.length) return null;
+  const formation =
+    side.formation || side.formationLabel || side.layout || side.formationString || null;
+  return {
+    formation: formation ? String(formation) : null,
+    starters,
+  };
+}
+
+/**
+ * Best-effort XI from FotMob matchDetails (shapes vary by season/UI).
+ * @returns {{ home: { formation: string|null, starters: object[] }|null, away: object|null }|null}
+ */
+export function parseFotmobLineups(details) {
+  if (!details || typeof details !== 'object') return null;
+  const content = details.content || details;
+  const lineup =
+    content.lineup ||
+    content.lineups ||
+    details.lineup ||
+    details.lineups ||
+    content?.lineup?.lineup ||
+    null;
+  if (!lineup || typeof lineup !== 'object') return null;
+
+  const homeSide =
+    lineup.homeTeam ||
+    lineup.home ||
+    lineup.teams?.[0] ||
+    (Array.isArray(lineup) ? lineup[0] : null);
+  const awaySide =
+    lineup.awayTeam ||
+    lineup.away ||
+    lineup.teams?.[1] ||
+    (Array.isArray(lineup) ? lineup[1] : null);
+
+  const home = parseLineupSide(homeSide);
+  const away = parseLineupSide(awaySide);
+  if (!home && !away) return null;
+  return { home, away };
+}
+
 export function parseEventsJson(raw) {
   if (!raw) return [];
   if (Array.isArray(raw)) return raw;

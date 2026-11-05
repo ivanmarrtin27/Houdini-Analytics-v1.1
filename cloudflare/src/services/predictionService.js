@@ -21,6 +21,7 @@ import {
   ratingsReady,
 } from './ratingsService.js';
 import { buildLiveBlock } from './liveModel.js';
+import { fetchFotmobMatchDetails, parseFotmobLineups } from './matchEvents.js';
 
 export { TRIVIAL_GOAL_TIPS };
 
@@ -935,6 +936,25 @@ function packDisplayLadder(model) {
   };
 }
 
+/**
+ * Match expected total for Stats list — same display models as panel General/ladders.
+ * `goals` is not handled here (use predictions.home_xg + away_xg).
+ */
+export function metricExpectedMatchAvg(homeStats, awayStats, league, metric) {
+  const key = String(metric || '').toLowerCase();
+  const opts = { degraded: true };
+  let model = null;
+  if (key === 'corners') model = cornersModel(homeStats, awayStats, league, opts);
+  else if (key === 'cards') model = cardsModel(homeStats, awayStats, league, opts);
+  else if (key === 'shots') model = totalShotsModel(homeStats, awayStats, league, opts);
+  else if (key === 'sot') model = shotsOnTargetModel(homeStats, awayStats, league, opts);
+  else return null;
+  if (!model || model.lambdaMatch == null || !Number.isFinite(Number(model.lambdaMatch))) {
+    return null;
+  }
+  return Number(Number(model.lambdaMatch).toFixed(2));
+}
+
 function shotCandidatesFromModel(shots) {
   if (!shots) return [];
   return [
@@ -1030,11 +1050,20 @@ export async function predictMatch(db, matchId) {
     h2h = [];
   }
   try {
-    const table = await store.getLeagueTable(db, match.leagueId, 20);
-    // Cups and national-team tournaments have no single league table.
-    leagueTable = table.length > 24 ? [] : table;
+    leagueTable = await store.getLeagueTable(db, match.leagueId, 40);
   } catch (_) {
     leagueTable = [];
+  }
+
+  let lineups = null;
+  const fotmobId = Number(match.fotmobMatchId);
+  if (Number.isFinite(fotmobId) && fotmobId > 0) {
+    try {
+      const details = await fetchFotmobMatchDetails(fotmobId);
+      lineups = parseFotmobLineups(details);
+    } catch (_) {
+      lineups = null;
+    }
   }
 
   const corners = cornersModel(homeStats, awayStats, league);
@@ -1383,6 +1412,7 @@ export async function predictMatch(db, matchId) {
     topScores: topScoresFromMatrix(matrix),
     h2h,
     leagueTable,
+    lineups,
     tipOdds: tipResolved.tipOdds,
     oddsBand: tipResolved.oddsBand,
     oddsSource: tipResolved.oddsSource,
