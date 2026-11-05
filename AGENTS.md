@@ -40,13 +40,13 @@ HTML/JS en `cloudflare/public` (mínima). Pulir con `frontend-design` / `web-des
 - Live: name-match umbral 85; no pintar scores si kickoff futuro; `POST /api/v1/admin/matches/repair-future-finished`
 
 ## Mercados Houdini
-- Top 10 (hash `#top3`): **día seleccionado** (`/matches/today?date=` = chip Partidos); fill `min(10, N)`; P≥78% + backfill ≥69%; cuota **max 3.50** (book o modelo `1/p`); **no hard-min 1.30** (high-P shorts OK); anti-trivial / no SHOTS_*; prefer 1 label / máx 3 familia, luego fill 1/partido (labels duplicados OK); scheduled/live; **solo tip primary** (`suggestedBet`; secondary no entra); tipTier none OK en UI; Stats `tip_results` / tip board ricos → **admin**; Aciertos tab pública reserved
-- Panel General: O1.5 / O2.5 / BTTS + **Media liga** (tasa histórica finished de la liga, n≥20); **sin** bloque tip/suggest en panel
-- 1X2 · DC/DNB · O/U 0.5–4.5 · BTTS (secondary) · corners/cards/SOT · value ≥5% (book); **nunca SHOTS_*** (tiros totales)
-- Panel ladders: SOT 0.5–11.5; córners 1.5–11.5; tarjetas 0.5–5.5; Tiros totales 14.5–24.5 (display degraded si n<4); Over + Under tables; BTTS bloque propio en Goles; General panel icons: btts/goals/cards PNG + corners SVG; cache shell `hb139`
-- Top 10: tip label + % only (no cuota/odds row)
-- Tips: anti-trivial (no O0.5 / U4.5); lane jugable **P≥78%** + cuota≥1.25; display tips también **P≥78%**; **solo playable** en Stats (`tip_results`); BTTS no primary; secondary diversa (malus diario BTTS/O-U)
-- Semanal API weekly conservada sin UI; Stats primario = enfrentamientos por día (`/stats/match-averages`, ligas secundario); Aciertos = tip board `#aciertos` (tab se mantiene); tip % = tipMarketProb / raw market truncado (no conf inflado)
+- Top 10 (hash `#top3`): **día seleccionado**; fill `min(10, N)`; P≥78% + backfill ≥69%; cuota **max 3.50**; **no hard-min 1.30**; anti-trivial / no SHOTS_*; diversity labels/familias; **solo tip primary**; tip_results / tip board ricos → **admin**; Aciertos público = Próximamente
+- Panel General: O1.5 / O2.5 / BTTS + Media liga n≥20; **sin** tip/suggest
+- 1X2 · DC/DNB · O/U 0.5–4.5 · BTTS (secondary) · corners/cards/SOT · value ≥5% (book); **nunca SHOTS_***
+- Panel ladders: SOT 0.5–11.5; córners 1.5–11.5; tarjetas 0.5–5.5; Tiros 14.5–24.5; Over+Under; BTTS en Goles; shell `hb140`
+- Top 10: tip label + % only
+- Tips: anti-trivial; lane **P≥78%** + cuota≥1.25; solo playable en `tip_results`; BTTS secondary-only
+- Stats primario = `/stats/match-averages` (métricas en una línea móvil); tip % = tipMarketProb raw
 - Crests: FotMob PSG/Elche/Deportivo/Leverkusen/Schalke/Racing Santander/Paris FC + BL roster; audit `node scripts/audit-crests.mjs`
 - Admin reset Stats: `POST /api/v1/admin/stats/reset` (wipe + `stats_reset_at`)
 
