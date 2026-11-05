@@ -63,7 +63,13 @@ const pieces = [
 ];
 
 const api = new Function(
-  `${pieces.join('\n\n')}
+  `function hbCensorWrap(html) { return html; }
+   function contentUnlocked() { return true; }
+   function t(key, vars) { return key; }
+   function escapeHtml(s) {
+     return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+   }
+   ${pieces.join('\n\n')}
    return { liveTipChip, liveProbsRow, liveStripHtml, livePanelHtml };`
 )();
 

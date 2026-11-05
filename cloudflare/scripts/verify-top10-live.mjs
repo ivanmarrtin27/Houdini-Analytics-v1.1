@@ -44,7 +44,7 @@ if (!/async function renderTop3[\s\S]{0,900}matches\/today\?date=/.test(src)) {
 }
 
 const api = new Function(
-  `const TOP10_MIN_PROB = 75;
+  `const TOP10_MIN_PROB = 78;
    const TOP10_SOFT_MIN_PROB = 69;
    const TOP10_MIN_ODDS = 1.3;
    const TOP10_MAX_ODDS = 3.5;

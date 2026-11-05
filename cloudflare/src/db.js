@@ -43,6 +43,7 @@ const MATCH_SELECT = `
     l.name AS league_name,
     l.country AS league_country,
     l.api_id AS league_api_id,
+    l.logo_url AS league_logo,
     ht.name AS home_name, ht.logo_url AS home_logo, ht.id AS home_team_id,
     at.name AS away_name, at.logo_url AS away_logo, at.id AS away_team_id
   FROM matches m
@@ -50,6 +51,9 @@ const MATCH_SELECT = `
   JOIN teams ht ON ht.id = m.home_team_id
   JOIN teams at ON at.id = m.away_team_id
 `;
+
+/** Allowlisted comps — CDN crest when D1 leagues.logo_url is empty. */
+const API_FOOTBALL_LEAGUE_LOGO_IDS = new Set([2, 3, 5, 39, 61, 78, 135, 140, 141]);
 
 function parseMatchEvents(raw) {
   if (!raw) return [];
@@ -66,17 +70,33 @@ export function mapMatch(row) {
   if (!row) return null;
   const homeName = row.home_name;
   const awayName = row.away_name;
+  const leagueApiId = row.league_api_id != null ? Number(row.league_api_id) : null;
+  const roundNumber =
+    row.round_number != null && !Number.isNaN(Number(row.round_number))
+      ? Number(row.round_number)
+      : null;
+  const roundGroup =
+    row.round_group != null && String(row.round_group).trim()
+      ? String(row.round_group).trim()
+      : null;
   return {
     id: row.id,
     leagueId: row.league_id,
-    leagueApiId: row.league_api_id != null ? Number(row.league_api_id) : null,
+    leagueApiId,
     leagueName: row.league_name,
     leagueCountry: row.league_country || null,
+    leagueLogo:
+      row.league_logo ||
+      (API_FOOTBALL_LEAGUE_LOGO_IDS.has(leagueApiId)
+        ? `https://media.api-sports.io/football/leagues/${leagueApiId}.png`
+        : null),
     matchDate: row.match_date,
     status: row.status,
     homeGoals: row.home_goals,
     awayGoals: row.away_goals,
     elapsedMinute: row.elapsed_minute != null ? Number(row.elapsed_minute) : null,
+    roundNumber,
+    roundGroup,
     apiId: row.api_id,
     afFixtureId: row.af_fixture_id != null ? Number(row.af_fixture_id) : null,
     fotmobMatchId: row.fotmob_match_id != null ? Number(row.fotmob_match_id) : null,
@@ -151,6 +171,92 @@ export async function getByDate(db, dateYmd, leagueId = null) {
   sql += ' ORDER BY m.match_date ASC';
   const rows = await db.all(sql, ...params);
   return rows.map(mapMatch);
+}
+
+const MATCH_AVERAGE_FIELDS = {
+  goals: (row) => nullableNumber(row?.goals_scored),
+  shots: (row) => nullableNumber(row?.shots_for),
+  sot: (row) => nullableNumber(row?.shots_on_target_for),
+  corners: (row) => nullableNumber(row?.corners_for),
+  cards: (row) => {
+    const yellows = nullableNumber(row?.yellows_for);
+    const reds = nullableNumber(row?.reds_for);
+    return yellows == null && reds == null ? null : (yellows || 0) + (reds || 0);
+  },
+};
+
+function nullableNumber(value) {
+  if (value == null || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function teamMetricAverage(rows, metric) {
+  const values = (rows || []).map(MATCH_AVERAGE_FIELDS[metric]).filter((value) => value != null);
+  const avg = values.length
+    ? Number((values.reduce((total, value) => total + value, 0) / values.length).toFixed(2))
+    : null;
+  return {
+    avg,
+    sample: values.length,
+    requested: rows?.length || 0,
+    covered: avg != null,
+  };
+}
+
+/**
+ * Per-match recent team averages for one allowlisted match day.
+ * Uses only team_stats before each fixture kickoff to avoid lookahead.
+ */
+export async function listMatchAveragesForDate(
+  db,
+  { date, metric = 'goals', sort = 'high', n = 10 } = {}
+) {
+  const safeMetric = MATCH_AVERAGE_FIELDS[metric] ? metric : 'goals';
+  const safeSort = sort === 'low' ? 'low' : 'high';
+  const sampleSize = Math.max(1, Math.min(30, Number(n) || 10));
+  const matches = await getByDate(db, date);
+  const rows = await Promise.all(
+    matches.map(async (match) => {
+      const [homeRows, awayRows] = await Promise.all([
+        lastNForTeamAsOf(db, match.homeTeam.id, sampleSize, match.matchDate),
+        lastNForTeamAsOf(db, match.awayTeam.id, sampleSize, match.matchDate),
+      ]);
+      const home = teamMetricAverage(homeRows, safeMetric);
+      const away = teamMetricAverage(awayRows, safeMetric);
+      const matchAvg =
+        home.avg != null || away.avg != null
+          ? Number(((home.avg || 0) + (away.avg || 0)).toFixed(2))
+          : null;
+      return {
+        ...match,
+        metric: safeMetric,
+        matchAvg,
+        homeAverage: home,
+        awayAverage: away,
+        coverage: {
+          home: home.covered,
+          away: away.covered,
+          complete: home.covered && away.covered,
+          partial: home.covered !== away.covered,
+        },
+      };
+    })
+  );
+  rows.sort((a, b) => {
+    if (a.matchAvg == null) return b.matchAvg == null ? 0 : 1;
+    if (b.matchAvg == null) return -1;
+    return safeSort === 'low' ? a.matchAvg - b.matchAvg : b.matchAvg - a.matchAvg;
+  });
+  const withData = rows.filter((row) => row.matchAvg != null).length;
+  return {
+    date,
+    metric: safeMetric,
+    sort: safeSort,
+    n: sampleSize,
+    matches: rows,
+    meta: { withData, total: rows.length },
+  };
 }
 
 export async function getScheduledIdsOnDate(db, dateYmd) {
@@ -459,6 +565,362 @@ export async function leagueMarketRates(db, leagueId) {
   };
 }
 
+const LEAGUE_STATS_MIN_N = 10;
+
+/** Market codes for GET /api/v1/stats/leagues */
+const LEAGUE_STATS_GOAL_LINES = [0.5, 1.5, 2.5, 3.5, 4.5, 5.5];
+
+function leagueStatsHitExpr(market) {
+  const m = String(market || '');
+  const over = m.match(/^OVER_(\d)5$/);
+  if (over) {
+    const line = Number(over[1]) + 0.5;
+    return `AVG(CASE WHEN m.home_goals + m.away_goals > ${line} THEN 1.0 ELSE 0.0 END)`;
+  }
+  const under = m.match(/^UNDER_(\d)5$/);
+  if (under) {
+    const line = Number(under[1]) + 0.5;
+    return `AVG(CASE WHEN m.home_goals + m.away_goals < ${line} THEN 1.0 ELSE 0.0 END)`;
+  }
+  if (m === 'BTTS_YES') {
+    return `AVG(CASE WHEN m.home_goals > 0 AND m.away_goals > 0 THEN 1.0 ELSE 0.0 END)`;
+  }
+  if (m === 'BTTS_NO') {
+    return `AVG(CASE WHEN NOT (m.home_goals > 0 AND m.away_goals > 0) THEN 1.0 ELSE 0.0 END)`;
+  }
+  if (m === 'HOME_WIN' || m === '1') {
+    return `AVG(CASE WHEN m.home_goals > m.away_goals THEN 1.0 ELSE 0.0 END)`;
+  }
+  if (m === 'DRAW' || m === 'X') {
+    return `AVG(CASE WHEN m.home_goals = m.away_goals THEN 1.0 ELSE 0.0 END)`;
+  }
+  if (m === 'AWAY_WIN' || m === '2') {
+    return `AVG(CASE WHEN m.home_goals < m.away_goals THEN 1.0 ELSE 0.0 END)`;
+  }
+  return null;
+}
+
+/**
+ * Allowlist league rows with hit-rate or average score for a market.
+ * scoreKind: 'rate' (0–1) | 'avg' (cards/corners means).
+ */
+function leagueLogoFromRow(logoUrl, leagueApiId) {
+  if (logoUrl) return logoUrl;
+  const id = leagueApiId != null ? Number(leagueApiId) : null;
+  if (id != null && API_FOOTBALL_LEAGUE_LOGO_IDS.has(id)) {
+    return `https://media.api-sports.io/football/leagues/${id}.png`;
+  }
+  return null;
+}
+
+export async function listLeagueMarketStats(db, market, { activeOnly = false } = {}) {
+  const code = String(market || 'OVER_25');
+  const hitExpr = leagueStatsHitExpr(code);
+  const isAvg =
+    code === 'AVG_YELLOW' || code === 'AVG_RED' || code === 'AVG_CORNERS';
+
+  let scoreSelect;
+  let scoreKind = 'rate';
+  if (hitExpr) {
+    scoreSelect = `${hitExpr} AS score`;
+  } else if (code === 'AVG_YELLOW') {
+    scoreKind = 'avg';
+    scoreSelect = `AVG(agg.yellows) AS score`;
+  } else if (code === 'AVG_RED') {
+    scoreKind = 'avg';
+    scoreSelect = `AVG(agg.reds) AS score`;
+  } else if (code === 'AVG_CORNERS') {
+    scoreKind = 'avg';
+    scoreSelect = `AVG(agg.corners) AS score`;
+  } else {
+    scoreSelect = `${leagueStatsHitExpr('OVER_25')} AS score`;
+  }
+
+  const activeJoin = activeOnly
+    ? `AND EXISTS (
+         SELECT 1 FROM matches mx
+         WHERE mx.league_id = l.id
+           AND mx.status IN ('scheduled', 'live')
+           AND date(mx.match_date) >= date('now')
+           AND date(mx.match_date) <= date('now', '+14 days')
+       )`
+    : '';
+
+  let rows;
+  if (isAvg) {
+    const yellowExpr =
+      'COALESCE(SUM(ts.yellows_for), 0)';
+    const redExpr = 'COALESCE(SUM(ts.reds_for), 0)';
+    const cornerExpr = 'COALESCE(SUM(ts.corners_for), 0)';
+    rows = await db.all(
+      `SELECT
+         l.id AS league_id,
+         l.api_id AS league_api_id,
+         l.name AS league_name,
+         l.country AS country,
+         l.logo_url AS league_logo,
+         (SELECT COUNT(*) FROM matches mt WHERE mt.league_id = l.id) AS total_matches,
+         COUNT(agg.match_id) AS played,
+         ${scoreSelect}
+       FROM leagues l
+       LEFT JOIN (
+         SELECT
+           m.id AS match_id,
+           m.league_id AS league_id,
+           ${yellowExpr} AS yellows,
+           ${redExpr} AS reds,
+           ${cornerExpr} AS corners
+         FROM matches m
+         JOIN team_stats ts ON ts.match_id = m.id
+         WHERE m.status = 'finished'
+           AND m.home_goals IS NOT NULL
+           AND m.away_goals IS NOT NULL
+         GROUP BY m.id, m.league_id
+       ) agg ON agg.league_id = l.id
+       WHERE 1=1 ${ALLOWED_LEAGUE_SQL}
+         ${activeJoin}
+       GROUP BY l.id, l.api_id, l.name, l.country, l.logo_url
+       HAVING played >= ?
+       ORDER BY (score IS NULL) ASC, score DESC, played DESC`,
+      LEAGUE_STATS_MIN_N
+    );
+  } else {
+    rows = await db.all(
+      `SELECT
+         l.id AS league_id,
+         l.api_id AS league_api_id,
+         l.name AS league_name,
+         l.country AS country,
+         l.logo_url AS league_logo,
+         (SELECT COUNT(*) FROM matches mt WHERE mt.league_id = l.id) AS total_matches,
+         COUNT(m.id) AS played,
+         ${scoreSelect}
+       FROM leagues l
+       LEFT JOIN matches m
+         ON m.league_id = l.id
+        AND m.status = 'finished'
+        AND m.home_goals IS NOT NULL
+        AND m.away_goals IS NOT NULL
+       WHERE 1=1 ${ALLOWED_LEAGUE_SQL}
+         ${activeJoin}
+       GROUP BY l.id, l.api_id, l.name, l.country, l.logo_url
+       HAVING played >= ?
+       ORDER BY (score IS NULL) ASC, score DESC, played DESC`,
+      LEAGUE_STATS_MIN_N
+    );
+  }
+
+  return (rows || []).map((r) => {
+    const played = Number(r.played) || 0;
+    const total = Number(r.total_matches) || 0;
+    const raw = Number(r.score);
+    let score = null;
+    if (Number.isFinite(raw)) {
+      score = scoreKind === 'rate' ? Number(raw.toFixed(4)) : Number(raw.toFixed(2));
+    }
+    const leagueApiId = Number(r.league_api_id);
+    return {
+      leagueId: Number(r.league_id),
+      leagueApiId,
+      leagueName: r.league_name || '',
+      country: r.country || '',
+      leagueLogo: leagueLogoFromRow(r.league_logo, leagueApiId),
+      totalMatches: total,
+      played,
+      score,
+      scoreKind,
+      market: code,
+    };
+  });
+}
+
+const TEAM_STATS_MIN_N = 5;
+
+/**
+ * Per-team market rates inside one allowlisted league (same markets as league stats).
+ * 1X2 mapped to team win / draw / loss. Goals/BTTS use match outcome for each team appearance.
+ */
+export async function listTeamMarketStats(
+  db,
+  market,
+  { leagueId, teamId = null, activeOnly = false } = {}
+) {
+  const lid = Number(leagueId);
+  if (!Number.isFinite(lid) || lid <= 0) return [];
+  const code = String(market || 'OVER_25');
+  const tid =
+    teamId != null && Number.isFinite(Number(teamId)) && Number(teamId) > 0
+      ? Number(teamId)
+      : null;
+  const isAvg =
+    code === 'AVG_YELLOW' || code === 'AVG_RED' || code === 'AVG_CORNERS';
+
+  const activeJoin = activeOnly
+    ? `AND EXISTS (
+         SELECT 1 FROM matches mx
+         WHERE mx.league_id = ${lid}
+           AND mx.status IN ('scheduled', 'live')
+           AND date(mx.match_date) >= date('now')
+           AND date(mx.match_date) <= date('now', '+14 days')
+       )`
+    : '';
+
+  let scoreKind = 'rate';
+  let rows;
+
+  if (isAvg) {
+    scoreKind = 'avg';
+    const metric =
+      code === 'AVG_YELLOW'
+        ? 'yellows_for'
+        : code === 'AVG_RED'
+          ? 'reds_for'
+          : 'corners_for';
+    const teamFilter = tid != null ? 'AND t.id = ?' : '';
+    rows = await db.all(
+      `SELECT
+         t.id AS team_id,
+         t.name AS team_name,
+         t.logo_url AS team_logo,
+         l.id AS league_id,
+         l.api_id AS league_api_id,
+         l.name AS league_name,
+         COUNT(m.id) AS played,
+         AVG(ts.${metric}) AS score
+       FROM teams t
+       JOIN leagues l ON l.id = ?
+       LEFT JOIN matches m
+         ON m.league_id = l.id
+        AND m.status = 'finished'
+        AND m.home_goals IS NOT NULL
+        AND m.away_goals IS NOT NULL
+        AND (m.home_team_id = t.id OR m.away_team_id = t.id)
+       LEFT JOIN team_stats ts
+         ON ts.match_id = m.id AND ts.team_id = t.id
+       WHERE t.league_id = l.id
+         ${ALLOWED_LEAGUE_SQL}
+         ${activeJoin}
+         ${teamFilter}
+       GROUP BY t.id, t.name, t.logo_url, l.id, l.api_id, l.name
+       HAVING played >= ?
+       ORDER BY (score IS NULL) ASC, score DESC, played DESC`,
+      lid,
+      ...(tid != null ? [tid] : []),
+      TEAM_STATS_MIN_N
+    );
+  } else {
+    let homeHit;
+    let awayHit;
+    if (code === 'HOME_WIN' || code === '1') {
+      homeHit = `CASE WHEN m.home_goals > m.away_goals THEN 1.0 ELSE 0.0 END`;
+      awayHit = `CASE WHEN m.away_goals > m.home_goals THEN 1.0 ELSE 0.0 END`;
+    } else if (code === 'DRAW' || code === 'X') {
+      homeHit = awayHit = `CASE WHEN m.home_goals = m.away_goals THEN 1.0 ELSE 0.0 END`;
+    } else if (code === 'AWAY_WIN' || code === '2') {
+      homeHit = `CASE WHEN m.home_goals < m.away_goals THEN 1.0 ELSE 0.0 END`;
+      awayHit = `CASE WHEN m.away_goals < m.home_goals THEN 1.0 ELSE 0.0 END`;
+    } else if (code === 'BTTS_YES') {
+      homeHit = awayHit = `CASE WHEN m.home_goals > 0 AND m.away_goals > 0 THEN 1.0 ELSE 0.0 END`;
+    } else if (code === 'BTTS_NO') {
+      homeHit = awayHit = `CASE WHEN NOT (m.home_goals > 0 AND m.away_goals > 0) THEN 1.0 ELSE 0.0 END`;
+    } else {
+      const over = code.match(/^OVER_(\d)5$/);
+      const under = code.match(/^UNDER_(\d)5$/);
+      if (over) {
+        const line = Number(over[1]) + 0.5;
+        homeHit = awayHit = `CASE WHEN m.home_goals + m.away_goals > ${line} THEN 1.0 ELSE 0.0 END`;
+      } else if (under) {
+        const line = Number(under[1]) + 0.5;
+        homeHit = awayHit = `CASE WHEN m.home_goals + m.away_goals < ${line} THEN 1.0 ELSE 0.0 END`;
+      } else {
+        homeHit = awayHit = `CASE WHEN m.home_goals + m.away_goals > 2.5 THEN 1.0 ELSE 0.0 END`;
+      }
+    }
+
+    const teamFilter = tid != null ? 'AND team_id = ?' : '';
+    rows = await db.all(
+      `SELECT
+         team_id,
+         team_name,
+         team_logo,
+         league_id,
+         league_api_id,
+         league_name,
+         COUNT(*) AS played,
+         AVG(hit) AS score
+       FROM (
+         SELECT
+           m.home_team_id AS team_id,
+           ht.name AS team_name,
+           ht.logo_url AS team_logo,
+           m.league_id AS league_id,
+           l.api_id AS league_api_id,
+           l.name AS league_name,
+           ${homeHit} AS hit
+         FROM matches m
+         JOIN leagues l ON l.id = m.league_id
+         JOIN teams ht ON ht.id = m.home_team_id
+         WHERE m.league_id = ?
+           AND m.status = 'finished'
+           AND m.home_goals IS NOT NULL
+           AND m.away_goals IS NOT NULL
+           ${ALLOWED_LEAGUE_SQL}
+           ${activeJoin}
+         UNION ALL
+         SELECT
+           m.away_team_id AS team_id,
+           at.name AS team_name,
+           at.logo_url AS team_logo,
+           m.league_id AS league_id,
+           l.api_id AS league_api_id,
+           l.name AS league_name,
+           ${awayHit} AS hit
+         FROM matches m
+         JOIN leagues l ON l.id = m.league_id
+         JOIN teams at ON at.id = m.away_team_id
+         WHERE m.league_id = ?
+           AND m.status = 'finished'
+           AND m.home_goals IS NOT NULL
+           AND m.away_goals IS NOT NULL
+           ${ALLOWED_LEAGUE_SQL}
+           ${activeJoin}
+       )
+       WHERE 1=1 ${teamFilter}
+       GROUP BY team_id, team_name, team_logo, league_id, league_api_id, league_name
+       HAVING played >= ?
+       ORDER BY (score IS NULL) ASC, score DESC, played DESC`,
+      lid,
+      lid,
+      ...(tid != null ? [tid] : []),
+      TEAM_STATS_MIN_N
+    );
+  }
+
+  return (rows || []).map((r) => {
+    const played = Number(r.played) || 0;
+    const raw = Number(r.score);
+    let score = null;
+    if (Number.isFinite(raw)) {
+      score = scoreKind === 'rate' ? Number(raw.toFixed(4)) : Number(raw.toFixed(2));
+    }
+    return {
+      teamId: Number(r.team_id),
+      teamName: r.team_name || '',
+      teamLogo: r.team_logo || null,
+      leagueId: Number(r.league_id),
+      leagueApiId: Number(r.league_api_id),
+      leagueName: r.league_name || '',
+      played,
+      totalMatches: played,
+      score,
+      scoreKind,
+      market: code,
+    };
+  });
+}
+
+export { LEAGUE_STATS_GOAL_LINES, LEAGUE_STATS_MIN_N, TEAM_STATS_MIN_N };
+
 /** League averages using only stats from matches before kickoff. */
 export async function leagueGoalAveragesAsOf(db, leagueId, beforeDate) {
   const before = String(beforeDate || '').slice(0, 19);
@@ -652,11 +1114,22 @@ export async function upsertFixture(db, f) {
     f.elapsed_minute != null && !Number.isNaN(Number(f.elapsed_minute))
       ? Number(f.elapsed_minute)
       : null;
+  const roundNumber =
+    f.round_number != null && !Number.isNaN(Number(f.round_number))
+      ? Number(f.round_number)
+      : null;
+  const roundGroup =
+    f.round_group != null && String(f.round_group).trim()
+      ? String(f.round_group).trim()
+      : null;
   if (existing) {
     await db.run(
       `UPDATE matches SET league_id=?, home_team_id=?, away_team_id=?, match_date=?,
        status=?, home_goals=?, away_goals=?,
-       elapsed_minute=COALESCE(?, elapsed_minute) WHERE api_id=?`,
+       elapsed_minute=COALESCE(?, elapsed_minute),
+       round_number=COALESCE(?, round_number),
+       round_group=COALESCE(?, round_group)
+       WHERE api_id=?`,
       f.league_id,
       f.home_team_id,
       f.away_team_id,
@@ -665,14 +1138,16 @@ export async function upsertFixture(db, f) {
       f.home_goals,
       f.away_goals,
       elapsed,
+      roundNumber,
+      roundGroup,
       f.api_id
     );
     return existing.id;
   }
   const res = await db.run(
     `INSERT INTO matches
-      (league_id, home_team_id, away_team_id, match_date, status, home_goals, away_goals, elapsed_minute, api_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (league_id, home_team_id, away_team_id, match_date, status, home_goals, away_goals, elapsed_minute, round_number, round_group, api_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     f.league_id,
     f.home_team_id,
     f.away_team_id,
@@ -681,21 +1156,37 @@ export async function upsertFixture(db, f) {
     f.home_goals,
     f.away_goals,
     elapsed,
+    roundNumber,
+    roundGroup,
     f.api_id
   );
   return res.meta.last_row_id;
 }
 
+/**
+ * Status write that never downgrades finished→live/scheduled or live→scheduled.
+ * Goals still use COALESCE so null payloads cannot wipe real scores.
+ */
+const LIVE_STATUS_SET_SQL = `status = CASE
+         WHEN ? IS NULL THEN status
+         WHEN status = 'finished' THEN 'finished'
+         WHEN status = 'live' AND ? = 'scheduled' THEN 'live'
+         ELSE ?
+       END`;
+
 /** Update live/finished fields by api_id (no team remapping). */
 export async function updateMatchLiveByApiId(db, apiId, { status, home_goals, away_goals, elapsed_minute }) {
+  const st = status ?? null;
   await db.run(
     `UPDATE matches SET
-       status = COALESCE(?, status),
+       ${LIVE_STATUS_SET_SQL},
        home_goals = COALESCE(?, home_goals),
        away_goals = COALESCE(?, away_goals),
        elapsed_minute = ?
      WHERE api_id = ?`,
-    status ?? null,
+    st,
+    st,
+    st,
     home_goals ?? null,
     away_goals ?? null,
     elapsed_minute ?? null,
@@ -709,15 +1200,18 @@ export async function updateMatchLiveById(
   matchId,
   { status, home_goals, away_goals, elapsed_minute, fotmob_match_id }
 ) {
+  const st = status ?? null;
   await db.run(
     `UPDATE matches SET
-       status = COALESCE(?, status),
+       ${LIVE_STATUS_SET_SQL},
        home_goals = COALESCE(?, home_goals),
        away_goals = COALESCE(?, away_goals),
        elapsed_minute = ?,
        fotmob_match_id = COALESCE(?, fotmob_match_id)
      WHERE id = ?`,
-    status ?? null,
+    st,
+    st,
+    st,
     home_goals ?? null,
     away_goals ?? null,
     elapsed_minute ?? null,
@@ -730,23 +1224,28 @@ export async function updateMatchLiveById(
 export async function updateMatchLiveBatch(db, rows) {
   const items = (rows || [])
     .filter((r) => r && r.id != null)
-    .map((r) => ({
-      sql: `UPDATE matches SET
-         status = COALESCE(?, status),
+    .map((r) => {
+      const st = r.status ?? null;
+      return {
+        sql: `UPDATE matches SET
+         ${LIVE_STATUS_SET_SQL},
          home_goals = COALESCE(?, home_goals),
          away_goals = COALESCE(?, away_goals),
          elapsed_minute = ?,
          fotmob_match_id = COALESCE(?, fotmob_match_id)
        WHERE id = ?`,
-      params: [
-        r.status ?? null,
-        r.home_goals ?? null,
-        r.away_goals ?? null,
-        r.elapsed_minute ?? null,
-        r.fotmob_match_id ?? null,
-        r.id,
-      ],
-    }));
+        params: [
+          st,
+          st,
+          st,
+          r.home_goals ?? null,
+          r.away_goals ?? null,
+          r.elapsed_minute ?? null,
+          r.fotmob_match_id ?? null,
+          r.id,
+        ],
+      };
+    });
   if (!items.length) return 0;
   await db.batch(items);
   return items.length;
@@ -1190,7 +1689,8 @@ export async function getLiveWorkStatus(db) {
            AND datetime(match_date) BETWEEN datetime('now', '-3 hours') AND datetime('now', '+3 hours')) AS kicking,
        (SELECT COUNT(*) FROM matches
          WHERE status = 'scheduled'
-           AND datetime(match_date) BETWEEN datetime('now', '-6 hours') AND datetime('now', '-15 minutes')) AS overdue_scheduled`
+           AND datetime(match_date) <= datetime('now', '-15 minutes')
+           AND datetime(match_date) >= datetime('now', '-72 hours')) AS overdue_scheduled`
   );
   const live = Number(row?.live || 0);
   const pendingTips = Number(row?.pending_tips || 0);
@@ -1997,6 +2497,31 @@ export async function repairFutureFinishedMatches(db) {
     tipResultsDeleted: Number(tipBefore?.n) || 0,
     matchIds: ids,
   };
+}
+
+/**
+ * List scheduled rows stuck long after kickoff with no score (audit / repair input).
+ */
+export async function listStuckScheduledMatches(db, olderThanHours = 3, lookbackHours = 72) {
+  const hours = Math.max(1, Number(olderThanHours) || 3);
+  const lookback = Math.max(hours + 1, Number(lookbackHours) || 72);
+  const rows = await db.all(
+    `SELECT m.id, m.match_date, m.status, m.home_goals, m.away_goals, m.fotmob_match_id,
+            m.api_id, ht.name AS home_name, at.name AS away_name
+     FROM matches m
+     JOIN teams ht ON ht.id = m.home_team_id
+     JOIN teams at ON at.id = m.away_team_id
+     WHERE m.status = 'scheduled'
+       AND m.home_goals IS NULL
+       AND m.away_goals IS NULL
+       AND datetime(m.match_date) <= datetime('now', ?)
+       AND datetime(m.match_date) >= datetime('now', ?)
+     ORDER BY m.match_date ASC
+     LIMIT 80`,
+    `-${hours} hours`,
+    `-${lookback} hours`
+  );
+  return rows || [];
 }
 
 export async function settlePendingTips(db, limit = 80) {

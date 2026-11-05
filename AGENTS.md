@@ -1,4 +1,4 @@
-# AGENTS.md — Houdini Bet
+# AGENTS.md — Houdini Analytics
 
 ## Qué es
 App de predicciones de fútbol (Poisson).
@@ -25,23 +25,26 @@ App de predicciones de fútbol (Poisson).
 
 ## UI
 HTML/JS en `cloudflare/public` (mínima). Pulir con `frontend-design` / `web-design-guidelines` después. Angular descartado.
-- Auth: D1 `users`/`auth_sessions`; cookie `hb_auth`; register (username+name+email+phone+password) / login (username|email) /me/logout + Google OAuth; post-register welcome 3s + Premium modal; secrets `AUTH_SECRET` + Google; Stats vía nav `#stats`
+- Auth: D1 `users`/`auth_sessions`; cookie `hb_auth`; register (username+name+email+phone+password) / login (username|email) /me/logout + Google OAuth; post-register welcome 3s + Premium modal; secrets `AUTH_SECRET` + Google; Aciertos vía `#aciertos`; Stats ligas vía `#stats`
 - Admin microsite: `https://houdini-bet-admin.pages.dev` ([`cloudflare/admin-pages/`](cloudflare/admin-pages/); DocuForge dark+red; PIN=`SYNC_SECRET`); usage today + daily chart + Web Analytics + D1 `page_hits` (preview 5 + `#hits` historial/búsqueda, limit≤500) + panel Stats tips (`/tips/performance`; público se retirará luego); promo create/list/delete (tipos free_days|free_month|discount_20|40); users search + revoke/enable/delete; secrets `CF_ACCOUNT_ID`/`CF_API_TOKEN` (+ opc. `CF_WEB_ANALYTICS_SITE_TAG`); dominio `houdini-bet.dev` later; ver `cloudflare/docs/ADMIN_PANEL.md`
 - Consent v2 obligatorio: sin `houdini_consent_v1` (choice + ageConfirmed) la app pública queda bloqueada (shell oculto); legales leíbles dentro del gate
-- Nav: desktop `.v2-nav` + PNG icons (`icons/ui/`); mobile bottom `.app-tabbar` (Partidos/Top 10/Stats/Semanal/Ligas); Semanal keeps SVG; Premium chip uses `premium-crown.png`; shell cache `hb130`
+- Nav: desktop `.v2-nav` + PNG icons (`icons/ui/`); mobile bottom `.app-tabbar` (Partidos/Top 10/Aciertos/Stats/Ligas); Premium chip uses `premium-crown.png`; PWA icons derive from the simple Analytics logo; shell cache `hb139`
+- Free censor (Analytics chrome): `hbCensorWrap` blur + crown + `data-hb-censor` → `#premium`; Aciertos tip rows use `perfTipDisplayHtml` pill (blur + Premium → planes); outcome visible; tip % raw market
+- Match chrome (from Analytics): compact `.league-match` rows + hero `.mp-teams` (Local/Visitante, form V/E/D, score + wordmark, scorers); **panel sin tip banner** (probs/chrome only); competition logos on list/panel/Top 10; jornada/matchday when synced (`round_number` / `round_group`)
 - Ligas móvil: tabla slide-desde-derecha (mismo patrón que panel análisis); `#ligas/<apiId>` + atrás
 - Partidos chrome: chips estado (Todos/En vivo/Finalizados/Próximos); **sin** scope Todas/clubs/intl (siempre all)
 - Display ES: países/ligas vía `countryLabel` + `leagueLabelEs` (no inglés crudo en UI)
-- **Ligas** (`#ligas`): split Partidos (países+banderas | tabla) Europeas (2/3/5) + top5 → `GET /leagues/:apiId/table` → tap equipo → nextMatch; `#ligas/<apiId>`
+- **Ligas** (`#ligas`): buscador cliente país/liga + catálogo con logos; split (países | tabla) Europeas (2/3/5) + top5 → `GET /leagues/:apiId/table` → tap equipo → nextMatch; `#ligas/<apiId>`
 - Live: name-match umbral 85; no pintar scores si kickoff futuro; `POST /api/v1/admin/matches/repair-future-finished`
 
 ## Mercados Houdini
-- Top 10 (hash `#top3`): **día seleccionado** (`/matches/today?date=` = chip Partidos); fill `min(10, N)`; P≥75% + backfill ≥69%; cuota **max 3.50** (book o modelo `1/p`); **no hard-min 1.30** (high-P shorts OK); anti-trivial / no SHOTS_*; prefer 1 label / máx 3 familia, luego fill 1/partido (labels duplicados OK); scheduled/live; **solo tip primary** (`suggestedBet` — misma etiqueta que panel-suggest; secondary no entra en Top 10); tipTier none OK en UI; Stats `tip_results` sigue solo playable
-- Panel General: O1.5 / O2.5 / BTTS + **Media liga** (tasa histórica finished de la liga, n≥20)
+- Top 10 (hash `#top3`): **día seleccionado** (`/matches/today?date=` = chip Partidos); fill `min(10, N)`; P≥78% + backfill ≥69%; cuota **max 3.50** (book o modelo `1/p`); **no hard-min 1.30** (high-P shorts OK); anti-trivial / no SHOTS_*; prefer 1 label / máx 3 familia, luego fill 1/partido (labels duplicados OK); scheduled/live; **solo tip primary** (`suggestedBet`; secondary no entra); tipTier none OK en UI; Stats `tip_results` / tip board ricos → **admin**; Aciertos tab pública reserved
+- Panel General: O1.5 / O2.5 / BTTS + **Media liga** (tasa histórica finished de la liga, n≥20); **sin** bloque tip/suggest en panel
 - 1X2 · DC/DNB · O/U 0.5–4.5 · BTTS (secondary) · corners/cards/SOT · value ≥5% (book); **nunca SHOTS_*** (tiros totales)
-- Panel ladders: SOT 0.5–11.5; córners 1.5–11.5; tarjetas 0.5–5.5; Tiros totales 14.5–24.5 (display degraded si n<4); Over + Under tables; BTTS bloque propio en Goles; General panel icons: btts/goals/cards PNG + corners SVG; cache shell `hb130`
-- Tips: anti-trivial (no O0.5 / U4.5); lane jugable **P≥75%** + cuota≥1.25; display tips también **P≥75%** (no ~50% como tip); **solo playable** en Stats (`tip_results`); BTTS no primary; secondary diversa (malus diario BTTS/O-U)
-- Semanal cuota 10 (+ Conservadora cuota 5): top5; UI sin `@`/«piernas»; Prob. combinada; Valor solo con book
+- Panel ladders: SOT 0.5–11.5; córners 1.5–11.5; tarjetas 0.5–5.5; Tiros totales 14.5–24.5 (display degraded si n<4); Over + Under tables; BTTS bloque propio en Goles; General panel icons: btts/goals/cards PNG + corners SVG; cache shell `hb139`
+- Top 10: tip label + % only (no cuota/odds row)
+- Tips: anti-trivial (no O0.5 / U4.5); lane jugable **P≥78%** + cuota≥1.25; display tips también **P≥78%**; **solo playable** en Stats (`tip_results`); BTTS no primary; secondary diversa (malus diario BTTS/O-U)
+- Semanal API weekly conservada sin UI; Stats primario = enfrentamientos por día (`/stats/match-averages`, ligas secundario); Aciertos = tip board `#aciertos` (tab se mantiene); tip % = tipMarketProb / raw market truncado (no conf inflado)
 - Crests: FotMob PSG/Elche/Deportivo/Leverkusen/Schalke/Racing Santander/Paris FC + BL roster; audit `node scripts/audit-crests.mjs`
 - Admin reset Stats: `POST /api/v1/admin/stats/reset` (wipe + `stats_reset_at`)
 

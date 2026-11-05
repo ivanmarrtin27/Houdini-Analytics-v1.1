@@ -281,6 +281,65 @@ function marketsFromPrediction(p) {
   };
 }
 
+/** Raw tip market probability 0–100 for suggested_bet (honest UI; not confidence fallback). */
+function tipMarketProbFromPrediction(p, bet) {
+  if (!p || !bet) return null;
+  const raw = modelProbForBet(p, bet);
+  if (raw == null || !Number.isFinite(raw) || raw <= 0) return null;
+  return Number((raw * 100).toFixed(2));
+}
+
+/** Flat camelCase market fields so tipProbPct/probForLabel work on /matches/today. */
+function flatMarketProbsFromPrediction(p) {
+  if (!p) return {};
+  const n = (v) => (v != null && Number.isFinite(Number(v)) ? Number(v) : null);
+  return {
+    homeWinProb: n(p.home_win_prob ?? p.homeWinProb),
+    drawProb: n(p.draw_prob ?? p.drawProb),
+    awayWinProb: n(p.away_win_prob ?? p.awayWinProb),
+    over05Prob: n(p.over05_prob ?? p.over05Prob),
+    under05Prob: n(p.under05_prob ?? p.under05Prob),
+    over15Prob: n(p.over15_prob ?? p.over15Prob),
+    under15Prob: n(p.under15_prob ?? p.under15Prob),
+    over25Prob: n(p.over25_prob ?? p.over25Prob),
+    under25Prob: n(p.under25_prob ?? p.under25Prob),
+    over35Prob: n(p.over35_prob ?? p.over35Prob),
+    under35Prob: n(p.under35_prob ?? p.under35Prob),
+    over45Prob: n(p.over45_prob ?? p.over45Prob),
+    under45Prob: n(p.under45_prob ?? p.under45Prob),
+    bttsYesProb: n(p.btts_yes_prob ?? p.bttsYesProb),
+    bttsNoProb: n(p.btts_no_prob ?? p.bttsNoProb),
+    homeOver05Prob: n(p.home_over05_prob ?? p.homeOver05Prob),
+    homeUnder05Prob: n(p.home_under05_prob ?? p.homeUnder05Prob),
+    homeOver15Prob: n(p.home_over15_prob ?? p.homeOver15Prob),
+    homeUnder15Prob: n(p.home_under15_prob ?? p.homeUnder15Prob),
+    homeOver25Prob: n(p.home_over25_prob ?? p.homeOver25Prob),
+    homeUnder25Prob: n(p.home_under25_prob ?? p.homeUnder25Prob),
+    awayOver05Prob: n(p.away_over05_prob ?? p.awayOver05Prob),
+    awayUnder05Prob: n(p.away_under05_prob ?? p.awayUnder05Prob),
+    awayOver15Prob: n(p.away_over15_prob ?? p.awayOver15Prob),
+    awayUnder15Prob: n(p.away_under15_prob ?? p.awayUnder15Prob),
+    awayOver25Prob: n(p.away_over25_prob ?? p.awayOver25Prob),
+    awayUnder25Prob: n(p.away_under25_prob ?? p.awayUnder25Prob),
+    cornersOver85Prob: n(p.corners_over85_prob ?? p.cornersOver85Prob),
+    cornersUnder85Prob: n(p.corners_under85_prob ?? p.cornersUnder85Prob),
+    cornersOver95Prob: n(p.corners_over95_prob ?? p.cornersOver95Prob),
+    cornersUnder95Prob: n(p.corners_under95_prob ?? p.cornersUnder95Prob),
+    cornersOver105Prob: n(p.corners_over105_prob ?? p.cornersOver105Prob),
+    cornersUnder105Prob: n(p.corners_under105_prob ?? p.cornersUnder105Prob),
+    cardsOver35Prob: n(p.cards_over35_prob ?? p.cardsOver35Prob),
+    cardsUnder35Prob: n(p.cards_under35_prob ?? p.cardsUnder35Prob),
+    cardsOver45Prob: n(p.cards_over45_prob ?? p.cardsOver45Prob),
+    cardsUnder45Prob: n(p.cards_under45_prob ?? p.cardsUnder45Prob),
+    sotOver75Prob: n(p.sot_over75_prob ?? p.sotOver75Prob),
+    sotUnder75Prob: n(p.sot_under75_prob ?? p.sotUnder75Prob),
+    sotOver85Prob: n(p.sot_over85_prob ?? p.sotOver85Prob),
+    sotUnder85Prob: n(p.sot_under85_prob ?? p.sotUnder85Prob),
+    sotOver95Prob: n(p.sot_over95_prob ?? p.sotOver95Prob),
+    sotUnder95Prob: n(p.sot_under95_prob ?? p.sotUnder95Prob),
+  };
+}
+
 function mapBetPayload(r) {
   const oddsMeta = tipOddsMeta(r.suggested_bet, r, r);
   const secBet = r.secondary_bet || null;
@@ -309,6 +368,7 @@ function mapBetPayload(r) {
     suggestedBet: r.suggested_bet,
     secondaryBet: secBet,
     confidenceScore: Number(r.confidence_score),
+    tipMarketProb: tipMarketProbFromPrediction(r, r.suggested_bet),
     highConfidence: Number(r.confidence_score) >= 60,
     tipTier,
     valueEdge: r.value_edge != null ? Number(r.value_edge) : null,
@@ -320,6 +380,7 @@ function mapBetPayload(r) {
     secondaryOddsSource: secMeta.oddsSource,
     secondaryConfidence: secConf,
     markets: marketsFromPrediction(r),
+    ...flatMarketProbsFromPrediction(r),
     homeWinProb: r.home_win_prob != null ? Number(r.home_win_prob) : null,
     drawProb: r.draw_prob != null ? Number(r.draw_prob) : null,
     awayWinProb: r.away_win_prob != null ? Number(r.away_win_prob) : null,
@@ -478,6 +539,7 @@ async function handleApi(request, env, ctx) {
         suggestedBet: p?.suggested_bet ?? null,
         secondaryBet: secBet,
         confidenceScore: conf,
+        tipMarketProb: tipMarketProbFromPrediction(p, p?.suggested_bet),
         valueEdge: p?.value_edge != null ? Number(p.value_edge) : null,
         valueMarket: p?.value_market ?? null,
         tipOdds: oddsMeta.tipOdds,
@@ -488,6 +550,7 @@ async function handleApi(request, env, ctx) {
         secondaryOddsSource: secMeta.oddsSource,
         secondaryConfidence: secConf,
         markets: marketsFromPrediction(p),
+        ...flatMarketProbsFromPrediction(p),
         live: buildLiveBlock(m, p),
       };
     });
@@ -1501,6 +1564,66 @@ async function handleApi(request, env, ctx) {
     return json({ leagues: await store.listLeagues(db) });
   }
 
+  if (method === 'GET' && path === '/api/v1/stats/leagues') {
+    const market = String(url.searchParams.get('market') || 'OVER_25').trim() || 'OVER_25';
+    const activeOnly =
+      url.searchParams.get('activeOnly') === '1' ||
+      url.searchParams.get('activeOnly') === 'true';
+    const rows = await store.listLeagueMarketStats(db, market, { activeOnly });
+    return json({
+      market,
+      activeOnly,
+      minPlayed: store.LEAGUE_STATS_MIN_N,
+      leagues: rows,
+    });
+  }
+
+  if (method === 'GET' && path === '/api/v1/stats/teams') {
+    const market = String(url.searchParams.get('market') || 'OVER_25').trim() || 'OVER_25';
+    const leagueId = Number(url.searchParams.get('leagueId'));
+    const teamIdRaw = url.searchParams.get('teamId');
+    const teamId =
+      teamIdRaw != null && String(teamIdRaw).trim() !== ''
+        ? Number(teamIdRaw)
+        : null;
+    const activeOnly =
+      url.searchParams.get('activeOnly') === '1' ||
+      url.searchParams.get('activeOnly') === 'true';
+    if (!Number.isFinite(leagueId) || leagueId <= 0) {
+      return json({ error: 'leagueId requerido' }, 400);
+    }
+    const rows = await store.listTeamMarketStats(db, market, {
+      leagueId,
+      teamId,
+      activeOnly,
+    });
+    return json({
+      market,
+      leagueId,
+      teamId: teamId != null && Number.isFinite(teamId) ? teamId : null,
+      activeOnly,
+      minPlayed: store.TEAM_STATS_MIN_N,
+      teams: rows,
+    });
+  }
+
+  if (method === 'GET' && path === '/api/v1/stats/match-averages') {
+    const date = String(url.searchParams.get('date') || new Date().toISOString().slice(0, 10));
+    const metric = String(url.searchParams.get('metric') || 'goals').toLowerCase();
+    const sort = String(url.searchParams.get('sort') || 'high').toLowerCase();
+    const n = Number(url.searchParams.get('n') || 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return json({ error: 'date debe usar YYYY-MM-DD' }, 400);
+    }
+    if (!['goals', 'shots', 'sot', 'corners', 'cards'].includes(metric)) {
+      return json({ error: 'metric no válido' }, 400);
+    }
+    if (!['high', 'low'].includes(sort)) {
+      return json({ error: 'sort debe ser high o low' }, 400);
+    }
+    return json(await store.listMatchAveragesForDate(db, { date, metric, sort, n }));
+  }
+
   const leagueTableMatch = path.match(/^\/api\/v1\/leagues\/(\d+)\/table$/);
   if (method === 'GET' && leagueTableMatch) {
     const apiId = Number(leagueTableMatch[1]);
@@ -1675,6 +1798,26 @@ async function handleApi(request, env, ctx) {
       ...result,
       note:
         'Partidos finished con kickoff futuro → scheduled; goles/events/fotmob limpios; tip_results borrados.',
+    });
+  }
+
+  if (method === 'POST' && path === '/api/v1/admin/matches/repair-stuck-scheduled') {
+    const secret = env.SYNC_SECRET || 'change-me-houdini';
+    const header = request.headers.get('x-sync-secret');
+    if (!header || header !== secret) {
+      return json({ error: 'No autorizado. Header x-sync-secret requerido.' }, 401);
+    }
+    const before = await store.listStuckScheduledMatches(db, 3, 72);
+    const refresh = await handleLiveRefreshRequest(env, db, null, { force: true });
+    const after = await store.listStuckScheduledMatches(db, 3, 72);
+    return json({
+      ok: true,
+      before: before.length,
+      after: after.length,
+      stuckRepaired: refresh?.stuckRepaired ?? null,
+      remainingIds: after.map((r) => r.id).slice(0, 30),
+      note:
+        'Force live refresh + FD name-match onto scheduled stuck (kickoff >3h, sin goles). No void tips.',
     });
   }
 

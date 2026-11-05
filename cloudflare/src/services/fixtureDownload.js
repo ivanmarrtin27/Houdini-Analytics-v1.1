@@ -117,11 +117,15 @@ function mapRow(row, feed) {
   const homeGoals = row.HomeTeamScore != null ? Number(row.HomeTeamScore) : null;
   const awayGoals = row.AwayTeamScore != null ? Number(row.AwayTeamScore) : null;
   const finished = homeGoals != null && awayGoals != null && !Number.isNaN(homeGoals) && !Number.isNaN(awayGoals);
+  const roundRaw = row.RoundNumber != null ? Number(row.RoundNumber) : null;
+  const groupRaw = row.Group != null && String(row.Group).trim() ? String(row.Group).trim() : null;
   return {
     leagueApiId: feed.leagueApiId,
     leagueName: feed.name,
     country: feed.country,
     matchNumber: Number(row.MatchNumber),
+    roundNumber: Number.isFinite(roundRaw) ? roundRaw : null,
+    roundGroup: groupRaw,
     matchDate: toSqlDate(d),
     status: finished ? 'finished' : 'scheduled',
     homeName: String(row.HomeTeam || '').trim(),

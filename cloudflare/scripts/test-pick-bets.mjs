@@ -2,7 +2,7 @@
  * Regression tests for diverse primary/secondary tip selection.
  * Playable-only primary enters Stats (tip_results). tipTier 'none' + displayPrimary
  * is for predictions.suggested_bet display only — never ledger into tip_results.
- * displayPrimary prefers P≥DISPLAY_MIN_PROB (0.75); weak schema fallback keeps conf 0.
+ * displayPrimary prefers P≥DISPLAY_MIN_PROB (0.78); weak schema fallback keeps conf 0.
  */
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -64,8 +64,8 @@ const coreMarkets = [
 const trivialTips = ['UNDER_35', 'HOME_UNDER_35', 'AWAY_UNDER_35'];
 const api = new Function(
   `const MIN_TIP_PROB = 0.48;
-   const MAX_TIP_PROB = 0.78;
-   const PLAYABLE_MIN_PROB = 0.75;
+   const MAX_TIP_PROB = 0.9;
+   const PLAYABLE_MIN_PROB = 0.78;
    const DISPLAY_MIN_PROB = PLAYABLE_MIN_PROB;
    const SAFE_TIP_PROB = 0.8;
    const MIN_VALUE = 0.04;
@@ -170,7 +170,7 @@ check(
   result.displayPrimary?.label != null
 );
 check(
-  'BTTS ok as displayPrimary when highest non-playable (≥75%)',
+  'BTTS ok as displayPrimary when highest non-playable (≥78%)',
   result.displayPrimary?.label === 'BTTS_YES'
 );
 check(
@@ -188,7 +188,7 @@ result = api.pickBets(
   { hasBook: true, sampleSize: 5 }
 );
 check(
-  'sub-75% yields no Stats primary (tipTier none) but has displayPrimary',
+  'sub-78% yields no Stats primary (tipTier none) but has displayPrimary',
   result.primary == null && result.tipTier === 'none' && result.displayPrimary?.label != null
 );
 
@@ -207,13 +207,13 @@ result = api.pickBets(
   { hasBook: true, sampleSize: 5 }
 );
 check(
-  'displayPrimary prefers ≥75% over ~50% when higher exists',
+  'displayPrimary prefers ≥78% over ~50% when higher exists',
   result.tipTier === 'playable'
     ? result.primary?.label === 'OVER_25'
-    : result.displayPrimary?.label === 'OVER_25' && Number(result.displayPrimary?.prob) >= 0.75
+    : result.displayPrimary?.label === 'OVER_25' && Number(result.displayPrimary?.prob) >= 0.78
 );
 check(
-  'displayPrimary never sticks to ~50% when ≥75% market exists',
+  'displayPrimary never sticks to ~50% when ≥78% market exists',
   result.displayPrimary?.label !== 'HOME_WIN' && result.displayPrimary?.label !== 'AWAY_WIN'
 );
 
@@ -236,14 +236,14 @@ check(
   result.primary == null &&
     result.tipTier === 'none' &&
     result.displayPrimary?.label != null &&
-    Number(result.displayPrimary.prob) < 0.75
+    Number(result.displayPrimary.prob) < 0.78
 );
 
 result = api.pickBets(
   [
     { label: 'BTTS_YES', prob: 0.78 },
-    { label: 'OVER_25', prob: 0.76 },
-    { label: 'HOME_WIN', prob: 0.76 },
+    { label: 'OVER_25', prob: 0.79 },
+    { label: 'HOME_WIN', prob: 0.79 },
   ],
   value({
     BTTS_YES: { edge: 0.14, book: 1.4 },
@@ -265,9 +265,9 @@ check('daily label quota prefers under-cap playable (not BTTS)', result.primary.
 
 const rotatingCounts = {};
 const fixtureCandidates = [
-  { label: 'OVER_25', prob: 0.76 },
-  { label: 'HOME_WIN', prob: 0.76 },
-  { label: 'UNDER_25', prob: 0.76 },
+  { label: 'OVER_25', prob: 0.79 },
+  { label: 'HOME_WIN', prob: 0.79 },
+  { label: 'UNDER_25', prob: 0.79 },
 ];
 const fixtureEdges = value({
   OVER_25: { edge: 0.1, book: 1.5 },
@@ -292,7 +292,7 @@ check(
 
 result = api.pickBets(
   [
-    { label: 'OVER_25', prob: 0.76 },
+    { label: 'OVER_25', prob: 0.79 },
     { label: 'BTTS_YES', prob: 0.78 },
     { label: 'HOME_WIN', prob: 0.55 },
   ],
@@ -317,7 +317,7 @@ result = api.pickBets(
     { label: 'HOME_WIN', prob: 0.82 },
     { label: 'DNB_HOME', prob: 0.9 },
     { label: 'DC_1X', prob: 0.92 },
-    { label: 'OVER_25', prob: 0.76 },
+    { label: 'OVER_25', prob: 0.79 },
   ],
   value({
     HOME_WIN: { edge: 0.08, book: 1.5 },
@@ -338,8 +338,8 @@ check(
 
 result = api.pickBets(
   [
-    { label: 'OVER_25', prob: 0.76 },
-    { label: 'UNDER_25', prob: 0.76 },
+    { label: 'OVER_25', prob: 0.79 },
+    { label: 'UNDER_25', prob: 0.79 },
   ],
   value({ OVER_25: 0.1, UNDER_25: 0.09 }),
   null,
@@ -360,14 +360,14 @@ result = api.pickBets(
   { hasBook: false, sampleSize: 1 }
 );
 check(
-  'thin-sample sub-75% yields no Stats primary (display ok)',
+  'thin-sample sub-78% yields no Stats primary (display ok)',
   result.primary == null && result.tipTier === 'none' && result.displayPrimary?.label != null
 );
 
 result = api.pickBets(
   [
     { label: 'BTTS_YES', prob: 0.8 },
-    { label: 'HOME_WIN', prob: 0.76 },
+    { label: 'HOME_WIN', prob: 0.79 },
   ],
   value({
     BTTS_YES: { edge: 0.1, book: 1.4 },
@@ -388,11 +388,11 @@ result = api.pickBets(
   {
     hasBook: true,
     sampleSize: 5,
-    extraCandidates: [{ label: 'CORNERS_OVER_95', prob: 0.76 }],
+    extraCandidates: [{ label: 'CORNERS_OVER_95', prob: 0.79 }],
   }
 );
 check(
-  'playable corners (≥75%) beat trivial OVER_05 and low 1X2',
+  'playable corners (≥78%) beat trivial OVER_05 and low 1X2',
   result.primary.label === 'CORNERS_OVER_95' && result.tipTier === 'playable'
 );
 
@@ -411,7 +411,7 @@ result = api.pickBets(
   }
 );
 check(
-  'banned SHOTS_ and sub-75% yield no Stats primary; display non-SHOTS',
+  'banned SHOTS_ and sub-78% yield no Stats primary; display non-SHOTS',
   result.primary == null &&
     result.tipTier === 'none' &&
     result.displayPrimary?.label != null &&
@@ -446,8 +446,8 @@ result = api.pickBets(
     hasBook: true,
     sampleSize: 5,
     extraCandidates: [
-      { label: 'CARDS_UNDER_45', prob: 0.76 },
-      { label: 'SOT_OVER_75', prob: 0.76 },
+      { label: 'CARDS_UNDER_45', prob: 0.79 },
+      { label: 'SOT_OVER_75', prob: 0.79 },
     ],
   }
 );
@@ -458,7 +458,7 @@ check(
 
 result = api.pickBets(
   [
-    { label: 'OVER_25', prob: 0.76 },
+    { label: 'OVER_25', prob: 0.79 },
     { label: 'BTTS_YES', prob: 0.78 },
   ],
   value({
@@ -470,7 +470,7 @@ result = api.pickBets(
   {
     hasBook: true,
     sampleSize: 5,
-    extraCandidates: [{ label: 'CORNERS_OVER_95', prob: 0.76 }],
+    extraCandidates: [{ label: 'CORNERS_OVER_95', prob: 0.79 }],
   }
 );
 check(
@@ -481,8 +481,8 @@ check(
 const secCounts = {};
 const secLabels = [];
 const secFixture = [
-  { label: 'OVER_25', prob: 0.76 },
-  { label: 'HOME_WIN', prob: 0.76 },
+  { label: 'OVER_25', prob: 0.79 },
+  { label: 'HOME_WIN', prob: 0.79 },
 ];
 const secEdges = value({
   OVER_25: { edge: 0.1, book: 1.5 },
@@ -495,8 +495,8 @@ for (let i = 0; i < 8; i += 1) {
     hasBook: true,
     sampleSize: 5,
     extraCandidates: [
-      { label: 'CARDS_UNDER_45', prob: 0.76 },
-      { label: 'BTTS_YES', prob: 0.76 },
+      { label: 'CARDS_UNDER_45', prob: 0.79 },
+      { label: 'BTTS_YES', prob: 0.79 },
     ],
     dailyTipContext: {
       fixtureCount: 10,
@@ -525,8 +525,8 @@ check(
 );
 
 check(
-  'source PLAYABLE_MIN_PROB is 0.75',
-  /const PLAYABLE_MIN_PROB = 0\.75/.test(SRC)
+  'source PLAYABLE_MIN_PROB is 0.78',
+  /const PLAYABLE_MIN_PROB = 0\.78/.test(SRC)
 );
 check(
   'source DISPLAY_MIN_PROB equals PLAYABLE_MIN_PROB',

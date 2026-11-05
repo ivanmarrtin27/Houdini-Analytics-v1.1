@@ -131,5 +131,36 @@ check(
   findBestFixtureMatch([otherL1, psgFm], 'PSG', 'Lyon') === psgFm
 );
 
+check(
+  'Slavia Praha vs Slavia Prague aliases ≥85',
+  teamNameScore('Slavia Praha', 'Slavia Prague') >= 85
+);
+check(
+  'SK Slavia Praha vs Slavia Prague ≥85',
+  teamNameScore('SK Slavia Praha', 'Slavia Prague') >= 85
+);
+const slaviaFm = {
+  teams: { home: { name: 'Slavia Prague' }, away: { name: 'Arsenal' } },
+};
+const otherUcl = {
+  teams: { home: { name: 'Bayern Munich' }, away: { name: 'Inter' } },
+};
+check(
+  'Slavia Praha–Arsenal name-matches FotMob Slavia Prague–Arsenal',
+  findBestFixtureMatch([otherUcl, slaviaFm], 'Slavia Praha', 'Arsenal') === slaviaFm
+);
+check(
+  'Betis alias scores 100 vs Real Betis',
+  teamNameScore('Betis', 'Real Betis') === 100
+);
+check(
+  'Dortmund alias scores 100 vs Borussia Dortmund',
+  teamNameScore('Dortmund', 'Borussia Dortmund') === 100
+);
+check(
+  'BVB alias scores 100 vs Borussia Dortmund',
+  teamNameScore('BVB', 'Borussia Dortmund') === 100
+);
+
 console.log(failed ? `\n${failed} checks failed` : `\n${passed}/${passed} checks passed`);
 process.exit(failed ? 1 : 0);

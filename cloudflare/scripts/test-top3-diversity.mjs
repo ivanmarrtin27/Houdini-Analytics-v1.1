@@ -35,7 +35,7 @@ function extractFunction(name) {
 }
 
 const api = new Function(
-  `const TOP10_MIN_PROB = 75;
+  `const TOP10_MIN_PROB = 78;
    const TOP10_SOFT_MIN_PROB = 69;
    const TOP10_MIN_ODDS = 1.3;
    const TOP10_MAX_ODDS = 3.5;
@@ -43,6 +43,11 @@ const api = new Function(
    const TOP10_MAX_PER_FAMILY = 3;
    const TOP10_LIMIT = 10;
    function tipProbPct(raw) {
+     const tipMarket = raw?.tipMarketProb ?? raw?.tip_market_prob;
+     if (tipMarket != null && Number(tipMarket) > 0) {
+       const n = Number(tipMarket);
+       return Math.trunc(n <= 1 ? n * 100 : n);
+     }
      const conf = raw?.confidenceScore != null ? Number(raw.confidenceScore) : null;
      return conf != null && conf > 0 ? conf : null;
    }
@@ -192,7 +197,7 @@ check('empty list remains empty', selectDiverseTips([], 10, 1, 3).length === 0);
 check('buildTop10Pool exists', src.includes('function buildTop10Pool('));
 check('pickTop10Tips exists', src.includes('function pickTop10Tips('));
 check('soft min prob is 69', src.includes('const TOP10_SOFT_MIN_PROB = 69'));
-check('primary min prob is 75', src.includes('const TOP10_MIN_PROB = 75'));
+check('primary min prob is 78', src.includes('const TOP10_MIN_PROB = 78'));
 check('Top 10 has no multi-day window constant', !src.includes('TOP10_WINDOW_DAYS'));
 check(
   'Top 10 builds from selected calendar day (?date=), not days= / best-bets',
@@ -221,13 +226,13 @@ const mixedProb15 = [
   { tipLabel: 'OVER_25', matchId: 2, m: { id: 2 }, meta: { primaryPass: true, prob: 78, score: 0.38, kind: 'est' } },
   { tipLabel: 'OVER_35', matchId: 3, m: { id: 3 }, meta: { primaryPass: false, prob: 71, score: 0.3, kind: 'est' } },
   { tipLabel: 'UNDER_25', matchId: 4, m: { id: 4 }, meta: { primaryPass: false, prob: 70, score: 0.29, kind: 'est' } },
-  { tipLabel: 'BTTS_YES', matchId: 5, m: { id: 5 }, meta: { primaryPass: true, prob: 76, score: 0.35, kind: 'book' } },
+  { tipLabel: 'BTTS_YES', matchId: 5, m: { id: 5 }, meta: { primaryPass: true, prob: 79, score: 0.35, kind: 'book' } },
   { tipLabel: 'BTTS_NO', matchId: 6, m: { id: 6 }, meta: { primaryPass: false, prob: 69, score: 0.28, kind: 'est' } },
   { tipLabel: 'HOME_WIN', matchId: 7, m: { id: 7 }, meta: { primaryPass: true, prob: 80, score: 0.39, kind: 'book' } },
   { tipLabel: 'AWAY_WIN', matchId: 8, m: { id: 8 }, meta: { primaryPass: false, prob: 72, score: 0.31, kind: 'est' } },
-  { tipLabel: 'CORNERS_OVER_95', matchId: 9, m: { id: 9 }, meta: { primaryPass: true, prob: 77, score: 0.36, kind: 'est' } },
+  { tipLabel: 'CORNERS_OVER_95', matchId: 9, m: { id: 9 }, meta: { primaryPass: true, prob: 79, score: 0.36, kind: 'est' } },
   { tipLabel: 'CORNERS_UNDER_95', matchId: 10, m: { id: 10 }, meta: { primaryPass: false, prob: 69, score: 0.27, kind: 'est' } },
-  { tipLabel: 'CARDS_OVER_45', matchId: 11, m: { id: 11 }, meta: { primaryPass: true, prob: 75, score: 0.34, kind: 'est' } },
+  { tipLabel: 'CARDS_OVER_45', matchId: 11, m: { id: 11 }, meta: { primaryPass: true, prob: 79, score: 0.34, kind: 'est' } },
   { tipLabel: 'CARDS_UNDER_45', matchId: 12, m: { id: 12 }, meta: { primaryPass: false, prob: 70, score: 0.28, kind: 'est' } },
   { tipLabel: 'SOT_OVER_75', matchId: 13, m: { id: 13 }, meta: { primaryPass: false, prob: 71, score: 0.29, kind: 'est' } },
   { tipLabel: 'DC_1X', matchId: 14, m: { id: 14 }, meta: { primaryPass: true, prob: 79, score: 0.37, kind: 'book' } },
@@ -301,7 +306,7 @@ const nullOddsPool = Array.from({ length: 12 }, (_, i) => ({
   ][i],
   tipOdds: null,
   oddsSource: 'model',
-  confidenceScore: 76 - (i % 6),
+  confidenceScore: 82 - (i % 5),
   secondaryBet: null,
 }));
 const filledFromNullOdds = pickTop10Tips(nullOddsPool, 10);
@@ -362,7 +367,7 @@ const day30LiveShape = [
     secondaryBet: 'BTTS_YES',
     tipOdds: 1.688,
     oddsSource: 'model',
-    confidenceScore: 75.84,
+    confidenceScore: 79.84,
     secondaryTipOdds: 1.723,
     secondaryOddsSource: 'model',
     secondaryConfidence: 58.04,
@@ -419,7 +424,7 @@ const diversityTrap = [
     suggestedBet: 'SOT_UNDER_95',
     tipOdds: 1.4,
     oddsSource: 'model',
-    confidenceScore: 76,
+    confidenceScore: 80,
     secondaryBet: 'CORNERS_UNDER_105',
     secondaryTipOdds: 1.22,
     secondaryOddsSource: 'model',
@@ -450,7 +455,7 @@ const sameLabelDay = [
     suggestedBet: 'OVER_15',
     tipOdds: 1.3,
     oddsSource: 'model',
-    confidenceScore: 77.2,
+    confidenceScore: 80.2,
     secondaryBet: null,
   },
   {
@@ -459,7 +464,7 @@ const sameLabelDay = [
     suggestedBet: 'DC_X2',
     tipOdds: 1.31,
     oddsSource: 'model',
-    confidenceScore: 76.4,
+    confidenceScore: 79.4,
     secondaryBet: null,
   },
   {
@@ -488,7 +493,7 @@ check(
         suggestedBet: 'DNB_AWAY',
         tipOdds: 1.7,
         oddsSource: 'model',
-        confidenceScore: 76,
+        confidenceScore: 80,
       },
     ],
     10
@@ -514,6 +519,35 @@ check(
       confidenceScore: 80,
     },
   ]).map((x) => x.matchId).join(',') === '10'
+);
+
+const tenEligible = Array.from({ length: 12 }, (_, i) => ({
+  id: i + 1,
+  status: 'scheduled',
+  suggestedBet: i % 2 === 0 ? 'OVER_15' : 'HOME_WIN',
+  tipOdds: 1.35 + (i % 5) * 0.05,
+  oddsSource: 'model',
+  tipMarketProb: 72 + (i % 8),
+  confidenceScore: 50,
+}));
+check('pickTop10Tips fills 10 when N>=10', pickTop10Tips(tenEligible, 10).length === 10);
+check(
+  'pickTop10Tips returns all when N<10',
+  pickTop10Tips(tenEligible.slice(0, 4), 10).length === 4
+);
+check(
+  'tipMarketProb unlocks pool when conf alone is low',
+  buildTop10Pool([
+    {
+      id: 42,
+      status: 'scheduled',
+      suggestedBet: 'OVER_15',
+      tipOdds: 1.4,
+      oddsSource: 'model',
+      tipMarketProb: 71,
+      confidenceScore: 40,
+    },
+  ]).length === 1
 );
 
 console.log(failed ? `\n${failed} checks failed` : `\n${passed}/${passed} checks passed`);

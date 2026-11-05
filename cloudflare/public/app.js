@@ -550,6 +550,8 @@ let ligasActiveApiId = null;
 let ligasActiveD1Id = null;
 let ligasLeaguesByApiId = null;
 let ligasLeaguesPromise = null;
+let ligasSearchBound = false;
+let ligasSearchQuery = '';
 const LIGAS_FOLDERS = [
   {
     key: 'europeas',
@@ -629,18 +631,19 @@ function tipsUnlocked() {
   return contentUnlocked();
 }
 
-/** Blur mask + Ver planes CTA for free (logged-in) users. */
+/** Blur veil + Premium crown lock for free users (Analytics chrome; tap → #premium). */
 function hbCensorWrap(html, { block = false } = {}) {
   if (!html) return '';
   if (contentUnlocked()) return html;
   const cls = block ? 'hb-censor hb-censor--block' : 'hb-censor hb-censor--inline';
-  return `<div class="${cls}" data-hb-censor role="button" tabindex="0" aria-label="${escapeHtml(t('censor.aria'))}">
+  return `<div class="${cls}" data-hb-censor role="button" tabindex="0" aria-label="${escapeHtml(
+    t('censor.aria')
+  )}">
     <div class="hb-censor__veil" aria-hidden="true">${html}</div>
     <div class="hb-censor__lock" aria-hidden="true">
-      <span class="hb-censor__lock-icon"></span>
+      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb139" width="22" height="22" alt="" decoding="async" />
       <span class="hb-censor__lock-title">${escapeHtml(t('censor.title'))}</span>
       <span class="hb-censor__lock-sub">${escapeHtml(t('censor.sub'))}</span>
-      <span class="hb-censor__lock-btn">${escapeHtml(t('censor.cta'))}</span>
     </div>
   </div>`;
 }
@@ -1637,7 +1640,7 @@ function matchStatusPill(m) {
     return `${min} · EN VIVO`;
   }
   if (m.status === 'finished') {
-    return 'FT';
+    return '';
   }
   return time ? `${time} · NS` : 'NS';
 }
@@ -1655,7 +1658,7 @@ function mpVsMidLabel(m, live) {
 }
 
 function mpVsBrandMarkHtml() {
-  return `<img class="mp-vs__brand" src="/brand/houdini-bet-wordmark.png?v=hb130" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
+  return `<img class="mp-vs__brand" src="/brand/houdini-bet-wordmark.png?v=hb139" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
 }
 
 function mpVsMidHtml(m, live) {
@@ -1720,8 +1723,54 @@ function eventIconSvg(type) {
   return `<svg class="ev-icon ev-icon--goal" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 2.5v11M2.5 8h11M4.2 4.2l7.6 7.6M11.8 4.2L4.2 11.8" stroke="currentColor" stroke-width="1" opacity="0.7"/></svg>`;
 }
 
+/**
+ * Collapse multiple goals by the same player into one chip (minutes grouped).
+ * Reds / missed pens stay one chip per event.
+ */
+function collapseMatchEvents(events) {
+  const list = Array.isArray(events) ? events : [];
+  const focus = list.filter(
+    (e) => e && (e.type === 'goal' || e.type === 'red' || e.type === 'missed_pen')
+  );
+  const goals = [];
+  const other = [];
+  for (const e of focus) {
+    if (e.type === 'goal') goals.push(e);
+    else other.push(e);
+  }
+  const byKey = new Map();
+  for (const e of goals) {
+    const player = String(e.player || '').trim() || 'Gol';
+    const side = e.isHome === true ? 'H' : e.isHome === false ? 'A' : '?';
+    const key = `${side}|${player.toLowerCase()}`;
+    if (!byKey.has(key)) {
+      byKey.set(key, {
+        type: 'goal',
+        isHome: e.isHome,
+        player,
+        minutes: [],
+      });
+    }
+    const min = e.minute != null && Number.isFinite(Number(e.minute)) ? Number(e.minute) : null;
+    if (min != null) byKey.get(key).minutes.push(min);
+  }
+  const groupedGoals = [...byKey.values()].map((g) => {
+    const mins = [...g.minutes].sort((a, b) => a - b);
+    return {
+      type: 'goal',
+      isHome: g.isHome,
+      player: g.player,
+      minute: mins.length ? mins[0] : null,
+      minutesLabel: mins.length ? mins.map((m) => `${m}'`).join(' ') : '',
+    };
+  });
+  return [...groupedGoals, ...other];
+}
+
 function eventChipHtml(e) {
-  const min = e.minute != null ? `${Number(e.minute)}'` : '';
+  const min =
+    e.minutesLabel ||
+    (e.minute != null ? `${Number(e.minute)}'` : '');
   const name = e.player || (e.type === 'red' ? 'Roja' : e.type === 'missed_pen' ? 'Pen. fallado' : 'Gol');
   const side = e.isHome ? 'L' : 'V';
   return `<span class="ev-chip" title="${escapeHtml(side)}">
@@ -1732,13 +1781,13 @@ function eventChipHtml(e) {
 }
 
 function matchEventsHtml(events, { stack = false, split = false } = {}) {
-  const list = Array.isArray(events) ? events : [];
-  const focus = list.filter((e) => e && (e.type === 'goal' || e.type === 'red' || e.type === 'missed_pen'));
+  const focus = collapseMatchEvents(events);
   if (!focus.length) return '';
   if (split) {
     const home = focus.filter((e) => e.isHome === true);
     const away = focus.filter((e) => e.isHome === false);
     // Three grid cells for .mp-teams (1fr auto 1fr) — home | spacer | away
+    // Always paint cols (even empty) so the dashed divider spans both teams.
     return `<div class="mp-live-events__col mp-live-events__col--home" aria-label="Eventos local">${home.map(eventChipHtml).join('')}</div>
       <div class="mp-live-events__mid" aria-hidden="true"></div>
       <div class="mp-live-events__col mp-live-events__col--away" aria-label="Eventos visitante">${away.map(eventChipHtml).join('')}</div>`;
@@ -1863,7 +1912,15 @@ function livePanelHtml(live, homeName, awayName) {
     </section>`;
 }
 
+function browseRoundHtml(m) {
+  const round = formatRoundLabel(m);
+  return round
+    ? `<span class="league-match__round">${escapeHtml(round)}</span>`
+    : '';
+}
+
 function browseMidHtml(m) {
+  const roundHtml = browseRoundHtml(m);
   if (m.status === 'live') {
     const score =
       m.homeGoals != null && m.awayGoals != null
@@ -1873,19 +1930,18 @@ function browseMidHtml(m) {
     return `
       <span class="league-match__live"><span class="league-match__live-dot"></span>${escapeHtml(t('chip.live'))}</span>
       <span class="league-match__score league-match__score--live">${escapeHtml(score)}</span>
-      <span class="league-match__minute">${escapeHtml(min)}</span>`;
+      <span class="league-match__minute">${escapeHtml(min)}</span>
+      ${roundHtml}`;
   }
   if (m.status === 'finished') {
     const score =
       m.homeGoals != null && m.awayGoals != null
         ? `${Number(m.homeGoals)}-${Number(m.awayGoals)}`
         : '—';
-    return `
-      <span class="league-match__score">${escapeHtml(score)}</span>
-      <span class="league-match__kickoff">FT</span>`;
+    return `<span class="league-match__score">${escapeHtml(score)}</span>${roundHtml}`;
   }
   const time = formatMatchTimeShort(m.matchDate) || '—';
-  return `<span class="league-match__kickoff">${escapeHtml(time)}</span>`;
+  return `<span class="league-match__kickoff">${escapeHtml(time)}</span>${roundHtml}`;
 }
 
 function sumRecentAvg(recentAvgs, key) {
@@ -1895,22 +1951,21 @@ function sumRecentAvg(recentAvgs, key) {
   return Number(((Number(h) || 0) + (Number(a) || 0)).toFixed(2));
 }
 
-const UI_ICON_V = 'hb130';
-const mpStatImg = (file, size = 18) => {
-  const lg = size > 18 ? ' mp-stat__icon--lg' : '';
-  return `<img class="mp-stat__icon mp-stat__icon--img${lg}" src="/icons/ui/${file}?v=${UI_ICON_V}" width="${size}" height="${size}" alt="" aria-hidden="true" decoding="async" />`;
-};
+const UI_ICON_V = 'hb139';
+const MP_STAT_ICON_PX = 20;
+const mpStatImg = (file) =>
+  `<img class="mp-stat__icon mp-stat__icon--img" src="/icons/ui/${file}?v=${UI_ICON_V}" width="${MP_STAT_ICON_PX}" height="${MP_STAT_ICON_PX}" alt="" aria-hidden="true" decoding="async" />`;
 
 const MP_STAT_ICONS = {
   /* O2.5: portería + dos balones (más denso) */
-  o25: `<svg class="mp-stat__icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M5 19V8h14v11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9.2" cy="13.2" r="2.35" fill="none" stroke="currentColor" stroke-width="1.35"/><circle cx="14.8" cy="13.2" r="2.35" fill="none" stroke="currentColor" stroke-width="1.35"/></svg>`,
+  o25: `<svg class="mp-stat__icon" viewBox="0 0 24 24" width="${MP_STAT_ICON_PX}" height="${MP_STAT_ICON_PX}" aria-hidden="true" focusable="false"><path d="M5 19V8h14v11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9.2" cy="13.2" r="2.35" fill="none" stroke="currentColor" stroke-width="1.35"/><circle cx="14.8" cy="13.2" r="2.35" fill="none" stroke="currentColor" stroke-width="1.35"/></svg>`,
   /* O1.5: misma portería + un balón (más simple) */
-  o15: `<svg class="mp-stat__icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M5 19V8h14v11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="13.4" r="2.6" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>`,
+  o15: `<svg class="mp-stat__icon" viewBox="0 0 24 24" width="${MP_STAT_ICON_PX}" height="${MP_STAT_ICON_PX}" aria-hidden="true" focusable="false"><path d="M5 19V8h14v11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="13.4" r="2.6" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>`,
   btts: mpStatImg('btts.png'),
   goals: mpStatImg('goals.png'),
   /* Córners: banderín de córner */
-  corners: `<svg class="mp-stat__icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M7 21V4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M7 4.2l11 3.4-11 3.4V4.2z" fill="currentColor" opacity=".88"/><path d="M4 21h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
-  cards: mpStatImg('cards.png', 22),
+  corners: `<svg class="mp-stat__icon" viewBox="0 0 24 24" width="${MP_STAT_ICON_PX}" height="${MP_STAT_ICON_PX}" aria-hidden="true" focusable="false"><path d="M7 21V4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M7 4.2l11 3.4-11 3.4V4.2z" fill="currentColor" opacity=".88"/><path d="M4 21h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+  cards: mpStatImg('cards.png'),
 };
 
 function keyStatCard({ title, valueHtml, barPct, tone = 'accent', sub = '', iconHtml = '' }) {
@@ -1948,7 +2003,7 @@ function pctStatCard(title, prob, leagueRate = null, iconHtml = '') {
       iconHtml,
     });
   }
-  const n = Math.round(p * 100);
+  const n = Math.trunc(p * 100);
   return keyStatCard({
     title,
     valueHtml: `<span class="mp-stat__num" data-count-to="${n}" data-count-suffix="%">0%</span>`,
@@ -2797,6 +2852,33 @@ function formatLeagueLine(country, name, apiId = null) {
   return [c !== '—' ? c : '', l].filter(Boolean).join(' · ') || t('league.generic');
 }
 
+/** Competition crest next to league name (panel / list / Top 10). */
+function leagueLogoHtml(url, cls = 'mp-league__logo') {
+  if (!url) return '';
+  return `<img class="${cls}" src="${escapeHtml(url)}" width="22" height="22" alt="" aria-hidden="true" decoding="async" onerror="this.hidden=true" />`;
+}
+
+/**
+ * Matchday / jornada from synced RoundNumber (+ optional Group).
+ * EPL → Matchday N; rest → Jornada N; degrade to '' when missing.
+ */
+function formatRoundLabel(m) {
+  if (!m) return '';
+  const n = m.roundNumber != null ? Number(m.roundNumber) : null;
+  const g = m.roundGroup != null ? String(m.roundGroup).trim() : '';
+  const hasN = n != null && Number.isFinite(n);
+  if (!hasN && !g) return '';
+  const apiId = Number(m.leagueApiId);
+  const enMatchday = apiId === 39;
+  let base = '';
+  if (hasN) base = enMatchday ? `Matchday ${n}` : `Jornada ${n}`;
+  if (g) {
+    const grupo = /^[A-H]$/i.test(g) ? `Grupo ${g.toUpperCase()}` : g;
+    return base ? `${grupo} · ${base}` : grupo;
+  }
+  return base;
+}
+
 function collectLeagues(matches) {
   const list = matches || [];
   const map = new Map();
@@ -2866,6 +2948,12 @@ async function ensureLigasCatalog() {
           apiId,
           name: row.name || '',
           country: row.country || null,
+          logoUrl:
+            row.logo_url ||
+            row.logoUrl ||
+            ([2, 3, 5, 39, 61, 78, 135, 140, 141].includes(apiId)
+              ? `https://media.api-sports.io/football/leagues/${apiId}.png`
+              : null),
         });
       }
       ligasLeaguesByApiId = map;
@@ -3093,49 +3181,68 @@ function hideLigasTable({ pushHash = true } = {}) {
 function renderLigasFolders(catalog) {
   const listEl = document.getElementById('ligas-list');
   if (!listEl) return;
+  const needle = ligasSearchQuery
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
 
   const folders = LIGAS_FOLDERS.map((folder) => {
     const leagues = folder.leagues
       .map((l) => {
         const hit = catalog.get(l.apiId);
         if (!hit) return null;
-        return { ...l, d1Id: hit.id, dbName: hit.name || l.name };
+        return {
+          ...l,
+          d1Id: hit.id,
+          dbName: hit.name || l.name,
+          logoUrl: hit.logoUrl,
+        };
       })
-      .filter(Boolean);
+      .filter(Boolean)
+      .filter((league) => {
+        if (!needle) return true;
+        const haystack = `${folder.label} ${league.name} ${league.dbName} ${league.tag}`
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase();
+        return haystack.includes(needle);
+      });
     return { ...folder, leagues };
   }).filter((f) => f.leagues.length > 0);
 
   if (!folders.length) {
-    listEl.innerHTML = `<p class="ligas-standings__empty">${escapeHtml(t('ligas.noLeagues'))}</p>`;
+    listEl.innerHTML = `<p class="ligas-standings__empty">No hay ligas que coincidan con la búsqueda.</p>`;
     return;
-  }
-
-  if (!folders.some((f) => f.key === ligasOpenFolder)) {
-    ligasOpenFolder = folders[0].key;
   }
 
   listEl.innerHTML = folders
     .map((folder) => {
-      const open = folder.key === ligasOpenFolder;
       const flagHtml = folder.flagCountry
         ? `<span class="ligas-folder__flag" aria-hidden="true">${countryFlag(folder.flagCountry)}</span>`
         : `<span class="ligas-folder__uefa" aria-hidden="true">★</span>`;
-      return `<section class="ligas-folder${open ? ' is-open' : ''}" data-folder="${escapeHtml(folder.key)}">
-        <button type="button" class="ligas-folder__head" data-folder-toggle="${escapeHtml(
-          folder.key
-        )}" aria-expanded="${open ? 'true' : 'false'}">
-          <span class="ligas-folder__chevron" aria-hidden="true"></span>
+      const count = folder.leagues.length;
+      return `<section class="ligas-folder is-open" data-folder="${escapeHtml(folder.key)}">
+        <header class="ligas-folder__head">
           ${flagHtml}
           <span class="ligas-folder__label">${escapeHtml(folder.label)}</span>
-          <span class="ligas-folder__badge">${escapeHtml(folder.badge)}</span>
-        </button>
+          <span class="ligas-folder__badge">${count} ${count === 1 ? 'liga' : 'ligas'}</span>
+        </header>
         <div class="ligas-folder__body" role="group" aria-label="${escapeHtml(folder.label)}">
           <div class="ligas-folder__body-inner">
           ${folder.leagues
             .map(
               (l) => `<button type="button" class="ligas-league-row" data-liga-api="${l.apiId}">
-            <span class="ligas-league-row__name">${escapeHtml(l.dbName || l.name)}</span>
-            <span class="ligas-league-row__tag">${escapeHtml(l.tag)}</span>
+            ${leagueLogoHtml(l.logoUrl, 'ligas-league-row__logo')}
+            <span class="ligas-league-row__body">
+              <span class="ligas-league-row__name">${escapeHtml(
+                leagueLabelEs(l.dbName || l.name, l.apiId)
+              )}</span>
+              <span class="ligas-league-row__tag">${escapeHtml(
+                `${folder.label} · ${l.tag}`
+              )}</span>
+            </span>
+            <span class="ligas-league-row__chevron" aria-hidden="true">›</span>
           </button>`
             )
             .join('')}
@@ -3144,14 +3251,6 @@ function renderLigasFolders(catalog) {
       </section>`;
     })
     .join('');
-
-  listEl.querySelectorAll('[data-folder-toggle]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const key = btn.getAttribute('data-folder-toggle') || '';
-      ligasOpenFolder = ligasOpenFolder === key ? '' : key;
-      renderLigasFolders(catalog);
-    });
-  });
 
   listEl.querySelectorAll('[data-liga-api]').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -3162,6 +3261,15 @@ function renderLigasFolders(catalog) {
       showLigasTable(apiId).catch((err) => showBanner(err.message || 'Error', 'error'));
     });
   });
+
+  if (!ligasSearchBound) {
+    const search = document.getElementById('ligas-search');
+    ligasSearchBound = true;
+    search?.addEventListener('input', () => {
+      ligasSearchQuery = search.value || '';
+      renderLigasFolders(catalog);
+    });
+  }
 }
 
 function renderLigasView() {
@@ -3532,10 +3640,13 @@ const I18N = {
     'search.loading': 'Buscando…',
     'search.empty': 'Sin resultados.',
     'view.top10': 'Top 10 predicciones',
-    'view.stats': 'Stats',
+    'view.aciertos': 'Aciertos',
+    'view.stats': 'Estadísticas por liga y mercado',
     'view.ligas': 'Ligas',
-    'view.semanal': 'Semanal',
     'view.partidos': 'Partidos',
+    'stats.showWithMatches': 'Mostrar ligas con partidos',
+    'stats.empty': 'Sin datos para este mercado',
+    'stats.loading': 'Cargando estadísticas…',
     'panel.emptySelect': 'Selecciona un partido para ver el análisis',
     'ligas.emptySelect': 'Selecciona una liga para ver la clasificación',
     'ligas.seeMatches': 'Ver partidos de esta liga',
@@ -3575,7 +3686,7 @@ const I18N = {
     'auth.close': 'Cerrar',
     'premiumModal.title': 'Pasa a Premium',
     'premiumModal.lead':
-      'Desbloquea tips semanales y el acceso completo a Houdini Bet. Puedes activarlo ahora o más tarde.',
+      'Desbloquea tips semanales y el acceso completo a Houdini Analytics. Puedes activarlo ahora o más tarde.',
     'premiumModal.activate': 'Activar Premium',
     'premiumModal.skip': 'Ahora no',
     'consent.title': 'Cookies y privacidad',
@@ -3710,8 +3821,8 @@ const I18N = {
     'sanction.ack': 'Entendido',
     'nav.partidos': 'Partidos',
     'nav.top10': 'Top 10',
+    'nav.aciertos': 'Aciertos',
     'nav.stats': 'Stats',
-    'nav.semanal': 'Semanal',
     'nav.ligas': 'Ligas',
     'panel.tabGeneral': 'General',
     'panel.tabGoals': 'Goles',
@@ -3795,10 +3906,13 @@ const I18N = {
     'search.loading': 'Searching…',
     'search.empty': 'No results.',
     'view.top10': 'Top 10 predictions',
-    'view.stats': 'Stats',
+    'view.aciertos': 'Hits',
+    'view.stats': 'League & market stats',
     'view.ligas': 'Leagues',
-    'view.semanal': 'Weekly',
     'view.partidos': 'Matches',
+    'stats.showWithMatches': 'Show leagues with matches',
+    'stats.empty': 'No data for this market',
+    'stats.loading': 'Loading stats…',
     'panel.emptySelect': 'Select a match to see the analysis',
     'ligas.emptySelect': 'Select a league to see the table',
     'ligas.seeMatches': 'See matches in this league',
@@ -3838,7 +3952,7 @@ const I18N = {
     'auth.close': 'Close',
     'premiumModal.title': 'Go Premium',
     'premiumModal.lead':
-      'Unlock weekly tips and full access to Houdini Bet. Activate now or later.',
+      'Unlock weekly tips and full access to Houdini Analytics. Activate now or later.',
     'premiumModal.activate': 'Activate Premium',
     'premiumModal.skip': 'Not now',
     'consent.title': 'Cookies and privacy',
@@ -3973,8 +4087,8 @@ const I18N = {
     'sanction.ack': 'Got it',
     'nav.partidos': 'Matches',
     'nav.top10': 'Top 10',
+    'nav.aciertos': 'Hits',
     'nav.stats': 'Stats',
-    'nav.semanal': 'Weekly',
     'nav.ligas': 'Leagues',
     'panel.tabGeneral': 'Overview',
     'panel.tabGoals': 'Goals',
@@ -4632,13 +4746,17 @@ function renderPartidosList() {
   const groups = new Map();
   for (const m of rows) {
     const k = leagueKey(m);
-    if (!groups.has(k)) groups.set(k, []);
-    groups.get(k).push(m);
+    if (!groups.has(k)) {
+      groups.set(k, { title: k, logo: m.leagueLogo || null, matches: [] });
+    }
+    const g = groups.get(k);
+    if (!g.logo && m.leagueLogo) g.logo = m.leagueLogo;
+    g.matches.push(m);
   }
-  const sections = [...groups.entries()].map(
-    ([title, matches]) => `
+  const sections = [...groups.values()].map(
+    ({ title, logo, matches }) => `
       <section class="league" role="group" aria-label="${escapeHtml(title)}">
-        <h3 class="league__title">${escapeHtml(title)}</h3>
+        <h3 class="league__title">${leagueLogoHtml(logo, 'league__logo')}<span>${escapeHtml(title)}</span></h3>
         <div class="league__list">${matches.map(browseRowHtml).join('')}</div>
       </section>`
   );
@@ -4653,7 +4771,7 @@ function renderPartidosList() {
 }
 
 /** Primary Top 10 floor (same as playable tip lane). */
-const TOP10_MIN_PROB = 75;
+const TOP10_MIN_PROB = 78;
 /** Soft backfill floor — fill to 10 when primary pass underfills; never invent tips. */
 const TOP10_SOFT_MIN_PROB = 69;
 /** Preferred playable floor (lane/value). Top 10 does not hard-reject below this. */
@@ -4812,7 +4930,7 @@ function isTop10MatchStatus(status) {
 
 /**
  * Primary tip candidates only (soft floor). Never promote secondary into Top 10 chrome —
- * panel-suggest and card-tip must show the same match primary (suggestedBet).
+ * Top 10 card-tip uses match primary (suggestedBet) — same label as former panel tip.
  * tipTier none / display tips included when tipProbPct ≥ soft floor (Top 10 ≠ Stats ledger).
  * Only scheduled/live (skip finished) so Top 10 stays actionable.
  */
@@ -4841,7 +4959,7 @@ function buildTop10Pool(matches) {
       });
     }
   }
-  // Primary pass (P≥75) first, then soft backfill (P≥69); within band: book > est, then score.
+  // Primary pass (P≥78) first, then soft backfill (P≥69); within band: book > est, then score.
   return pool.sort((a, b) => {
     const aPri = a.meta.primaryPass ? 1 : 0;
     const bPri = b.meta.primaryPass ? 1 : 0;
@@ -4853,7 +4971,7 @@ function buildTop10Pool(matches) {
   });
 }
 
-/** Fill up to 10: diversity caps, primary P≥75 first, soft P≥69 backfill. */
+/** Fill up to 10: diversity caps, primary P≥78 first, soft P≥69 backfill. */
 function pickTop10Tips(matches, limit = TOP10_LIMIT) {
   const pool = buildTop10Pool(matches);
   return selectDiverseTips(pool, limit, 1, TOP10_MAX_PER_FAMILY);
@@ -4863,7 +4981,7 @@ let top3LoadSeq = 0;
 
 /**
  * Top 10: tips of the selected calendar day only (same date as Partidos).
- * Fill min(10, N). Primary P≥75 + soft ≥69. Not best-bets/playable-only. Stats tip_results unchanged.
+ * Fill min(10, N). Primary P≥78 + soft ≥69. Not best-bets/playable-only. Stats tip_results unchanged.
  */
 async function renderTop3() {
   const el = document.getElementById('top3-list');
@@ -4896,32 +5014,18 @@ async function renderTop3() {
           suggestedBet: tip,
         };
         const prob = tipProbPct(m);
-        const oddsTxt = tipOddsDisplay(bet.tipOdds);
-        const edge = bet.valueEdge != null ? Number(bet.valueEdge) : null;
-        const valueTxt =
-          edge != null && Number.isFinite(edge) && bet.oddsSource === 'book'
-            ? `Valor +${(edge * 100).toFixed(0)}%`
-            : edge != null && Number.isFinite(edge)
-              ? `Edge ${(edge * 100).toFixed(0)}%`
-              : '';
         const rank = i + 1;
         const matchId = Number(item.matchId ?? bet.id ?? bet.matchId);
         const liveStrip = bet.status === 'live' ? liveStripHtml(m) : '';
+        const round = formatRoundLabel(m);
         const tipPrimary = hbCensorWrap(
           `<div class="card-tip__primary">
             <span class="card-tip__bet tip-accent">${escapeHtml(tipLabel)}</span>
             ${
               prob != null
-                ? `<span class="${confClass(prob)} card-tip__conf">${Math.round(Number(prob))}%</span>`
+                ? `<span class="${confClass(prob)} card-tip__conf">${formatTipPct(prob)}%</span>`
                 : ''
             }
-          </div>`
-        );
-        const tipMetrics = hbCensorWrap(
-          `<div class="top3-metrics">
-            ${prob != null ? `<span class="top3-metrics__item"><em>Prob</em> ${Math.round(Number(prob))}%</span>` : ''}
-            ${oddsTxt ? `<span class="top3-metrics__item"><em>Cuota</em> ${escapeHtml(oddsTxt)}</span>` : '<span class="top3-metrics__item muted"><em>Cuota</em> sin book</span>'}
-            ${valueTxt ? `<span class="top3-metrics__item top3-metrics__item--value">${escapeHtml(valueTxt)}</span>` : ''}
           </div>`
         );
         return `
@@ -4930,12 +5034,14 @@ async function renderTop3() {
           <div class="top3-rank">#${rank}</div>
           ${tipPrimary}
           ${liveStrip}
-          ${tipMetrics}
           ${crestsRowHtml(home, bet.homeTeam?.logo, away, bet.awayTeam?.logo)}
           <p class="card-tip__match">${escapeHtml(home)} vs ${escapeHtml(away)}</p>
-          <p class="card-tip__league muted">${escapeHtml(leagueKey(m))} · ${escapeHtml(
-            formatMatchDate(bet.matchDate)
-          )}</p>
+          <p class="card-tip__league muted">${leagueLogoHtml(
+            bet.leagueLogo || m.leagueLogo,
+            'card-tip__league-logo'
+          )}<span>${escapeHtml(leagueKey(m))}${
+            round ? ` · ${escapeHtml(round)}` : ''
+          }</span></p>
         </div>
         <button class="primary card-tip__action" data-analyze="${matchId}" type="button">Analizar</button>
       </article>`;
@@ -5032,7 +5138,7 @@ function tipMetaHtml({
     );
   }
   if (tipTier === 'none' || tipTier === 'fallback') {
-    bits.push('<span class="muted">sin tip ≥75%</span>');
+    bits.push('<span class="muted">sin tip ≥78%</span>');
   } else if (tipTier === 'playable' && conf != null && Number(conf) >= 80) {
     bits.push('<span class="muted">tip seguro</span>');
   }
@@ -5135,8 +5241,12 @@ function bindAnalyze(root) {
       document.querySelectorAll('.league-match.is-selected').forEach((el) => el.classList.remove('is-selected'));
       if (node.classList.contains('league-match')) node.classList.add('is-selected');
       const view = document.getElementById('views')?.dataset.view;
-      // From Top 3 on desktop → Partidos split so Generales/Goles/Tiros… are visible
-      if (view === 'top3' && window.matchMedia('(min-width: 900px)').matches) {
+      // Views without a desktop analysis split → Partidos so its panel is available.
+      if (
+        (view === 'top3' && window.matchMedia('(min-width: 900px)').matches) ||
+        view === 'aciertos' ||
+        view === 'stats'
+      ) {
         setActiveNav('#partidos');
         requestAnimationFrame(() => {
           document.querySelector(`.league-match[data-analyze="${id}"]`)?.classList.add('is-selected');
@@ -5195,13 +5305,19 @@ function resolveMarkets(m) {
   };
 }
 
-/** Normalize a 0–1 or 0–100 model prob to display percentage (0–100). */
+/** Normalize a 0–1 or 0–100 model prob to display percentage (0–100), truncated. */
 function toDisplayPct(v) {
   if (v == null || v === '') return null;
   const n = Number(v);
   if (!Number.isFinite(n) || n < 0) return null;
   const pct = n <= 1 ? n * 100 : n;
-  return Number(pct.toFixed(1));
+  return Math.trunc(pct);
+}
+
+/** Tip % for badges — always truncated, never rounded up. */
+function formatTipPct(v) {
+  if (v == null || !Number.isFinite(Number(v))) return null;
+  return Math.trunc(Number(v));
 }
 
 /**
@@ -5305,21 +5421,25 @@ function probForLabel(prediction, label) {
 }
 
 /**
- * Tip display % (0–100): confidence_score when > 0, else market P for suggestedBet.
+ * Tip display % (0–100): tipMarketProb (server raw) → probForLabel → conf fallback.
  * Never returns null when a suggested bet has a resolvable market probability.
  */
 function tipProbPct(raw) {
   if (!raw) return null;
+  const tipMarket = raw.tipMarketProb ?? raw.tip_market_prob;
+  if (tipMarket != null && !Number.isNaN(Number(tipMarket))) {
+    const n = Number(tipMarket);
+    if (n > 0) return formatTipPct(n <= 1 ? n * 100 : n);
+  }
   const tip = String(raw.suggestedBet || raw.tip || raw.suggested_bet || '');
-  const confRaw = raw.confidenceScore ?? raw.conf ?? raw.confidence_score;
-  const conf =
-    confRaw != null && !Number.isNaN(Number(confRaw)) ? Number(confRaw) : null;
-  if (conf != null && conf > 0) return conf;
   if (tip) {
     const fromLabel = probForLabel(raw, tip);
     if (fromLabel != null) return fromLabel;
   }
-  return conf != null && conf > 0 ? conf : null;
+  const confRaw = raw.confidenceScore ?? raw.conf ?? raw.confidence_score;
+  const conf =
+    confRaw != null && !Number.isNaN(Number(confRaw)) ? Number(confRaw) : null;
+  return conf != null && conf > 0 ? formatTipPct(conf) : null;
 }
 
 /** Format tip meta % + optional odds-source hint. Never bare "— modelo". */
@@ -5329,7 +5449,7 @@ function tipConfMetaHtml(tipProb, oddsSource = null) {
       ? ` · ${escapeHtml(oddsSourceLabel(oddsSource))}`
       : '';
   if (tipProb != null && Number.isFinite(Number(tipProb))) {
-    const n = Math.round(Number(tipProb));
+    const n = formatTipPct(tipProb);
     return `<span class="${confClass(n)}"><span data-count-to="${n}" data-count-suffix="%">0%</span>${src}</span>`;
   }
   return src
@@ -5371,7 +5491,7 @@ function matchBoardRowHtml(raw) {
   const oddsTxt = tipOddsDisplay(tipOdds);
   const tipTier =
     raw.tipTier ||
-    (prob != null && Number(prob) >= 75 ? 'playable' : tip ? 'fallback' : null);
+    (prob != null && Number(prob) >= 78 ? 'playable' : tip ? 'fallback' : null);
   const valueBit =
     raw.valueEdge != null &&
     Number(raw.valueEdge) >= MIN_VALUE_EDGE &&
@@ -5384,7 +5504,7 @@ function matchBoardRowHtml(raw) {
       : '';
   const tierBit =
     tipTier === 'none' || tipTier === 'fallback'
-      ? '<span class="muted sheet__odd-src">sin tip ≥75%</span>'
+      ? '<span class="muted sheet__odd-src">sin tip ≥78%</span>'
       : tipTier === 'playable' && prob != null && Number(prob) >= 80
         ? '<span class="muted sheet__odd-src">tip seguro</span>'
         : '';
@@ -5587,30 +5707,50 @@ function perfRoiHtml(perf) {
   </div>`;
 }
 
+/** Free Aciertos: blur tip label + crown Premium pill (outcome stays visible). */
+function perfTipDisplayHtml(tip) {
+  if (contentUnlocked()) return `<span class="tip-accent">${tip}</span>`;
+  return `<span class="perf-row__tip-lock" data-hb-censor role="button" tabindex="0" aria-label="${escapeHtml(
+    t('censor.aria')
+  )}">
+    <span class="perf-row__tip-blur" aria-hidden="true">${tip}</span>
+    <span class="perf-row__tip-premium" aria-hidden="true">
+      <img src="/icons/ui/premium-crown.png?v=hb139" width="13" height="13" alt="" />
+      Premium
+    </span>
+  </span>`;
+}
+
 function recentTipRowHtml(r) {
   const matchId = Number(r.matchId);
   const clickable = Number.isFinite(matchId) && matchId > 0;
-  const tip = escapeHtml(labelBet(r.suggestedBet, r.homeName, r.awayName));
+  const tip = escapeHtml(
+    r.suggestedBet
+      ? labelBet(r.suggestedBet, r.homeName, r.awayName)
+      : t('censor.title')
+  );
   const score =
     r.homeGoals != null && r.awayGoals != null
       ? `${Number(r.homeGoals)}-${Number(r.awayGoals)}`
       : '—';
-  const odds = tipOddsDisplay(r.tipOdds);
+  const liveLabel = r.matchStatus === 'live' ? ' — En vivo' : '';
+  const odds = contentUnlocked() ? tipOddsDisplay(r.tipOdds) : '';
+  // Single role attr (listitem vs button) — duplicate roles break keyboard a11y.
   const attrs = clickable
     ? ` data-analyze="${matchId}" role="button" tabindex="0"`
-    : '';
+    : ' role="listitem"';
   return `
-    <article class="perf-row" role="listitem"${attrs}>
+    <article class="perf-row"${attrs}>
       <span class="perf-row__crests" aria-hidden="true">
         ${crestHtml(r.homeName, r.homeLogo, 'sm')}
         ${crestHtml(r.awayName, r.awayLogo, 'sm')}
       </span>
       <span class="perf-row__main">
         <span class="perf-row__match">${escapeHtml(r.homeName || '')} – ${escapeHtml(r.awayName || '')}</span>
-        <span class="perf-row__tip tip-accent">${tip}</span>
+        <span class="perf-row__tip">${perfTipDisplayHtml(tip)}</span>
         <span class="perf-row__meta muted">${escapeHtml(leagueLabelEs(r.leagueName || r.league || '—'))} · ${escapeHtml(
           formatMatchDate(r.matchDate)
-        )} · ${score}${odds ? ` · ${odds}` : ''}</span>
+        )} — ${score}${escapeHtml(liveLabel)}${odds ? ` · ${odds}` : ''}</span>
       </span>
       <span class="perf-row__out">${outcomeBadge(r.outcome)}</span>
     </article>`;
@@ -5725,6 +5865,418 @@ async function loadPerformance() {
   }
 }
 
+const LEAGUE_STATS_MARKETS = [
+  ...[0.5, 1.5, 2.5, 3.5, 4.5, 5.5].flatMap((line) => {
+    const key = String(line).replace('.', '');
+    const overCode = `OVER_${key[0]}5`;
+    const underCode = `UNDER_${key[0]}5`;
+    return [
+      { code: overCode, label: `Total de goles: +${line}` },
+      { code: underCode, label: `Total de goles: −${line}` },
+    ];
+  }),
+  { code: 'BTTS_YES', label: 'Ambos equipos marcan: SI' },
+  { code: 'BTTS_NO', label: 'Ambos equipos marcan: NO' },
+  { code: 'HOME_WIN', label: '1' },
+  { code: 'DRAW', label: 'X' },
+  { code: 'AWAY_WIN', label: '2' },
+  { code: 'AVG_YELLOW', label: 'Media de tarjetas amarillas por partido' },
+  { code: 'AVG_RED', label: 'Media de tarjetas rojas por partido' },
+  { code: 'AVG_CORNERS', label: 'Media de córners por partido' },
+];
+
+let leagueStatsMarket = 'OVER_25';
+let leagueStatsActiveOnly = false;
+let leagueStatsBound = false;
+let leagueStatsLeagueId = null;
+let leagueStatsLeagueName = '';
+let leagueStatsTeamId = null;
+let leagueStatsTeamCache = [];
+let matchStatsMetric = 'goals';
+let matchStatsSort = 'high';
+let matchStatsBound = false;
+let matchStatsLoadSeq = 0;
+
+const MATCH_STATS_LABELS = {
+  goals: 'goles',
+  shots: 'tiros',
+  sot: 'tiros a puerta',
+  corners: 'córners',
+  cards: 'tarjetas',
+};
+
+function formatStatsDate(ymd) {
+  const [year, month, day] = String(ymd).split('-').map(Number);
+  if (!year || !month || !day) return ymd;
+  return new Intl.DateTimeFormat(getUiLocale(), {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  }).format(new Date(year, month - 1, day));
+}
+
+function matchStatsValue(value) {
+  if (value == null || !Number.isFinite(Number(value))) return '—';
+  return new Intl.NumberFormat(getUiLocale(), {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 2,
+  }).format(Number(value));
+}
+
+function renderMatchStatsRows(rows) {
+  const list = document.getElementById('match-stats-list');
+  if (!list) return;
+  if (!rows?.length) {
+    list.innerHTML = `<div class="empty-board muted">No hay partidos con datos para esta fecha.</div>`;
+    return;
+  }
+  list.innerHTML = rows
+    .map((row, index) => {
+      const home = row.homeTeam || {};
+      const away = row.awayTeam || {};
+      const homeN = Number(row.homeAverage?.sample) || 0;
+      const awayN = Number(row.awayAverage?.sample) || 0;
+      const league = leagueLabelEs(row);
+      const leagueLogo = leagueLogoHtml(row.leagueLogo, 'match-stats-row__league-logo');
+      return `<button type="button" class="match-stats-row" data-analyze="${Number(row.id)}" role="listitem">
+        <span class="match-stats-row__rank" aria-label="Posición ${index + 1}">${index + 1}</span>
+        <span class="match-stats-row__crests" aria-hidden="true">
+          ${crestHtml(home.name, home.logo, 'sm')}
+          ${crestHtml(away.name, away.logo, 'sm')}
+        </span>
+        <span class="match-stats-row__body">
+          <span class="match-stats-row__match">${escapeHtml(home.name || 'Local')} <span>vs</span> ${escapeHtml(
+            away.name || 'Visitante'
+          )}</span>
+          <span class="match-stats-row__league">
+            <span aria-hidden="true">${countryFlag(row.leagueCountry)}</span>${leagueLogo}<span>${escapeHtml(
+              league
+            )}</span>
+          </span>
+          <span class="match-stats-row__samples">Local ${homeN} · Visitante ${awayN} · ${escapeHtml(
+            formatMatchTimeShort(row.matchDate) || 'Sin hora'
+          )}</span>
+        </span>
+        <span class="match-stats-row__value" aria-label="${escapeHtml(
+          `${MATCH_STATS_LABELS[matchStatsMetric]}: ${matchStatsValue(row.matchAvg)}`
+        )}">${escapeHtml(matchStatsValue(row.matchAvg))}</span>
+      </button>`;
+    })
+    .join('');
+  bindAnalyze(list);
+}
+
+function syncMatchStatsControls() {
+  const date = resolveSelectedDate();
+  selectedDate = date;
+  const dateEl = document.getElementById('match-stats-date');
+  if (dateEl) {
+    dateEl.textContent = formatStatsDate(date);
+    dateEl.setAttribute('datetime', date);
+  }
+  document.querySelectorAll('[data-stats-sort]').forEach((button) => {
+    const active = button.dataset.statsSort === matchStatsSort;
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+  document.querySelectorAll('[data-stats-metric]').forEach((button) => {
+    const active = button.dataset.statsMetric === matchStatsMetric;
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+}
+
+function setMatchStatsDate(delta) {
+  selectedDate = ymdAddDays(resolveSelectedDate(), delta);
+  windowMode = 'date';
+  if (selectedDate === todayYmd()) windowMode = 'hoy';
+  else if (selectedDate === tomorrowYmd()) windowMode = 'manana';
+  else if (selectedDate === yesterdayYmd()) windowMode = 'ayer';
+  syncWindowChips();
+  persistFiltersIfAllowed();
+  loadMatchStatsView().catch(() => {});
+}
+
+function bindMatchStatsControls() {
+  if (matchStatsBound) return;
+  matchStatsBound = true;
+  document.getElementById('match-stats-prev')?.addEventListener('click', () => setMatchStatsDate(-1));
+  document.getElementById('match-stats-next')?.addEventListener('click', () => setMatchStatsDate(1));
+  document.querySelectorAll('[data-stats-sort]').forEach((button) => {
+    button.addEventListener('click', () => {
+      matchStatsSort = button.dataset.statsSort === 'low' ? 'low' : 'high';
+      loadMatchStatsView().catch(() => {});
+    });
+  });
+  document.querySelectorAll('[data-stats-metric]').forEach((button) => {
+    button.addEventListener('click', () => {
+      matchStatsMetric = button.dataset.statsMetric || 'goals';
+      loadMatchStatsView().catch(() => {});
+    });
+  });
+}
+
+async function loadMatchStatsView() {
+  bindMatchStatsControls();
+  syncMatchStatsControls();
+  const seq = ++matchStatsLoadSeq;
+  const date = resolveSelectedDate();
+  const list = document.getElementById('match-stats-list');
+  const meta = document.getElementById('match-stats-meta');
+  if (list) list.innerHTML = `<div class="empty-board muted">Cargando estadísticas…</div>`;
+  if (meta) meta.textContent = '';
+  const query = new URLSearchParams({
+    date,
+    metric: matchStatsMetric,
+    sort: matchStatsSort,
+    n: '10',
+  });
+  try {
+    const data = await api(`/api/v1/stats/match-averages?${query}`);
+    if (seq !== matchStatsLoadSeq) return;
+    if (meta) {
+      meta.textContent = `${Number(data.meta?.withData) || 0} de ${
+        Number(data.meta?.total) || 0
+      } partidos con datos · ${formatStatsDate(date)}`;
+    }
+    renderMatchStatsRows(data.matches || []);
+  } catch (err) {
+    if (seq !== matchStatsLoadSeq) return;
+    if (list) {
+      list.innerHTML = `<div class="empty-board conf-lo">${escapeHtml(
+        err.message || 'No se pudieron cargar las estadísticas.'
+      )}</div>`;
+    }
+  }
+}
+
+function leagueStatsMarketMeta(code) {
+  return LEAGUE_STATS_MARKETS.find((m) => m.code === code) || LEAGUE_STATS_MARKETS[4];
+}
+
+function renderLeagueStatsMenu() {
+  const menu = document.getElementById('league-stats-market-menu');
+  if (!menu) return;
+  menu.innerHTML = LEAGUE_STATS_MARKETS.map(
+    (m) =>
+      `<button type="button" class="league-stats__option${
+        m.code === leagueStatsMarket ? ' is-active' : ''
+      }" role="option" data-market="${escapeHtml(m.code)}" aria-selected="${
+        m.code === leagueStatsMarket ? 'true' : 'false'
+      }">${escapeHtml(m.label)}</button>`
+  ).join('');
+}
+
+function setLeagueStatsMarketOpen(open) {
+  const btn = document.getElementById('league-stats-market-btn');
+  const menu = document.getElementById('league-stats-market-menu');
+  if (!btn || !menu) return;
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  menu.hidden = !open;
+}
+
+function syncLeagueStatsScopeChrome() {
+  const scope = document.getElementById('league-stats-scope');
+  const head = document.getElementById('league-stats-head');
+  const nameEl = document.getElementById('league-stats-scope-name');
+  const inTeams = leagueStatsLeagueId != null;
+  if (scope) scope.hidden = !inTeams;
+  if (nameEl) nameEl.textContent = inTeams ? leagueStatsLeagueName || 'Liga' : '';
+  if (head) {
+    head.innerHTML = inTeams
+      ? `<span>Equipo</span><span>Partidos</span><span>Jugados</span><span>Score</span>`
+      : `<span>Liga</span><span>Partidos totales</span><span>Partidos jugados</span><span>Score</span>`;
+  }
+}
+
+function fillLeagueStatsTeamSelect(teams) {
+  const sel = document.getElementById('league-stats-team-select');
+  if (!sel) return;
+  const opts = [`<option value="">Todos los equipos</option>`].concat(
+    (teams || []).map(
+      (t) =>
+        `<option value="${Number(t.teamId)}"${
+          Number(leagueStatsTeamId) === Number(t.teamId) ? ' selected' : ''
+        }>${escapeHtml(t.teamName || '')}</option>`
+    )
+  );
+  sel.innerHTML = opts.join('');
+}
+
+function bindLeagueStatsControls() {
+  if (leagueStatsBound) return;
+  leagueStatsBound = true;
+  const btn = document.getElementById('league-stats-market-btn');
+  const menu = document.getElementById('league-stats-market-menu');
+  const toggle = document.getElementById('league-stats-active-only');
+  btn?.addEventListener('click', () => {
+    const open = btn.getAttribute('aria-expanded') === 'true';
+    setLeagueStatsMarketOpen(!open);
+  });
+  menu?.addEventListener('click', (e) => {
+    const opt = e.target.closest('[data-market]');
+    if (!opt) return;
+    leagueStatsMarket = opt.getAttribute('data-market') || 'OVER_25';
+    const label = document.getElementById('league-stats-market-label');
+    if (label) label.textContent = leagueStatsMarketMeta(leagueStatsMarket).label;
+    renderLeagueStatsMenu();
+    setLeagueStatsMarketOpen(false);
+    loadLeagueStatsView().catch(() => {});
+  });
+  toggle?.addEventListener('change', () => {
+    leagueStatsActiveOnly = !!toggle.checked;
+    loadLeagueStatsView().catch(() => {});
+  });
+  document.getElementById('league-stats-back')?.addEventListener('click', () => {
+    leagueStatsLeagueId = null;
+    leagueStatsLeagueName = '';
+    leagueStatsTeamId = null;
+    leagueStatsTeamCache = [];
+    loadLeagueStatsView().catch(() => {});
+  });
+  document.getElementById('league-stats-team-select')?.addEventListener('change', (e) => {
+    const v = e.target.value;
+    leagueStatsTeamId = v ? Number(v) : null;
+    loadLeagueStatsView().catch(() => {});
+  });
+  document.getElementById('league-stats-list')?.addEventListener('click', (e) => {
+    const row = e.target.closest('[data-stats-league-id]');
+    if (!row) return;
+    const id = Number(row.getAttribute('data-stats-league-id'));
+    if (!Number.isFinite(id) || id <= 0) return;
+    leagueStatsLeagueId = id;
+    leagueStatsLeagueName = row.getAttribute('data-stats-league-name') || '';
+    leagueStatsTeamId = null;
+    loadLeagueStatsView().catch(() => {});
+  });
+  document.addEventListener('click', (e) => {
+    const wrap = document.getElementById('league-stats-market-wrap');
+    if (wrap && !wrap.contains(e.target)) setLeagueStatsMarketOpen(false);
+  });
+}
+
+function formatLeagueStatsScore(row) {
+  if (row?.score == null || !Number.isFinite(Number(row.score))) return '—';
+  if (row.scoreKind === 'avg') return Number(row.score).toFixed(2);
+  return `${Math.trunc(Number(row.score) * 100)}%`;
+}
+
+function renderLeagueStatsList(rows) {
+  const el = document.getElementById('league-stats-list');
+  if (!el) return;
+  if (!rows?.length) {
+    el.innerHTML = `<div class="empty-board muted">${escapeHtml(t('stats.empty'))}</div>`;
+    return;
+  }
+  el.innerHTML = rows
+    .map((row) => {
+      const logo = leagueLogoHtml(row.leagueLogo, 'league-stats__logo');
+      const flag = row.country
+        ? `<span class="league-stats__flag" aria-hidden="true">${countryFlag(row.country)}</span>`
+        : '';
+      const countryBit = row.country
+        ? `<span class="league-stats__country">${escapeHtml(countryLabel(row.country))}</span>`
+        : '';
+      const lid = Number(row.leagueId);
+      return `<article class="league-stats__row is-clickable" role="button" tabindex="0"
+        data-stats-league-id="${lid}"
+        data-stats-league-name="${escapeHtml(row.leagueName || '')}">
+        <div class="league-stats__league">
+          ${logo || flag}
+          <div class="league-stats__league-text">
+            ${countryBit}
+            <span class="league-stats__name">${escapeHtml(row.leagueName || '')}</span>
+          </div>
+        </div>
+        <span class="league-stats__num">${Number(row.totalMatches) || 0}</span>
+        <span class="league-stats__num">${Number(row.played) || 0}</span>
+        <span class="league-stats__score">${escapeHtml(formatLeagueStatsScore(row))}</span>
+      </article>`;
+    })
+    .join('');
+}
+
+function renderTeamStatsList(rows) {
+  const el = document.getElementById('league-stats-list');
+  if (!el) return;
+  if (!rows?.length) {
+    el.innerHTML = `<div class="empty-board muted">${escapeHtml(t('stats.empty'))}</div>`;
+    return;
+  }
+  el.innerHTML = rows
+    .map((row) => {
+      const crest = crestHtml(row.teamName, row.teamLogo, 'sm');
+      const selected =
+        leagueStatsTeamId != null && Number(leagueStatsTeamId) === Number(row.teamId)
+          ? ' is-selected'
+          : '';
+      return `<article class="league-stats__row${selected}" role="listitem">
+        <div class="league-stats__league">
+          ${crest}
+          <div class="league-stats__league-text">
+            <span class="league-stats__name">${escapeHtml(row.teamName || '')}</span>
+          </div>
+        </div>
+        <span class="league-stats__num">${Number(row.totalMatches) || 0}</span>
+        <span class="league-stats__num">${Number(row.played) || 0}</span>
+        <span class="league-stats__score">${escapeHtml(formatLeagueStatsScore(row))}</span>
+      </article>`;
+    })
+    .join('');
+}
+
+async function loadLeagueStatsView() {
+  loadMatchStatsView().catch(() => {});
+  bindLeagueStatsControls();
+  renderLeagueStatsMenu();
+  syncLeagueStatsScopeChrome();
+  const label = document.getElementById('league-stats-market-label');
+  if (label) label.textContent = leagueStatsMarketMeta(leagueStatsMarket).label;
+  const toggle = document.getElementById('league-stats-active-only');
+  if (toggle) toggle.checked = leagueStatsActiveOnly;
+  const el = document.getElementById('league-stats-list');
+  if (el) el.innerHTML = `<div class="empty-board muted">${escapeHtml(t('stats.loading'))}</div>`;
+  try {
+    if (leagueStatsLeagueId != null) {
+      const q = new URLSearchParams({
+        market: leagueStatsMarket,
+        leagueId: String(leagueStatsLeagueId),
+        activeOnly: leagueStatsActiveOnly ? '1' : '0',
+      });
+      if (leagueStatsTeamId != null) q.set('teamId', String(leagueStatsTeamId));
+      const data = await api(`/api/v1/stats/teams?${q}`);
+      const teams = data.teams || [];
+      if (!leagueStatsTeamId) {
+        leagueStatsTeamCache = teams;
+        fillLeagueStatsTeamSelect(teams);
+      } else if (!leagueStatsTeamCache.length) {
+        const allQ = new URLSearchParams({
+          market: leagueStatsMarket,
+          leagueId: String(leagueStatsLeagueId),
+          activeOnly: leagueStatsActiveOnly ? '1' : '0',
+        });
+        const allData = await api(`/api/v1/stats/teams?${allQ}`);
+        leagueStatsTeamCache = allData.teams || [];
+        fillLeagueStatsTeamSelect(leagueStatsTeamCache);
+      } else {
+        fillLeagueStatsTeamSelect(leagueStatsTeamCache);
+      }
+      renderTeamStatsList(teams);
+      return;
+    }
+    const q = new URLSearchParams({
+      market: leagueStatsMarket,
+      activeOnly: leagueStatsActiveOnly ? '1' : '0',
+    });
+    const data = await api(`/api/v1/stats/leagues?${q}`);
+    renderLeagueStatsList(data.leagues || []);
+  } catch (err) {
+    if (el) {
+      el.innerHTML = `<div class="empty-board conf-lo">${escapeHtml(err.message || 'error')}</div>`;
+    }
+  }
+}
+
 async function loadMorePerformance() {
   if (perfRecentLoadingMore || !perfRecentHasMore) return;
   perfRecentLoadingMore = true;
@@ -5782,15 +6334,14 @@ function normalizeViewHash(hash) {
   const raw = (hash || '').replace('#', '');
   const id = raw.split('/')[0];
   if (id === 'mejores' || id === 'hoy' || id === '') return 'partidos';
-  if (id === 'aciertos') return 'stats';
-  if (id === 'cuotas') return 'bandas';
+  if (id === 'cuotas' || id === 'bandas' || id === 'semanal') return 'stats';
   if (id === 'admin') return isAdminQueryEnabled() ? 'admin' : 'partidos';
   if (
     id === 'partidos' ||
     id === 'top3' ||
+    id === 'aciertos' ||
     id === 'stats' ||
     id === 'ligas' ||
-    id === 'bandas' ||
     id === 'premium' ||
     id === 'perfil' ||
     id === 'ajustes' ||
@@ -5849,11 +6400,7 @@ function setActiveNav(hash, { pushHash = true } = {}) {
   if (views) views.classList.remove('views--dragging');
   document.querySelectorAll('.v2-nav__link, .dock__link, .app-tabbar__link').forEach((link) => {
     const target = normalizeViewHash(link.getAttribute('href') || '');
-    const href = link.getAttribute('href') || '';
-    const active =
-      target === view ||
-      (view === 'bandas' && (href === '#cuotas' || href === '#bandas')) ||
-      (view === 'premium' && false);
+    const active = target === view || (view === 'premium' && false);
     link.classList.toggle('is-active', active);
     if (link.classList.contains('v2-nav__link') || link.classList.contains('app-tabbar__link')) {
       if (active) link.setAttribute('aria-current', 'page');
@@ -5861,17 +6408,17 @@ function setActiveNav(hash, { pushHash = true } = {}) {
     }
   });
   if (pushHash) {
-    let want = view === 'bandas' ? '#cuotas' : `#${view}`;
+    let want = `#${view}`;
     const deep = incoming.replace(/^#/, '');
     if (view === 'ligas' && /^ligas\/\d+/.test(deep)) want = `#${deep}`;
     if (location.hash !== want) history.replaceState(null, '', want);
   }
   window.scrollTo(0, 0);
   if (view !== 'ligas') document.body.classList.remove('has-ligas-selection');
-  if (view === 'stats' || view === 'aciertos') loadPerformance().catch(() => {});
+  if (view === 'aciertos') loadPerformance().catch(() => {});
+  if (view === 'stats') loadLeagueStatsView().catch(() => {});
   if (view === 'top3') renderTop3().catch(() => {});
   if (view === 'ligas') renderLigasView();
-  if (view === 'bandas') loadCuotasTarget().catch(() => {});
   if (view === 'ajustes') syncPrivacyToggles();
   if (view === 'premium') syncPremiumView();
   if (view === 'perfil') syncPerfilView();
@@ -6258,7 +6805,7 @@ function conservativeBlockHtml(combo, meta = {}) {
     combo.belowTarget || meta.conservative?.belowTarget
       ? `<p class="weekly-profile__warn muted">${escapeHtml(
           meta.conservative?.belowReason ||
-            'No alcanza P conjunta ajustada ≥75%; mejor estimación del modelo.'
+            'No alcanza P conjunta ajustada ≥78%; mejor estimación del modelo.'
         )}</p>`
       : '';
   return `<div class="weekly-profile">
@@ -6619,19 +7166,8 @@ async function openPrediction(id) {
       m.leagueName || m.league || '',
       m.leagueApiId ?? m.apiId
     );
-    const tipOdds =
-      bundle.tipOdds != null
-        ? Number(bundle.tipOdds).toFixed(2)
-        : tipOddsFromBundle(p.suggested_bet, bundle.odds);
-    const tipTierBundle = bundle.tipTier || null;
-    const tipProb = tipProbPct({
-      ...p,
-      suggestedBet: p.suggested_bet,
-      suggested_bet: p.suggested_bet,
-      confidenceScore: p.confidence_score,
-      confidence_score: p.confidence_score,
-      tipTier: tipTierBundle,
-    });
+    const leagueLogo = leagueLogoHtml(m.leagueLogo || bundle.match?.leagueLogo);
+    const roundLabel = formatRoundLabel(m);
     const goalsAvg =
       bundle.xg?.home != null && bundle.xg?.away != null
         ? Number((Number(bundle.xg.home) + Number(bundle.xg.away)).toFixed(2))
@@ -6869,34 +7405,16 @@ async function openPrediction(id) {
         : '';
     openPanel(`
       <div class="mp" id="mp-root">
-        <div class="mp-league">${escapeHtml(leagueLine || 'Liga')}</div>
-        <div class="mp-meta muted">${escapeHtml(formatMatchDate(m.matchDate))}</div>
+        <div class="mp-league">${leagueLogo}<span>${escapeHtml(leagueLine || 'Liga')}</span></div>
+        <div class="mp-meta muted">${escapeHtml(formatMatchDate(m.matchDate))}${
+          roundLabel ? ` · ${escapeHtml(roundLabel)}` : ''
+        }</div>
         <div class="mp-teams${liveEvents ? ' mp-teams--events' : ''}">
           ${mpTeamCol(homeName, m.homeTeam?.logo, 'home', bundle.form?.home)}
           ${mpVsMidHtml(m, bundle.live)}
           ${mpTeamCol(awayName, m.awayTeam?.logo, 'away', bundle.form?.away)}
           ${liveEvents}
         </div>
-        ${hbCensorWrap(
-          `<div class="panel-suggest">
-          <div class="panel-suggest__bet">${escapeHtml(
-            labelBet(p.suggested_bet, homeName, awayName)
-          )}</div>
-          <div class="panel-suggest__meta">
-            ${tipConfMetaHtml(tipProb, bundle.oddsSource || 'model')}
-            ${tipOdds ? `<span class="tip-odds">${tipOdds} €</span>` : ''}
-            ${
-              p.value_edge != null && p.value_edge >= MIN_VALUE_EDGE
-                ? `<span class="value">+${(p.value_edge * 100).toFixed(0)}%</span>`
-                : ''
-            }
-          </div>
-          <div class="muted panel-suggest__sec">2ª · ${escapeHtml(
-            labelBet(p.secondary_bet, homeName, awayName)
-          )}</div>
-        </div>`,
-          { block: true }
-        )}
         ${livePanelHtml(bundle.live, homeName, awayName)}
         ${
           bundle.dataQuality === 'low'
@@ -7088,8 +7606,8 @@ async function load() {
   }
 
   const view = document.getElementById('views')?.dataset.view;
-  if (view === 'bandas') loadCuotasTarget().catch(() => {});
-  else if (view === 'stats' || view === 'aciertos') loadPerformance().catch(() => {});
+  if (view === 'aciertos') loadPerformance().catch(() => {});
+  else if (view === 'stats') loadLeagueStatsView().catch(() => {});
   else if (view === 'top3') renderTop3().catch(() => {});
   else if (view === 'ligas') renderLigasView();
 
@@ -7143,7 +7661,7 @@ async function refreshOpenPanelLive() {
     const current = root.querySelector('.mp-live');
     if (html) {
       if (current) current.outerHTML = html;
-      else root.querySelector('.panel-suggest')?.insertAdjacentHTML('afterend', html);
+      else root.querySelector('.mp-teams')?.insertAdjacentHTML('afterend', html);
     } else if (current) {
       current.remove();
     }
@@ -8069,10 +8587,10 @@ let swipeLocked = null; // 'h' | 'v'
 function currentViewIndex() {
   const v = viewsEl?.dataset.view;
   if (v === 'top3') return 1;
-  if (v === 'stats') return 2;
-  if (v === 'ligas') return 3;
+  if (v === 'aciertos') return 2;
+  if (v === 'stats') return 3;
+  if (v === 'ligas') return 4;
   if (
-    v === 'bandas' ||
     v === 'ajustes' ||
     v === 'premium' ||
     v === 'privacidad' ||
@@ -8086,7 +8604,7 @@ function currentViewIndex() {
 }
 
 /** Primary swipe nav between main sections. */
-const VIEW_HASHES = ['#partidos', '#top3', '#stats', '#ligas'];
+const VIEW_HASHES = ['#partidos', '#top3', '#aciertos', '#stats', '#ligas'];
 
 function onSwipeStart(x, y, target) {
   if (document.body.classList.contains('panel-open')) return;

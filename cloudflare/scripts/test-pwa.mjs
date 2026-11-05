@@ -8,7 +8,9 @@ const PUBLIC = resolve(HERE, '../public');
 const SW = readFileSync(resolve(PUBLIC, 'sw.js'), 'utf8');
 const APP = readFileSync(resolve(PUBLIC, 'app.js'), 'utf8');
 const HTML = readFileSync(resolve(PUBLIC, 'index.html'), 'utf8');
-const MANIFEST = JSON.parse(readFileSync(resolve(PUBLIC, 'manifest.webmanifest'), 'utf8'));
+const MANIFEST = JSON.parse(
+  readFileSync(resolve(PUBLIC, 'manifest.webmanifest'), 'utf8').replace(/^\uFEFF/, '')
+);
 
 let passed = 0;
 let failed = 0;

@@ -1,5 +1,5 @@
 import * as store from '../db.js';
-import { resolveTipOdds, TRIVIAL_GOAL_TIPS } from './oddsBands.js';
+import { resolveTipOdds, modelProbForBet, TRIVIAL_GOAL_TIPS } from './oddsBands.js';
 import {
   applyCalibrationToCandidates,
   isFamilyBlocked,
@@ -25,9 +25,10 @@ import { buildLiveBlock } from './liveModel.js';
 export { TRIVIAL_GOAL_TIPS };
 
 const MIN_TIP_PROB = 0.48;
-const MAX_TIP_PROB = 0.78;
-/** Playable tip lane: model P ≥ this (not max-P absolute). Raised 0.69→0.75 for hit-rate. */
-const PLAYABLE_MIN_PROB = 0.75;
+/** Upper cap for non-1X2 tipProbabilityAllowed (near-certain markets excluded). */
+const MAX_TIP_PROB = 0.9;
+/** Playable tip lane: model P ≥ this (not max-P absolute). Raised 0.75→0.78 for hit-rate. */
+const PLAYABLE_MIN_PROB = 0.78;
 /**
  * Display tip floor (predictions.suggested_bet when tipTier none).
  * Same as playable — never promote ~50% markets as the recommended tip.
@@ -559,9 +560,9 @@ function pickDisplayPrimary(
 }
 
 /**
- * Tip selection: playable lane only for Stats primary (P≥75%, non-trivial, odds≥1.25).
+ * Tip selection: playable lane only for Stats primary (P≥78%, non-trivial, odds≥1.25).
  * When none: tipTier 'none', primary null (no tip_results), displayPrimary for
- * predictions.suggested_bet (NOT NULL) — also prefers P≥75%; weak schema fallback
+ * predictions.suggested_bet (NOT NULL) — also prefers P≥78%; weak schema fallback
  * only when nothing reaches DISPLAY_MIN_PROB (stores real P×100, not 0). Never invents book odds.
  * BTTS secondary-only for playable; BTTS OK on displayPrimary.
  */
@@ -1160,33 +1161,28 @@ export async function predictMatch(db, matchId) {
     };
   }
 
-  // Always store honest model % for UI. tip_tier gates Mejores / tip_results / backfill.
-  const displayProb =
-    hasPlayablePrimary
-      ? primary.prob
-      : displayPrimary?.prob != null && Number.isFinite(Number(displayPrimary.prob))
-        ? Number(displayPrimary.prob)
-        : secondary?.prob != null && Number.isFinite(Number(secondary.prob))
-          ? Number(secondary.prob)
-          : null;
+  // Honest UI % = raw market P (no calib / value-edge boost). Ranking still uses calib in pickBets.
+  const pickRaw = (c) => {
+    if (!c) return null;
+    if (c.rawProb != null && Number.isFinite(Number(c.rawProb))) return Number(c.rawProb);
+    if (c.prob != null && Number.isFinite(Number(c.prob))) return Number(c.prob);
+    return null;
+  };
+  const displayProb = hasPlayablePrimary
+    ? pickRaw(primary)
+    : pickRaw(displayPrimary) ?? pickRaw(secondary);
   let confidence =
-    displayProb != null && Number.isFinite(displayProb) ? displayProb * 100 : 0;
+    displayProb != null && Number.isFinite(displayProb)
+      ? Number((displayProb * 100).toFixed(2))
+      : 0;
   let dataQuality = sampleSize >= MIN_SAMPLE_FOR_TIP ? 'ok' : 'low';
-  if (sampleSize < MIN_SAMPLE_FOR_TIP) {
-    confidence = Number((confidence * 0.9).toFixed(2));
-    dataQuality = 'low';
-  }
-  // Prefer book tips in Mejores ranking (skip when tip market is locked to Stats).
-  if (
-    !tipMarketLocked &&
-    hasPlayablePrimary &&
-    tipResolved.oddsSource === 'book' &&
-    value.value_edge != null &&
-    value.value_edge > 0
-  ) {
-    confidence = Number(Math.min(92, confidence + value.value_edge * 40).toFixed(2));
-  }
-  if (tipMarketLocked && existingTip?.confidence_score != null) {
+  if (sampleSize < MIN_SAMPLE_FOR_TIP) dataQuality = 'low';
+  if (tipMarketLocked && existingTip?.model_prob != null) {
+    const lockedRaw = Number(existingTip.model_prob);
+    if (Number.isFinite(lockedRaw)) {
+      confidence = Number((lockedRaw <= 1 ? lockedRaw * 100 : lockedRaw).toFixed(2));
+    }
+  } else if (tipMarketLocked && existingTip?.confidence_score != null) {
     confidence = Number(existingTip.confidence_score);
   }
 
@@ -1390,6 +1386,13 @@ export async function predictMatch(db, matchId) {
     tipOdds: tipResolved.tipOdds,
     oddsBand: tipResolved.oddsBand,
     oddsSource: tipResolved.oddsSource,
+    tipMarketProb:
+      (() => {
+        const raw = modelProbForBet(payload, payload.suggested_bet);
+        return raw != null && Number.isFinite(raw) && raw > 0
+          ? Number((raw * 100).toFixed(2))
+          : null;
+      })(),
     lambdaSource,
     xg: { home: Number(homeXg.toFixed(3)), away: Number(awayXg.toFixed(3)) },
     highConfidence:
