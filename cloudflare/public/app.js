@@ -641,18 +641,20 @@ function hbCensorWrap(html, { block = false } = {}) {
   )}">
     <div class="hb-censor__veil" aria-hidden="true">${html}</div>
     <div class="hb-censor__lock" aria-hidden="true">
-      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb139" width="22" height="22" alt="" decoding="async" />
+      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb140" width="22" height="22" alt="" decoding="async" />
       <span class="hb-censor__lock-title">${escapeHtml(t('censor.title'))}</span>
       <span class="hb-censor__lock-sub">${escapeHtml(t('censor.sub'))}</span>
     </div>
   </div>`;
 }
 
+/** Prob bands: ≥60% hi · 40–59% mid · 25–39% neu · <25% lo */
 function hbPillTone(v) {
   const n = Number(v);
   if (!Number.isFinite(n)) return 'muted';
   if (n >= 0.6) return 'hi';
   if (n >= 0.4) return 'mid';
+  if (n >= 0.25) return 'neu';
   return 'lo';
 }
 
@@ -1634,31 +1636,28 @@ function formatMatchTimeShort(value) {
 }
 
 function matchStatusPill(m) {
-  const time = formatMatchTimeShort(m.matchDate);
   if (m.status === 'live') {
     const min = m.elapsedMinute != null ? `${Number(m.elapsedMinute)}'` : 'LIVE';
     return `${min} · EN VIVO`;
   }
-  if (m.status === 'finished') {
-    return '';
-  }
-  return time ? `${time} · NS` : 'NS';
+  return '';
 }
 
 function mpVsMidLabel(m, live) {
   if (m.status !== 'live' && m.status !== 'finished') {
-    return { text: 'VS', score: false };
+    const time = formatMatchTimeShort(m.matchDate) || '—';
+    return { text: time, score: false };
   }
   const hg = live?.homeGoals ?? m.homeGoals;
   const ag = live?.awayGoals ?? m.awayGoals;
   if (hg != null && ag != null) {
     return { text: `${Number(hg)}-${Number(ag)}`, score: true };
   }
-  return { text: 'VS', score: false };
+  return { text: '—', score: false };
 }
 
 function mpVsBrandMarkHtml() {
-  return `<img class="mp-vs__brand" src="/brand/houdini-bet-wordmark.png?v=hb139" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
+  return `<img class="mp-vs__brand" src="/brand/houdini-bet-wordmark.png?v=hb140" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
 }
 
 function mpVsMidHtml(m, live) {
@@ -1951,7 +1950,7 @@ function sumRecentAvg(recentAvgs, key) {
   return Number(((Number(h) || 0) + (Number(a) || 0)).toFixed(2));
 }
 
-const UI_ICON_V = 'hb139';
+const UI_ICON_V = 'hb140';
 const MP_STAT_ICON_PX = 20;
 const mpStatImg = (file) =>
   `<img class="mp-stat__icon mp-stat__icon--img" src="/icons/ui/${file}?v=${UI_ICON_V}" width="${MP_STAT_ICON_PX}" height="${MP_STAT_ICON_PX}" alt="" aria-hidden="true" decoding="async" />`;
@@ -2004,11 +2003,12 @@ function pctStatCard(title, prob, leagueRate = null, iconHtml = '') {
     });
   }
   const n = Math.trunc(p * 100);
+  const tone = n >= 60 ? 'hi' : n >= 40 ? 'mid' : n >= 25 ? 'neu' : 'lo';
   return keyStatCard({
     title,
     valueHtml: `<span class="mp-stat__num" data-count-to="${n}" data-count-suffix="%">0%</span>`,
     barPct: n,
-    tone: n >= 60 ? 'accent' : n >= 45 ? 'warn' : 'muted',
+    tone,
     sub,
     iconHtml,
   });
@@ -4287,9 +4287,6 @@ function refreshUiAfterLangChange() {
   try {
     if (typeof renderLigasView === 'function') renderLigasView();
   } catch (_) {}
-  try {
-    if (typeof loadPerformance === 'function') loadPerformance();
-  } catch (_) {}
   if (selectedMatchId && document.getElementById('panel')?.classList.contains('is-open')) {
     openPrediction(selectedMatchId).catch(() => {});
   }
@@ -5715,7 +5712,7 @@ function perfTipDisplayHtml(tip) {
   )}">
     <span class="perf-row__tip-blur" aria-hidden="true">${tip}</span>
     <span class="perf-row__tip-premium" aria-hidden="true">
-      <img src="/icons/ui/premium-crown.png?v=hb139" width="13" height="13" alt="" />
+      <img src="/icons/ui/premium-crown.png?v=hb140" width="13" height="13" alt="" />
       Premium
     </span>
   </span>`;
@@ -5847,6 +5844,8 @@ async function fetchTipPerformance(q) {
 async function loadPerformance() {
   const summary = document.getElementById('perf-summary');
   const recent = document.getElementById('perf-recent');
+  /* Aciertos tab is a Próximamente placeholder — skip public tip board. */
+  if (!summary && !recent) return;
   if (summary && !summary.querySelector('.perf-hero')) setLoading('perf-summary', 1);
   perfRecentOffset = 0;
   perfRecentHasMore = false;
@@ -6415,7 +6414,6 @@ function setActiveNav(hash, { pushHash = true } = {}) {
   }
   window.scrollTo(0, 0);
   if (view !== 'ligas') document.body.classList.remove('has-ligas-selection');
-  if (view === 'aciertos') loadPerformance().catch(() => {});
   if (view === 'stats') loadLeagueStatsView().catch(() => {});
   if (view === 'top3') renderTop3().catch(() => {});
   if (view === 'ligas') renderLigasView();
@@ -7606,8 +7604,7 @@ async function load() {
   }
 
   const view = document.getElementById('views')?.dataset.view;
-  if (view === 'aciertos') loadPerformance().catch(() => {});
-  else if (view === 'stats') loadLeagueStatsView().catch(() => {});
+  if (view === 'stats') loadLeagueStatsView().catch(() => {});
   else if (view === 'top3') renderTop3().catch(() => {});
   else if (view === 'ligas') renderLigasView();
 

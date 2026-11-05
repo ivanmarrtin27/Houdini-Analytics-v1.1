@@ -25,12 +25,14 @@ App de predicciones de fútbol (Poisson).
 
 ## UI
 HTML/JS en `cloudflare/public` (mínima). Pulir con `frontend-design` / `web-design-guidelines` después. Angular descartado.
-- Auth: D1 `users`/`auth_sessions`; cookie `hb_auth`; register (username+name+email+phone+password) / login (username|email) /me/logout + Google OAuth; post-register welcome 3s + Premium modal; secrets `AUTH_SECRET` + Google; Aciertos vía `#aciertos`; Stats ligas vía `#stats`
+- Auth: D1 `users`/`auth_sessions`; cookie `hb_auth`; register (username+name+email+phone+password) / login (username|email) /me/logout + Google OAuth; post-register welcome 3s + Premium modal; secrets `AUTH_SECRET` + Google; Aciertos `#aciertos` = Próximamente; Stats vía `#stats`
 - Admin microsite: `https://houdini-bet-admin.pages.dev` ([`cloudflare/admin-pages/`](cloudflare/admin-pages/); DocuForge dark+red; PIN=`SYNC_SECRET`); usage today + daily chart + Web Analytics + D1 `page_hits` (preview 5 + `#hits` historial/búsqueda, limit≤500) + panel Stats tips (`/tips/performance`; público se retirará luego); promo create/list/delete (tipos free_days|free_month|discount_20|40); users search + revoke/enable/delete; secrets `CF_ACCOUNT_ID`/`CF_API_TOKEN` (+ opc. `CF_WEB_ANALYTICS_SITE_TAG`); dominio `houdini-bet.dev` later; ver `cloudflare/docs/ADMIN_PANEL.md`
 - Consent v2 obligatorio: sin `houdini_consent_v1` (choice + ageConfirmed) la app pública queda bloqueada (shell oculto); legales leíbles dentro del gate
-- Nav: desktop `.v2-nav` + PNG icons (`icons/ui/`); mobile bottom `.app-tabbar` (Partidos/Top 10/Aciertos/Stats/Ligas); Premium chip uses `premium-crown.png`; PWA icons derive from the simple Analytics logo; shell cache `hb139`
-- Free censor (Analytics chrome): `hbCensorWrap` blur + crown + `data-hb-censor` → `#premium`; Aciertos tip rows use `perfTipDisplayHtml` pill (blur + Premium → planes); outcome visible; tip % raw market
-- Match chrome (from Analytics): compact `.league-match` rows + hero `.mp-teams` (Local/Visitante, form V/E/D, score + wordmark, scorers); **panel sin tip banner** (probs/chrome only); competition logos on list/panel/Top 10; jornada/matchday when synced (`round_number` / `round_group`)
+- Nav: desktop `.v2-nav` + PNG icons (`icons/ui/`); mobile bottom `.app-tabbar` (Partidos/Top 10/Aciertos/Stats/Ligas); Premium chip uses `premium-crown.png`; PWA icons derive from the simple Analytics logo; shell cache `hb140`
+- Free censor: `hbCensorWrap` + `data-hb-censor` → `#premium`; Aciertos tab = **Próximamente** (no tip board público); tip % raw market; admin tips intactos
+- Match chrome: `.league-match` + hero `.mp-teams`; panel mid scheduled = **hora** (no VS/NS); **panel sin tip banner**; logos + jornada (`round_number` / `round_group`); brand/logo wrappers fondo `#000`
+- Prob pills/barras: ≥60% verde · 40–59% ámbar · 25–39% neutro · &lt;25% rojo soft (`hbPillTone` / `mp-stat__fill--*`)
+- Stats móvil: `.match-stats__metric` una línea homogénea (flex equal / snap)
 - Ligas móvil: tabla slide-desde-derecha (mismo patrón que panel análisis); `#ligas/<apiId>` + atrás
 - Partidos chrome: chips estado (Todos/En vivo/Finalizados/Próximos); **sin** scope Todas/clubs/intl (siempre all)
 - Display ES: países/ligas vía `countryLabel` + `leagueLabelEs` (no inglés crudo en UI)

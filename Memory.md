@@ -3,16 +3,16 @@
 ## Decisiones
 - Live stuck scheduled: status monotonicity + Slavia/Betis/Dortmund aliases + FD name-match repair + overdue 72h; tip primary P≥78; scorers multi-gol 1 línea + divider simétrico.
 - tipMarketProb on today/panel; Top10 fill via raw P; Stats logos + `/stats/teams`; public brand Houdini Analytics; Aciertos→Partidos analyze.
-- **Baseline:** restored to HoudiniBet-v1.0 (`1a8cf9b`) + Analytics logos/icons; free censor → `#premium` (`hbCensorWrap` + `data-hb-censor`); panel **sin** tip banner (probs sí); Top 10 intacto; Aciertos tab reserved; tips ricos solo admin; shell `hb139`.
+- **Baseline:** free censor → `#premium`; panel sin tip; Top 10 OK; Aciertos = **Próximamente**; logo wrappers `#000`; pills/barras ≥60% verde / 40–59% ámbar / 25–39% neu / &lt;25% rojo; panel mid scheduled = hora (sin NS/VS); shell `hb140`.
 - Match chrome: Analytics list/hero (compact rows, form pills, scorers); league logos (`leagueLogo` + AF CDN fallback); jornada from FD `RoundNumber`/`Group` (+ AF `league.round`); Top 10 sin cuotas (tip + %)
 - CF Worker + D1; FD + FotMob + AF enrich
 - Tips: anti-trivial (no O0.5 / U4.5); **nunca SHOTS_***; lane **P≥78%** + cuota≥1.25; **solo playable** en `tip_results`; display **P≥78%**; tipTier `none` → schema + `tip_tier`; BTTS secondary-only; secondary diversa
 - UI: Partidos · Top 10 · Aciertos (`#aciertos`) · Stats por partido/día (`#stats`, `/stats/match-averages`) · Ligas; `#top3` / `#ligas/<apiId>` / `#premium` / `#perfil`; tip % = mercado raw truncado
 - Auth bloqueante tras consent (sin sesión no hay app); cookie `hb_auth`; register/login/Google; Telegram UI **Pronto**
-- Free vs Premium: winProb/live probs/tabs = Premium; **General key cards free**; H2H + tabla liga + chrome OK; censor/corona tap → `#premium`; Aciertos tip pill → `#premium`
-- Nav: PNG `icons/ui/` (partidos/top10/aciertos/goals/ligas + crown); PWA iconos simples desde logo; mobile `.app-tabbar`; SW `hb139`; weekly API sin UI
-- General key cards: o25/o15 SVG; goals/btts/cards PNG; corners SVG flag; wordmark in panel VS; Tiros ≠ SOT; i18n ES↔EN P0+P1
-- Top 10 = solo primary (`suggestedBet`) tip+% (sin cuota); panel análisis = probs/chrome sin bloque tip; trend summary total centrado
+- Free vs Premium: winProb/live probs/tabs = Premium; **General key cards free**; H2H + tabla liga + chrome OK; censor/corona tap → `#premium`
+- Nav: PNG `icons/ui/`; PWA iconos simples; mobile `.app-tabbar`; SW `hb140`; weekly API sin UI
+- General key cards: o25/o15 SVG; goals/btts/cards PNG; corners SVG; wordmark panel; Tiros ≠ SOT; i18n ES↔EN
+- Top 10 = solo primary tip+%; panel probs/chrome; mid scheduled = hora kickoff; trend summary centrado
 - URL producto día a día: `houdini-analytics.pages.dev` (workers.dev = origen técnico)
 - SOT Overs 0.5–11.5; córners 1.5–11.5; totalShots display degraded si n<4; FotMob stats prioriza equipos ventana
 - Premium tabs Oddster-style (rojo): summary + trend Metric|H|A|Partido; free = `lockedTrendTableHtml`; goles + scoregrid debajo
@@ -33,7 +33,7 @@
 - Auth v1 + Google; Ligas explorer; live cron; tip lock; ban SHOTS_*
 - Free General key cards + icons; tabs Tiros; i18n P0+P1; SOT/córners ranges; promo types+delete; admin Stats cards homogéneas; tip sync Top10=panel; Under tables + BTTS block; Tiros 14.5–24.5
 - Full restore to v1.0 + Analytics brand/UI icons; Aciertos + free censor chrome from Analytics
-- Match list/hero Analytics polish + competition logos + jornada (`0039_match_round`); Top 10 without odds; Stats día (altos/bajos, 5 métricas); Ligas búsqueda+logos; panel sin tip; censor→Premium; shell `hb139`
+- Match list/hero + logos + jornada; Top 10; Stats día; Ligas search; panel sin tip; censor→Premium; Aciertos Próximamente; Stats metrics 1-línea móvil; pill umbrals; shell `hb140`
 - Admin home: Stats tips preview (`/tips/performance`) + Códigos promo CRUD (parity Analytics); cache `adm4`; Pages `houdini-bet-admin` (+ also pushed to `houdini-analytics-admin`)
 
 ## Pendiente
