@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="cloudflare/public/brand/houdini-analytics-lockup.png" alt="Houdini Analytics" width="420" />
+  <img src="cloudflare/public/brand/houdini-analytics-icon.png" alt="Houdini Analytics" width="160" />
 </p>
 
 <h1 align="center">Houdini Analytics v1.1</h1>
