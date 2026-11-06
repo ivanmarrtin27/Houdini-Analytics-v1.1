@@ -216,8 +216,18 @@ export function normalizeFotmobStats(details) {
   };
 }
 
+/** Short isolate cache — panel + sync often hit the same matchDetails. */
+const fotmobDetailsCache = new Map();
+const FOTMOB_DETAILS_TTL_MS = 5 * 60 * 1000;
+const FOTMOB_DETAILS_CACHE_MAX = 80;
+
 export async function fetchFotmobMatchDetails(fotmobId) {
-  const url = `https://www.fotmob.com/api/data/matchDetails?matchId=${fotmobId}`;
+  const id = Number(fotmobId);
+  if (!Number.isFinite(id) || id <= 0) throw new Error('FotMob matchId inválido');
+  const hit = fotmobDetailsCache.get(id);
+  if (hit && Date.now() - hit.at < FOTMOB_DETAILS_TTL_MS) return hit.data;
+
+  const url = `https://www.fotmob.com/api/data/matchDetails?matchId=${id}`;
   const res = await fetch(url, {
     headers: {
       Accept: 'application/json',
@@ -225,7 +235,25 @@ export async function fetchFotmobMatchDetails(fotmobId) {
     },
   });
   if (!res.ok) throw new Error(`FotMob matchDetails ${res.status}`);
-  return res.json();
+  const data = await res.json();
+  fotmobDetailsCache.set(id, { at: Date.now(), data });
+  if (fotmobDetailsCache.size > FOTMOB_DETAILS_CACHE_MAX) {
+    const oldest = fotmobDetailsCache.keys().next().value;
+    fotmobDetailsCache.delete(oldest);
+  }
+  return data;
+}
+
+/** Best-effort XI for a match row (uses fotmobMatchId). */
+export async function fetchLineupsForMatch(match) {
+  const fotmobId = Number(match?.fotmobMatchId);
+  if (!Number.isFinite(fotmobId) || fotmobId <= 0) return null;
+  try {
+    const details = await fetchFotmobMatchDetails(fotmobId);
+    return parseFotmobLineups(details);
+  } catch (_) {
+    return null;
+  }
 }
 
 function lineupPlayerName(p) {

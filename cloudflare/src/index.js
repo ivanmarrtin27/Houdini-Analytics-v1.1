@@ -33,6 +33,7 @@ import { loadTipCalibration, fitTipCalibration } from './services/calibration.js
 import { runBacktestSuite } from './services/backtestService.js';
 import { backfillRatings } from './services/ratingsService.js';
 import { buildLiveBlock } from './services/liveModel.js';
+import { getDayResults } from './services/dayResultsService.js';
 import * as premiumService from './services/premiumService.js';
 import * as authService from './services/authService.js';
 import * as cfUsageService from './services/cfUsageService.js';
@@ -896,7 +897,7 @@ async function handleApi(request, env, ctx) {
       });
     }
     // Defense: Mejores / best-bets stay playable-only (Stats tip_results lane).
-    // Top 10 UI builds client-side from /matches/today?date= (selected day) with soft backfill — not this list.
+    // Top 10 UI builds client-side from /matches/today?date= (selected day) with P 78–95% — not this list.
     bets = bets
       .filter((b) => !b.tipTier || b.tipTier === 'playable')
       .slice(0, limit);
@@ -926,6 +927,17 @@ async function handleApi(request, env, ctx) {
       windowMode: win.mode,
       windowDays: win.mode === 'all' || win.mode === 'days' ? win.days : 0,
     });
+  }
+
+  if (method === 'GET' && path === '/api/v1/tips/day-results') {
+    const date = String(url.searchParams.get('date') || new Date().toISOString().slice(0, 10));
+    try {
+      const payload = await getDayResults(db, date);
+      return json(payload, 200, { 'Cache-Control': 'public, max-age=45' });
+    } catch (err) {
+      const status = Number(err?.status) || 500;
+      return json({ error: err?.message || 'Error day-results' }, status);
+    }
   }
 
   if (method === 'GET' && path === '/api/v1/tips/performance') {
@@ -1568,6 +1580,21 @@ async function handleApi(request, env, ctx) {
     }
   }
 
+  // FotMob XI — separate from prediction so markets/probs paint without waiting.
+  const lineupsMatch = path.match(/^\/api\/v1\/matches\/(\d+)\/lineups$/);
+  if (method === 'GET' && lineupsMatch) {
+    const matchId = Number(lineupsMatch[1]);
+    const match = await store.findMatchById(db, matchId);
+    if (!match) return json({ error: 'Partido no encontrado' }, 404);
+    const { fetchLineupsForMatch } = await import('./services/matchEvents.js');
+    const lineups = await fetchLineupsForMatch(match);
+    return json(
+      { matchId, lineups },
+      200,
+      { 'Cache-Control': 'public, max-age=120' }
+    );
+  }
+
   if (method === 'GET' && path === '/api/v1/leagues') {
     return json({ leagues: await store.listLeagues(db) });
   }
@@ -1629,7 +1656,9 @@ async function handleApi(request, env, ctx) {
     if (!['high', 'low'].includes(sort)) {
       return json({ error: 'sort debe ser high o low' }, 400);
     }
-    return json(await store.listMatchAveragesForDate(db, { date, metric, sort, n }));
+    return json(await store.listMatchAveragesForDate(db, { date, metric, sort, n }), 200, {
+      'Cache-Control': 'public, max-age=45',
+    });
   }
 
   const leagueTableMatch = path.match(/^\/api\/v1\/leagues\/(\d+)\/table$/);

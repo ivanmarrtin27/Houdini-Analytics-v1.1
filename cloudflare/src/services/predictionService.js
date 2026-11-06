@@ -21,8 +21,6 @@ import {
   ratingsReady,
 } from './ratingsService.js';
 import { buildLiveBlock } from './liveModel.js';
-import { fetchFotmobMatchDetails, parseFotmobLineups } from './matchEvents.js';
-
 export { TRIVIAL_GOAL_TIPS };
 
 const MIN_TIP_PROB = 0.48;
@@ -1003,20 +1001,28 @@ export async function predictMatch(db, matchId) {
   const match = await store.findMatchById(db, matchId);
   if (!match) throw new Error(`Partido ${matchId} no encontrado`);
 
-  const homeStats = await store.lastNForTeam(db, match.homeTeam.id, 10);
-  const awayStats = await store.lastNForTeam(db, match.awayTeam.id, 10);
-  const league = await store.leagueGoalAverages(db, match.leagueId);
-  const marketRates = await store.leagueMarketRates(db, match.leagueId);
+  // Parallel D1 reads — FotMob XI is loaded separately so markets paint first.
+  const [homeStats, awayStats, league, marketRates, ratingsLiveFlag, oddsRowEarly] =
+    await Promise.all([
+      store.lastNForTeam(db, match.homeTeam.id, 10),
+      store.lastNForTeam(db, match.awayTeam.id, 10),
+      store.leagueGoalAverages(db, match.leagueId),
+      store.leagueMarketRates(db, match.leagueId),
+      store.getMeta(db, 'ratings_live'),
+      store.getOddsForMatch(db, matchId),
+    ]);
 
   let homeXg;
   let awayXg;
   let nHome;
   let nAway;
   let lambdaSource = 'shrinkage';
-  const ratingsLive = (await store.getMeta(db, 'ratings_live')) === '1';
+  const ratingsLive = ratingsLiveFlag === '1';
   if (ratingsLive) {
-    const homeR = await getOrInitRating(db, match.homeTeam.id, match.leagueId);
-    const awayR = await getOrInitRating(db, match.awayTeam.id, match.leagueId);
+    const [homeR, awayR] = await Promise.all([
+      getOrInitRating(db, match.homeTeam.id, match.leagueId),
+      getOrInitRating(db, match.awayTeam.id, match.leagueId),
+    ]);
     if (ratingsReady(homeR, awayR)) {
       ({ homeXg, awayXg, nHome, nAway } = lambdasFromRatings(homeR, awayR, league));
       lambdaSource = 'ratings';
@@ -1030,6 +1036,7 @@ export async function predictMatch(db, matchId) {
 
   // Context blocks for the analysis panel: exact scores, head to head and the
   // mini league table. Best effort: a failure here must not break the tip.
+  // Lineups come from GET /matches/:id/lineups (async after paint).
   let scoreGrid = null;
   let topScores = null;
   let h2h = [];
@@ -1040,31 +1047,16 @@ export async function predictMatch(db, matchId) {
   } catch (_) {
     /* keep the panel working without the score grid */
   }
-  try {
-    h2h = await store.getHeadToHead(db, match.homeTeam?.name, match.awayTeam?.name, {
+  const [h2hResult, tableResult] = await Promise.all([
+    store.getHeadToHead(db, match.homeTeam?.name, match.awayTeam?.name, {
       limit: 6,
       excludeId: match.id,
       beforeDate: match.matchDate,
-    });
-  } catch (_) {
-    h2h = [];
-  }
-  try {
-    leagueTable = await store.getLeagueTable(db, match.leagueId, 40);
-  } catch (_) {
-    leagueTable = [];
-  }
-
-  let lineups = null;
-  const fotmobId = Number(match.fotmobMatchId);
-  if (Number.isFinite(fotmobId) && fotmobId > 0) {
-    try {
-      const details = await fetchFotmobMatchDetails(fotmobId);
-      lineups = parseFotmobLineups(details);
-    } catch (_) {
-      lineups = null;
-    }
-  }
+    }).catch(() => []),
+    store.getLeagueTable(db, match.leagueId, 40).catch(() => []),
+  ]);
+  h2h = h2hResult || [];
+  leagueTable = tableResult || [];
 
   const corners = cornersModel(homeStats, awayStats, league);
   const cards = cardsModel(homeStats, awayStats, league);
@@ -1090,7 +1082,7 @@ export async function predictMatch(db, matchId) {
   const shotCandsForValue = shotCandidatesFromModel(shots);
   const extraCands = [...sotCands, ...cornerCands, ...cardCands];
 
-  const oddsRow = await store.getOddsForMatch(db, matchId);
+  const oddsRow = oddsRowEarly;
   const hasBook = Boolean(
     oddsRow &&
       (bookOddsForLabel(oddsRow, 'HOME_WIN') ||
@@ -1412,7 +1404,8 @@ export async function predictMatch(db, matchId) {
     topScores: topScoresFromMatrix(matrix),
     h2h,
     leagueTable,
-    lineups,
+    // XI loaded async via GET /api/v1/matches/:id/lineups (not on critical path).
+    lineups: null,
     tipOdds: tipResolved.tipOdds,
     oddsBand: tipResolved.oddsBand,
     oddsSource: tipResolved.oddsSource,

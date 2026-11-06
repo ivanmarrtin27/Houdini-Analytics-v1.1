@@ -616,6 +616,8 @@ let hoyMarketTab = 'top';
 /** Soft-gate caps (ignored while PREMIUM_UNLOCKED). */
 const FREE_TOP_CAP = 10;
 const FREE_VALOR_CAP = 5;
+/** Free Aciertos: first N tip rows clear; rest behind hbCensorWrap. */
+const FREE_ACIERTOS_CAP = 3;
 /**
  * Legacy soft-caps flag (Top10 caps etc.). Content paywall is now
  * `contentUnlocked()` = premiumState.premium (even while this is true).
@@ -641,7 +643,7 @@ function hbCensorWrap(html, { block = false } = {}) {
   )}">
     <div class="hb-censor__veil" aria-hidden="true">${html}</div>
     <div class="hb-censor__lock" aria-hidden="true">
-      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb150" width="22" height="22" alt="" decoding="async" />
+      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb157" width="22" height="22" alt="" decoding="async" />
       <span class="hb-censor__lock-title">${escapeHtml(t('censor.title'))}</span>
       <span class="hb-censor__lock-sub">${escapeHtml(t('censor.sub'))}</span>
     </div>
@@ -907,6 +909,9 @@ function refreshTipsLockedViews() {
   }
   if (typeof renderTop3 === 'function') {
     renderTop3().catch(() => {});
+  }
+  if (typeof renderAciertos === 'function') {
+    renderAciertos().catch(() => {});
   }
   if (cachedWeeklyPayload && typeof renderWeeklyCombos === 'function') {
     try {
@@ -1660,7 +1665,7 @@ function mpVsMidLabel(m, live) {
 }
 
 function mpVsBrandMarkHtml() {
-  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb150" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
+  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb157" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
 }
 
 function mpVsMidHtml(m, live) {
@@ -1951,7 +1956,7 @@ function sumRecentAvg(recentAvgs, key) {
   return Number(((Number(h) || 0) + (Number(a) || 0)).toFixed(2));
 }
 
-const UI_ICON_V = 'hb150';
+const UI_ICON_V = 'hb157';
 const MP_STAT_ICON_PX = 20;
 const mpStatImg = (file) =>
   `<img class="mp-stat__icon mp-stat__icon--img" src="/icons/ui/${file}?v=${UI_ICON_V}" width="${MP_STAT_ICON_PX}" height="${MP_STAT_ICON_PX}" alt="" aria-hidden="true" decoding="async" />`;
@@ -2487,6 +2492,27 @@ function lineupsHtml(lineups, homeName, awayName) {
       ${lineupSideHtml(away, awayName || 'Visitante') || '<div class="mp-lineups__side muted">—</div>'}
     </div>
   </section>`;
+}
+
+/** After markets paint: fetch FotMob XI and swap the placeholder section. */
+async function loadPanelLineups(matchId, homeName, awayName, root) {
+  if (!root || !matchId) return;
+  try {
+    const data = await api(`/api/v1/matches/${matchId}/lineups`);
+    if (!root.isConnected) return;
+    const el = root.querySelector('.mp-lineups');
+    if (!el || !data?.lineups) return;
+    const hasAny = Boolean(
+      data.lineups.home?.starters?.length || data.lineups.away?.starters?.length
+    );
+    if (!hasAny) return;
+    const tmp = document.createElement('div');
+    tmp.innerHTML = lineupsHtml(data.lineups, homeName, awayName);
+    const next = tmp.firstElementChild;
+    if (next) el.replaceWith(next);
+  } catch (_) {
+    /* keep pending / empty state */
+  }
 }
 
 /** Mini league table with the two teams of the match highlighted. */
@@ -3900,9 +3926,20 @@ const I18N = {
     'premium.seePlans': 'Ver planes',
     'premium.ariaPlans': 'Ver planes Premium',
     'premiumModal.stripeLater': 'Pago no configurado todavía. Podrás activarlo más adelante.',
-    'aciertos.soonEyebrow': 'En preparación',
-    'aciertos.soonTitle': 'Próximamente',
-    'aciertos.soonLead': 'Aquí llegará una nueva función de seguimiento. Mientras tanto, revisa Top 10 y las probabilidades de cada partido.',
+    'aciertos.title': 'Top del día',
+    'aciertos.dateGroup': 'Día del Top',
+    'aciertos.prevDay': 'Día anterior',
+    'aciertos.nextDay': 'Día siguiente',
+    'aciertos.resolved': 'Resueltos',
+    'aciertos.hitRate': 'Acierto',
+    'aciertos.yield': 'Yield',
+    'aciertos.pending': 'Pendiente',
+    'aciertos.hit': 'Acierto',
+    'aciertos.miss': 'Falló',
+    'aciertos.void': 'Nulo',
+    'aciertos.empty': 'Sin tips Top 10 para este día (P 78–95%, cuota ≤3.50).',
+    'aciertos.loadError': 'No se pudo cargar el Top del día',
+    'aciertos.summaryEmpty': 'Sin tips para resumir en este día.',
     'stats.heroTitle': 'Estadísticas de partidos',
     'stats.heroLead': 'Compara la forma reciente de cada enfrentamiento.',
     'stats.sortHigh': 'Más altos',
@@ -4286,9 +4323,20 @@ const I18N = {
     'premium.seePlans': 'See plans',
     'premium.ariaPlans': 'See Premium plans',
     'premiumModal.stripeLater': 'Payment is not configured yet. You can activate later.',
-    'aciertos.soonEyebrow': 'In preparation',
-    'aciertos.soonTitle': 'Coming soon',
-    'aciertos.soonLead': 'A new tracking feature is on the way. Meanwhile, check Top 10 and each match’s probabilities.',
+    'aciertos.title': 'Day board',
+    'aciertos.dateGroup': 'Top day',
+    'aciertos.prevDay': 'Previous day',
+    'aciertos.nextDay': 'Next day',
+    'aciertos.resolved': 'Resolved',
+    'aciertos.hitRate': 'Hit rate',
+    'aciertos.yield': 'Yield',
+    'aciertos.pending': 'Pending',
+    'aciertos.hit': 'Hit',
+    'aciertos.miss': 'Miss',
+    'aciertos.void': 'Void',
+    'aciertos.empty': 'No Top 10 tips for this day (P 78–95%, odds ≤3.50).',
+    'aciertos.loadError': 'Could not load the day board',
+    'aciertos.summaryEmpty': 'No tips to summarize for this day.',
     'stats.heroTitle': 'Match statistics',
     'stats.heroLead': 'Compare recent form for every fixture.',
     'stats.sortHigh': 'Highest',
@@ -4602,6 +4650,9 @@ function refreshUiAfterLangChange() {
   } catch (_) {}
   try {
     if (typeof renderTop3 === 'function') renderTop3();
+  } catch (_) {}
+  try {
+    if (typeof renderAciertos === 'function') renderAciertos();
   } catch (_) {}
   try {
     if (typeof renderLigasView === 'function') renderLigasView();
@@ -5099,10 +5150,9 @@ function renderPartidosList() {
   bindAnalyze(el);
 }
 
-/** Primary Top 10 floor (same as playable tip lane). */
+/** Top 10 probability band (inclusive): very-likely only — no low-P backfill. */
 const TOP10_MIN_PROB = 78;
-/** Soft backfill floor — fill to 10 when primary pass underfills; never invent tips. */
-const TOP10_SOFT_MIN_PROB = 69;
+const TOP10_MAX_PROB = 95;
 /** Preferred playable floor (lane/value). Top 10 does not hard-reject below this. */
 const TOP10_MIN_ODDS = 1.3;
 const TOP10_MAX_ODDS = 3.5;
@@ -5139,16 +5189,21 @@ function tipOddsForTop10Band(m, probPct) {
 }
 
 /**
- * Top 10 eligibility score: non-trivial, P≥minProb, cuota ≤3.50.
+ * Top 10 eligibility score: non-trivial, P in [minProb, TOP10_MAX_PROB], cuota ≤3.50.
  * Min cuota 1.30 is playable-value guidance only — do NOT reject high-P tips
  * whose model 1/p (or short book) falls below 1.30; that starved quiet/high-P days.
  * tipTier none / display tips OK (Top 10 is UI ranking, not tip_results).
  */
-function tipPlayableScore(m, minProb = TOP10_SOFT_MIN_PROB) {
+function tipPlayableScore(m, minProb = TOP10_MIN_PROB) {
   const tip = m?.suggestedBet || m?.tip || m?.suggested_bet || '';
   if (!tip || isTrivialTop10Label(tip)) return null;
   const prob = tipProbPct(m);
-  if (prob == null || !Number.isFinite(Number(prob)) || Number(prob) < minProb) {
+  if (
+    prob == null ||
+    !Number.isFinite(Number(prob)) ||
+    Number(prob) < minProb ||
+    Number(prob) > TOP10_MAX_PROB
+  ) {
     return null;
   }
   const odds = tipOddsForTop10Band(m, prob);
@@ -5165,7 +5220,6 @@ function tipPlayableScore(m, minProb = TOP10_SOFT_MIN_PROB) {
     score,
     kind: isBook ? 'book' : 'est',
     prob: Number(prob),
-    primaryPass: Number(prob) >= TOP10_MIN_PROB,
   };
 }
 
@@ -5258,9 +5312,9 @@ function isTop10MatchStatus(status) {
 }
 
 /**
- * Primary tip candidates only (soft floor). Never promote secondary into Top 10 chrome —
+ * Primary tip candidates only (P 78–95%). Never promote secondary into Top 10 chrome —
  * Top 10 card-tip uses match primary (suggestedBet) — same label as former panel tip.
- * tipTier none / display tips included when tipProbPct ≥ soft floor (Top 10 ≠ Stats ledger).
+ * tipTier none / display tips included when tipProbPct is in band (Top 10 ≠ Stats ledger).
  * Only scheduled/live (skip finished) so Top 10 stays actionable.
  */
 function buildTop10Pool(matches) {
@@ -5277,7 +5331,7 @@ function buildTop10Pool(matches) {
       oddsSource: raw.oddsSource,
       confidenceScore: raw.confidenceScore,
     };
-    const primaryMeta = tipPlayableScore(primaryView, TOP10_SOFT_MIN_PROB);
+    const primaryMeta = tipPlayableScore(primaryView, TOP10_MIN_PROB);
     if (primaryMeta) {
       pool.push({
         m: primaryView,
@@ -5288,19 +5342,16 @@ function buildTop10Pool(matches) {
       });
     }
   }
-  // Primary pass (P≥78) first, then soft backfill (P≥69); within band: book > est, then score.
+  // Highest model P first; book over est, then score as tie-breakers.
   return pool.sort((a, b) => {
-    const aPri = a.meta.primaryPass ? 1 : 0;
-    const bPri = b.meta.primaryPass ? 1 : 0;
-    if (bPri !== aPri) return bPri - aPri;
+    if (b.meta.prob !== a.meta.prob) return b.meta.prob - a.meta.prob;
     if (a.meta.kind === 'book' && b.meta.kind !== 'book') return -1;
     if (b.meta.kind === 'book' && a.meta.kind !== 'book') return 1;
-    if (b.meta.prob !== a.meta.prob) return b.meta.prob - a.meta.prob;
     return b.meta.score - a.meta.score;
   });
 }
 
-/** Fill up to 10: diversity caps, primary P≥78 first, soft P≥69 backfill. */
+/** Fill up to 10: diversity caps, P 78–95% only (no low-P backfill). */
 function pickTop10Tips(matches, limit = TOP10_LIMIT) {
   const pool = buildTop10Pool(matches);
   return selectDiverseTips(pool, limit, 1, TOP10_MAX_PER_FAMILY);
@@ -5310,7 +5361,7 @@ let top3LoadSeq = 0;
 
 /**
  * Top 10: tips of the selected calendar day only (same date as Partidos).
- * Fill min(10, N). Primary P≥78 + soft ≥69. Not best-bets/playable-only. Stats tip_results unchanged.
+ * Fill min(10, N). P 78–95% desc + tip/%/cuota. Not best-bets/playable-only. Stats tip_results unchanged.
  */
 async function renderTop3() {
   const el = document.getElementById('top3-list');
@@ -5325,7 +5376,7 @@ async function renderTop3() {
     const picked = pickTop10Tips(matches, TOP10_LIMIT);
     if (!picked.length) {
       el.innerHTML = `<div class="empty-board">${escapeHtml(
-        t('empty.noTips', { p: TOP10_SOFT_MIN_PROB, odds: TOP10_MAX_ODDS.toFixed(2) })
+        t('empty.noTips', { p: TOP10_MIN_PROB, odds: TOP10_MAX_ODDS.toFixed(2) })
       )}</div>`;
       return;
     }
@@ -5343,6 +5394,7 @@ async function renderTop3() {
           suggestedBet: tip,
         };
         const prob = tipProbPct(m);
+        const oddsTxt = tipOddsDisplay(bet.tipOdds);
         const rank = i + 1;
         const matchId = Number(item.matchId ?? bet.id ?? bet.matchId);
         const liveStrip = bet.status === 'live' ? liveStripHtml(m) : '';
@@ -5355,6 +5407,7 @@ async function renderTop3() {
                 ? `<span class="${confClass(prob)} card-tip__conf">${formatTipPct(prob)}%</span>`
                 : ''
             }
+            ${oddsTxt ? `<span class="tip-odds card-tip__odds">${escapeHtml(oddsTxt)}</span>` : ''}
           </div>`
         );
         return `
@@ -5380,6 +5433,214 @@ async function renderTop3() {
   } catch (err) {
     if (seq !== top3LoadSeq) return;
     el.innerHTML = `<div class="empty-board">No se pudo cargar el Top 10: ${escapeHtml(
+      err.message || 'error'
+    )}</div>`;
+  }
+}
+
+let aciertosLoadSeq = 0;
+let aciertosBound = false;
+
+function formatAciertosYield(y) {
+  if (y == null || !Number.isFinite(Number(y))) return '—';
+  const pct = Number(y) * 100;
+  const sign = pct > 0 ? '+' : '';
+  return `${sign}${pct.toFixed(1)}%`;
+}
+
+function formatAciertosHitRate(rate) {
+  if (rate == null || !Number.isFinite(Number(rate))) return '—';
+  return `${Math.round(Number(rate) * 100)}%`;
+}
+
+function aciertosOutcomeMeta(outcome) {
+  const o = String(outcome || 'pending').toLowerCase();
+  if (o === 'hit') return { mark: '✓', chip: t('aciertos.hit'), tone: 'hit' };
+  if (o === 'miss') return { mark: '✗', chip: t('aciertos.miss'), tone: 'miss' };
+  if (o === 'void') return { mark: '·', chip: t('aciertos.void'), tone: 'void' };
+  return { mark: '·', chip: t('aciertos.pending'), tone: 'pending' };
+}
+
+function syncAciertosDateControls() {
+  const date = resolveSelectedDate();
+  selectedDate = date;
+  const dateEl = document.getElementById('aciertos-date');
+  if (dateEl) {
+    dateEl.textContent = formatDateCenter(date);
+    dateEl.setAttribute('datetime', date);
+  }
+  const y = yesterdayYmd();
+  const tday = todayYmd();
+  const yBtn = document.getElementById('aciertos-yesterday');
+  const tBtn = document.getElementById('aciertos-today');
+  yBtn?.classList.toggle('is-active', date === y);
+  yBtn?.setAttribute('aria-pressed', date === y ? 'true' : 'false');
+  tBtn?.classList.toggle('is-active', date === tday);
+  tBtn?.setAttribute('aria-pressed', date === tday ? 'true' : 'false');
+}
+
+function setAciertosDate(delta) {
+  selectedDate = ymdAddDays(resolveSelectedDate(), delta);
+  if (selectedDate === todayYmd()) windowMode = 'hoy';
+  else if (selectedDate === tomorrowYmd()) windowMode = 'manana';
+  else if (selectedDate === yesterdayYmd()) windowMode = 'ayer';
+  else windowMode = 'date';
+  syncWindowChips();
+  persistFiltersIfAllowed();
+  renderAciertos().catch(() => {});
+  if (typeof renderTop3 === 'function') renderTop3().catch(() => {});
+}
+
+function setAciertosPreset(kind) {
+  if (kind === 'yesterday') {
+    windowMode = 'ayer';
+    selectedDate = yesterdayYmd();
+  } else {
+    windowMode = 'hoy';
+    selectedDate = todayYmd();
+  }
+  syncWindowChips();
+  persistFiltersIfAllowed();
+  renderAciertos().catch(() => {});
+  if (typeof renderTop3 === 'function') renderTop3().catch(() => {});
+}
+
+function bindAciertosControls() {
+  if (aciertosBound) return;
+  aciertosBound = true;
+  document.getElementById('aciertos-prev')?.addEventListener('click', () => setAciertosDate(-1));
+  document.getElementById('aciertos-next')?.addEventListener('click', () => setAciertosDate(1));
+  document
+    .getElementById('aciertos-yesterday')
+    ?.addEventListener('click', () => setAciertosPreset('yesterday'));
+  document.getElementById('aciertos-today')?.addEventListener('click', () => setAciertosPreset('today'));
+}
+
+function aciertosSummaryHtml(summary) {
+  if (!summary || !Number(summary.total)) {
+    return `<p class="aciertos-summary__empty">${escapeHtml(t('aciertos.summaryEmpty'))}</p>`;
+  }
+  const resolved = Number(summary.resolved) || 0;
+  const total = Number(summary.total) || 0;
+  const hitRate = formatAciertosHitRate(summary.hitRate);
+  const yieldTxt = formatAciertosYield(summary.yield);
+  let yieldClass = '';
+  if (summary.yield != null && Number.isFinite(Number(summary.yield))) {
+    yieldClass =
+      Number(summary.yield) >= 0
+        ? 'aciertos-summary__value--yield-pos'
+        : 'aciertos-summary__value--yield-neg';
+  }
+  const hitClass =
+    summary.hitRate != null && Number(summary.hitRate) >= 0.5
+      ? 'aciertos-summary__value--hit'
+      : '';
+  const hitCell = `<div class="aciertos-summary__cell">
+      <span class="aciertos-summary__label">${escapeHtml(t('aciertos.hitRate'))}</span>
+      <span class="aciertos-summary__value ${hitClass}">${escapeHtml(hitRate)}</span>
+    </div>`;
+  const yieldCell = `<div class="aciertos-summary__cell">
+      <span class="aciertos-summary__label">${escapeHtml(t('aciertos.yield'))}</span>
+      <span class="aciertos-summary__value ${yieldClass}">${escapeHtml(yieldTxt)}</span>
+    </div>`;
+  const metrics = contentUnlocked()
+    ? hitCell + yieldCell
+    : hbCensorWrap(`<div class="aciertos-summary__locked">${hitCell}${yieldCell}</div>`, {
+        block: true,
+      });
+  return `
+    <div class="aciertos-summary__cell">
+      <span class="aciertos-summary__label">${escapeHtml(t('aciertos.resolved'))}</span>
+      <span class="aciertos-summary__value">${resolved}/${total}</span>
+    </div>
+    ${metrics}
+  `;
+}
+
+function aciertosRowHtml(item, rankFallback) {
+  const matchId = Number(item.matchId);
+  const home = item.homeName || '';
+  const away = item.awayName || '';
+  const tip = item.suggestedBet || '';
+  const tipLabel = tip ? labelBet(tip, home, away) : '—';
+  const prob = item.tipMarketProb != null ? formatTipPct(item.tipMarketProb) : null;
+  const oddsTxt = tipOddsDisplay(item.tipOdds);
+  const meta = aciertosOutcomeMeta(item.outcome);
+  const score =
+    item.homeGoals != null && item.awayGoals != null
+      ? `${item.homeGoals}–${item.awayGoals}`
+      : '';
+  const tipMeta = `
+    <div class="aciertos-row__tip">
+      <span class="aciertos-row__bet tip-accent">${escapeHtml(tipLabel)}</span>
+      ${
+        prob != null
+          ? `<span class="${confClass(prob)}">${formatTipPct(prob)}%</span>`
+          : ''
+      }
+      ${oddsTxt ? `<span class="tip-odds">${escapeHtml(oddsTxt)}</span>` : ''}
+    </div>`;
+  const tipBlock = contentUnlocked() ? tipMeta : hbCensorWrap(tipMeta);
+  const delay = Math.min(8, Math.max(0, Number(rankFallback) || 0)) * 40;
+  return `
+    <button type="button" class="card card--aciertos" data-analyze="${matchId}" style="animation-delay:${delay}ms">
+      <span class="aciertos-mark aciertos-mark--${meta.tone}" aria-hidden="true">${meta.mark}</span>
+      <div class="aciertos-row__body">
+        ${crestsRowHtml(home, item.homeLogo, away, item.awayLogo)}
+        <p class="aciertos-row__match">${escapeHtml(home)} vs ${escapeHtml(away)}</p>
+        ${tipBlock}
+        <p class="aciertos-row__meta">${leagueLogoHtml(
+          item.leagueLogo,
+          'card-tip__league-logo'
+        )}<span>${escapeHtml(
+          leagueKey({ leagueName: item.leagueName, leagueCountry: item.leagueCountry })
+        )}</span></p>
+      </div>
+      <div class="aciertos-row__side">
+        ${score ? `<span class="aciertos-row__score">${escapeHtml(score)}</span>` : ''}
+        <span class="aciertos-chip aciertos-chip--${meta.tone}">${escapeHtml(meta.chip)}</span>
+      </div>
+    </button>`;
+}
+
+/**
+ * Aciertos = Top del día (resultado). Same day + Top 10 universe as `#top3`.
+ * One API call; free sees summary tease + first 3 tips, rest censored.
+ */
+async function renderAciertos() {
+  bindAciertosControls();
+  syncAciertosDateControls();
+  const list = document.getElementById('aciertos-list');
+  const summaryEl = document.getElementById('aciertos-summary');
+  if (!list || !summaryEl) return;
+  const seq = ++aciertosLoadSeq;
+  list.innerHTML = Array.from({ length: 4 }, () => `<div class="skeleton" aria-hidden="true"></div>`).join('');
+  summaryEl.innerHTML = '';
+  try {
+    const date = resolveSelectedDate();
+    const data = await api(`/api/v1/tips/day-results?date=${encodeURIComponent(date)}`);
+    if (seq !== aciertosLoadSeq) return;
+    const items = Array.isArray(data.items) ? data.items : [];
+    summaryEl.innerHTML = aciertosSummaryHtml(data.summary || { total: items.length, resolved: 0 });
+    if (!items.length) {
+      list.innerHTML = `<div class="empty-board">${escapeHtml(t('aciertos.empty'))}</div>`;
+      return;
+    }
+    const unlocked = contentUnlocked();
+    const visible = unlocked ? items : items.slice(0, FREE_ACIERTOS_CAP);
+    const locked = unlocked ? [] : items.slice(FREE_ACIERTOS_CAP);
+    let html = visible.map((it, i) => aciertosRowHtml(it, i)).join('');
+    if (locked.length) {
+      html += hbCensorWrap(locked.map((it, i) => aciertosRowHtml(it, FREE_ACIERTOS_CAP + i)).join(''), {
+        block: true,
+      });
+    }
+    list.innerHTML = html;
+    bindAnalyze(list);
+  } catch (err) {
+    if (seq !== aciertosLoadSeq) return;
+    summaryEl.innerHTML = '';
+    list.innerHTML = `<div class="empty-board">${escapeHtml(t('aciertos.loadError'))}: ${escapeHtml(
       err.message || 'error'
     )}</div>`;
   }
@@ -6046,7 +6307,7 @@ function perfTipDisplayHtml(tip) {
   )}">
     <span class="perf-row__tip-blur" aria-hidden="true">${tip}</span>
     <span class="perf-row__tip-premium" aria-hidden="true">
-      <img src="/icons/ui/premium-crown.png?v=hb150" width="13" height="13" alt="" />
+      <img src="/icons/ui/premium-crown.png?v=hb157" width="13" height="13" alt="" />
       Premium
     </span>
   </span>`;
@@ -6178,7 +6439,7 @@ async function fetchTipPerformance(q) {
 async function loadPerformance() {
   const summary = document.getElementById('perf-summary');
   const recent = document.getElementById('perf-recent');
-  /* Aciertos tab is a Próximamente placeholder — skip public tip board. */
+  /* Public Aciertos uses /tips/day-results; this path is for residual perf DOM if present. */
   if (!summary && !recent) return;
   if (summary && !summary.querySelector('.perf-hero')) setLoading('perf-summary', 1);
   perfRecentOffset = 0;
@@ -6748,6 +7009,7 @@ function setActiveNav(hash, { pushHash = true } = {}) {
   if (view !== 'ligas') document.body.classList.remove('has-ligas-selection');
   if (view === 'stats') loadLeagueStatsView().catch(() => {});
   if (view === 'top3') renderTop3().catch(() => {});
+  if (view === 'aciertos') renderAciertos().catch(() => {});
   if (view === 'ligas') renderLigasView();
   if (view === 'ajustes') syncPrivacyToggles();
   if (view === 'premium') syncPremiumView();
@@ -7762,7 +8024,7 @@ async function openPrediction(id) {
             <h3 class="mp-section-title">${escapeHtml(t('panel.keyProbs'))}</h3>
             <div class="mp-grid">${keyCards}</div>
             ${h2hHtml(bundle.h2h, homeName)}
-            ${lineupsHtml(bundle.lineups, homeName, awayName)}
+            ${lineupsHtml(null, homeName, awayName)}
             ${leagueTableHtml(bundle.leagueTable, homeName, awayName)}
           </div>
           <div class="mp-panel" data-mp-panel="goles" role="tabpanel" hidden>${goalsPanel}</div>
@@ -7776,6 +8038,7 @@ async function openPrediction(id) {
     const root = document.getElementById('mp-root');
     wireMatchPanelTabs(root);
     runPanelEntrance(root);
+    loadPanelLineups(id, homeName, awayName, root).catch(() => {});
   } catch (err) {
     openPanel(`<div class="conf-lo">${escapeHtml(err.message)}. Cierra e inténtalo de nuevo.</div>`);
   }
@@ -7958,6 +8221,7 @@ async function load() {
   const view = document.getElementById('views')?.dataset.view;
   if (view === 'stats') loadLeagueStatsView().catch(() => {});
   else if (view === 'top3') renderTop3().catch(() => {});
+  else if (view === 'aciertos') renderAciertos().catch(() => {});
   else if (view === 'ligas') renderLigasView();
 
   // Ensure list/chips are painted before callers (boot) dismiss splash

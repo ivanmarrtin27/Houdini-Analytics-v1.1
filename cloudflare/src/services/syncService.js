@@ -508,14 +508,23 @@ async function syncOddsForMatch(env, db, apiFixtureId, localMatchId, rateLimit =
 }
 
 function normalizeTeamName(name) {
-  return String(name || '')
+  let s = String(name || '')
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+    // Keep Be'er→Beer / St' (apostrophe must not become a space token break).
+    .replace(/[''`´]/g, '')
     .replace(/[^a-z0-9\s]/g, ' ')
     .replace(/\band\b/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+  // Join dotted initialisms broken into single letters: "n e c" → "nec", "a s roma" → "as roma".
+  let prev;
+  do {
+    prev = s;
+    s = s.replace(/\b([a-z0-9])\s+(?=[a-z0-9]\b)/g, '$1');
+  } while (s !== prev);
+  return s;
 }
 
 /** Strip book/feed noise before alias lookup (FC, TSG, 04, etc.). */
@@ -555,10 +564,18 @@ const TEAM_NAME_ALIASES = new Map([
   ['getafe cf', 'getafe'],
   ['celta', 'celta vigo'],
   ['celta vigo', 'celta vigo'],
+  ['celta de vigo', 'celta vigo'],
+  ['rc celta', 'celta vigo'],
+  ['rc celta de vigo', 'celta vigo'],
   ['levante', 'levante'],
   ['levante ud', 'levante'],
   ['bournemouth', 'bournemouth'],
   ['afc bournemouth', 'bournemouth'],
+  ['nec', 'nec nijmegen'],
+  ['nec nijmegen', 'nec nijmegen'],
+  ['n e c', 'nec nijmegen'],
+  ['omonia', 'omonia nicosia'],
+  ['omonia nicosia', 'omonia nicosia'],
   ['inter', 'inter'],
   ['internazionale', 'inter'],
   ['lille', 'lille'],
@@ -608,6 +625,28 @@ const TEAM_NAME_ALIASES = new Map([
   ['slavia prague', 'slavia prague'],
   ['sk slavia praha', 'slavia prague'],
   ['sk slavia prague', 'slavia prague'],
+  // Sparta Praha↔Prague same Praha/Prague miss as Slavia
+  ['sparta praha', 'sparta prague'],
+  ['sparta prague', 'sparta prague'],
+  ['ac sparta praha', 'sparta prague'],
+  ['ac sparta prague', 'sparta prague'],
+  ['sk sparta praha', 'sparta prague'],
+  ['sk sparta prague', 'sparta prague'],
+  // UEL short FD names ↔ FotMob long forms
+  ['gnk dinamo', 'dinamo zagreb'],
+  ['dinamo zagreb', 'dinamo zagreb'],
+  ['gnk dinamo zagreb', 'dinamo zagreb'],
+  ['union sg', 'union st gilloise'],
+  ['union st gilloise', 'union st gilloise'],
+  ['union saint gilloise', 'union st gilloise'],
+  ['royale union sg', 'union st gilloise'],
+  ['royale union saint gilloise', 'union st gilloise'],
+  ['royale union st gilloise', 'union st gilloise'],
+  ['h beer sheva', 'hapoel beer sheva'],
+  ['hapoel beer sheva', 'hapoel beer sheva'],
+  ['hapoel beersheva', 'hapoel beer sheva'],
+  ['hapoel beer sheba', 'hapoel beer sheva'],
+  ['beer sheva', 'hapoel beer sheva'],
   ['real betis', 'real betis'],
   ['betis', 'real betis'],
   ['real betis balompie', 'real betis'],
@@ -2114,7 +2153,7 @@ export async function runLiveStatusRefresh(env, db, { force = false } = {}) {
     }
   }
 
-  // Stuck scheduled after kickoff: log + second-pass name-match from FD finished window.
+  // Stuck scheduled after kickoff: FD finished first; FotMob finished when FD still lags (UEL).
   let stuckScheduled = [];
   let stuckRepaired = 0;
   try {
@@ -2135,22 +2174,23 @@ export async function runLiveStatusRefresh(env, db, { force = false } = {}) {
         fotmobMatchId: m.fotmob_match_id != null ? Number(m.fotmob_match_id) : null,
       }));
     if (stuckScheduled.length) {
-      const { fixtures: repairFx } = await fetchTodayFixtures(-3, 0);
-      const finishedRepair = (repairFx || []).filter((fx) => fx.status === 'finished');
       const stuckRows = afterRows.filter((m) =>
         stuckScheduled.some((s) => Number(s.id) === Number(m.id))
       );
       const repairUpdates = [];
       const painted = new Set();
-      for (const fx of finishedRepair) {
-        const best = findBestFixtureMatch(
-          stuckRows.map((m) => ({
+      const stuckCandidates = () =>
+        stuckRows
+          .filter((m) => !painted.has(m.id))
+          .map((m) => ({
             _row: m,
             teams: { home: { name: m.home_name }, away: { name: m.away_name } },
-          })),
-          fx.homeName,
-          fx.awayName
-        );
+          }));
+
+      const { fixtures: repairFx } = await fetchTodayFixtures(-3, 0);
+      const finishedRepair = (repairFx || []).filter((fx) => fx.status === 'finished');
+      for (const fx of finishedRepair) {
+        const best = findBestFixtureMatch(stuckCandidates(), fx.homeName, fx.awayName);
         const row = best?._row;
         if (!row?.id || painted.has(row.id)) continue;
         if (isPreKickoff(row.match_date)) continue;
@@ -2163,6 +2203,34 @@ export async function runLiveStatusRefresh(env, db, { force = false } = {}) {
         });
         painted.add(row.id);
       }
+
+      // FD UEL often leaves scores null overnight — paint remaining from FotMob day feed.
+      if (painted.size < stuckRows.length) {
+        const { all: repairLive } = await fetchFotmobLiveSnapshot(-3, 0, { includeAll: true });
+        const finishedFm = (repairLive || []).filter(
+          (fx) =>
+            fx.status === 'finished' &&
+            fx.homeGoals != null &&
+            fx.awayGoals != null
+        );
+        for (const fx of finishedFm) {
+          const best = findBestFixtureMatch(stuckCandidates(), fx.homeName, fx.awayName);
+          const row = best?._row;
+          if (!row?.id || painted.has(row.id)) continue;
+          if (isPreKickoff(row.match_date)) continue;
+          repairUpdates.push({
+            id: row.id,
+            status: 'finished',
+            home_goals: fx.homeGoals,
+            away_goals: fx.awayGoals,
+            elapsed_minute: null,
+            fotmob_match_id: fx.fotmobId ?? null,
+          });
+          painted.add(row.id);
+          if (fx.fotmobId) fotmobIdByMatchId.set(Number(row.id), fx.fotmobId);
+        }
+      }
+
       if (repairUpdates.length) {
         await store.updateMatchLiveBatch(db, repairUpdates);
         stuckRepaired = repairUpdates.length;

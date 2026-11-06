@@ -47,12 +47,32 @@ check(
   SYNC.includes('stuckRepaired') && SYNC.includes('finishedRepair')
 );
 check(
+  'stuck_scheduled also repairs via FotMob finished when FD lags',
+  SYNC.includes('fetchFotmobLiveSnapshot(-3, 0') &&
+    SYNC.includes('finishedFm') &&
+    SYNC.includes('paint remaining from FotMob')
+);
+check(
   'admin repair-stuck-scheduled endpoint',
   INDEX.includes('/api/v1/admin/matches/repair-stuck-scheduled')
 );
 check(
   'Slavia Praha alias in TEAM_NAME_ALIASES',
   SYNC.includes("['slavia praha', 'slavia prague']")
+);
+check(
+  'Sparta Praha alias in TEAM_NAME_ALIASES',
+  SYNC.includes("['sparta praha', 'sparta prague']")
+);
+check(
+  'Union SG / Beer-Sheva / GNK Dinamo aliases present',
+  SYNC.includes("['union sg', 'union st gilloise']") &&
+    SYNC.includes("['h beer sheva', 'hapoel beer sheva']") &&
+    SYNC.includes("['gnk dinamo', 'dinamo zagreb']")
+);
+check(
+  'normalize joins initialisms / strips apostrophes',
+  SYNC.includes("Be'er→Beer") && SYNC.includes('n e c')
 );
 
 console.log(failed ? `\n${failed} checks failed` : `\n${passed}/${passed} checks passed`);

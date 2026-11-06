@@ -25,12 +25,12 @@ App de predicciones de fútbol (Poisson). Producto: **Houdini Analytics v1.1**.
 
 ## UI
 HTML/JS en `cloudflare/public` (mínima). Pulir con `frontend-design` / `web-design-guidelines` después. Angular descartado.
-- Auth: D1 `users`/`auth_sessions`; cookie `hb_auth`; register (username+name+email+phone+password) / login (username|email) /me/logout + Google OAuth; post-register welcome 3s + Premium modal; secrets `AUTH_SECRET` + Google; Aciertos `#aciertos` = Próximamente; Stats vía `#stats`
+- Auth: D1 `users`/`auth_sessions`; cookie `hb_auth`; register (username+name+email+phone+password) / login (username|email) /me/logout + Google OAuth; post-register welcome 3s + Premium modal; secrets `AUTH_SECRET` + Google; Aciertos `#aciertos` = Top del día; Stats vía `#stats`
 - Admin microsite: `https://houdini-bet-admin.pages.dev` ([`cloudflare/admin-pages/`](cloudflare/admin-pages/); DocuForge dark+red; PIN=`SYNC_SECRET`); usage today + daily chart + Web Analytics + D1 `page_hits` (preview 5 + `#hits` historial/búsqueda, limit≤500) + panel Stats tips (`/tips/performance`; público se retirará luego); promo create/list/delete (tipos free_days|free_month|discount_20|40); users search + revoke/enable/delete; secrets `CF_ACCOUNT_ID`/`CF_API_TOKEN` (+ opc. `CF_WEB_ANALYTICS_SITE_TAG`); dominio `houdini-bet.dev` later; ver `cloudflare/docs/ADMIN_PANEL.md`
 - Consent v2 obligatorio: sin `houdini_consent_v1` (choice + ageConfirmed) la app pública queda bloqueada (shell oculto); legales leíbles dentro del gate
-- Nav: desktop `.v2-nav` + PNG icons (`icons/ui/`); mobile bottom `.app-tabbar` (Partidos/Top 10/Aciertos/Stats/Ligas; tap only, no finger swipe between tabs); Premium chip uses `premium-crown.png`; brand `houdini-analytics-{mark,icon,lockup}`; header/splash = **isotipo** `icon` (fondo `#000`); panel mid mark **transparente**; PWA desde isotipo; share/canonical `houdini-analytics.pages.dev`; OG = isotipo encuadrado; shell cache `hb150`; panel XI FotMob + tabla completa; search/Ligas nextMatch scoped por liga; Premium stage Mensual-primary + i18n ES/EN P0
-- Free censor: `hbCensorWrap` + `data-hb-censor` → `#premium`; Aciertos tab = **Próximamente** (no tip board público); tip % raw market; admin tips intactos
-- Match chrome: `.league-match` + hero `.mp-teams`; panel mid scheduled = **hora** (no VS/NS); **panel sin tip banner**; logos; jornada en panel meta (`round_number` / `round_group`), **no** en lista Partidos; escudos contain sin crop circular (móvil mayores); splash/header pad `#000`
+- Nav: desktop `.v2-nav` + PNG icons (`icons/ui/`); mobile bottom `.app-tabbar` (Partidos/Top 10/Aciertos/Stats/Ligas; tap only, no finger swipe between tabs); Premium chip uses `premium-crown.png`; brand `houdini-analytics-{mark,icon,lockup}`; header = **isotipo** `icon` transparente (sin tile `#000`); splash = **isotipo** `icon` (fondo `#000`); panel mid mark **transparente**; PWA desde isotipo; share/canonical `houdini-analytics.pages.dev`; OG = isotipo encuadrado; shell cache `hb156`; mobile `.v2-header` row ~52px homogéneo; panel XI FotMob + tabla completa; search/Ligas nextMatch scoped por liga; Premium stage Mensual-primary + i18n ES/EN P0
+- Free censor: `hbCensorWrap` + `data-hb-censor` → `#premium`; Aciertos = **Top del día** (`GET /tips/day-results`; free summary + 3 tips); tip % raw market; admin tips intactos
+- Match chrome: `.league-match` + hero `.mp-teams`; panel mid scheduled = **hora** (no VS/NS); **panel sin tip banner**; logos; jornada en panel meta (`round_number` / `round_group`), **no** en lista Partidos; escudos contain sin crop circular (móvil mayores); splash pad `#000` (header icon sin tile)
 - Prob pills/barras: &gt;80% verde · 60–80% ámbar · 50–59% gris · &lt;50% rojo soft (`hbPillTone` / `mp-stat__fill--*`)
 - Stats: date-sort fecha|sort en todos los anchos; metrics PNG homogéneos (avg-/shots/sot); `matchAvg` = xG/expected panel (no raw histórico); sin `match-stats-row__samples`; Ligas detail head: chevron + logo + hairline
 - Stats móvil: `.match-stats__metric` una línea homogénea (flex equal / snap)
@@ -41,11 +41,11 @@ HTML/JS en `cloudflare/public` (mínima). Pulir con `frontend-design` / `web-des
 - Live: name-match umbral 85; no pintar scores si kickoff futuro; `POST /api/v1/admin/matches/repair-future-finished`
 
 ## Mercados Houdini
-- Top 10 (hash `#top3`): **día seleccionado**; fill `min(10, N)`; P≥78% + backfill ≥69%; cuota **max 3.50**; **no hard-min 1.30**; anti-trivial / no SHOTS_*; diversity labels/familias; **solo tip primary**; tip_results / tip board ricos → **admin**; Aciertos público = Próximamente
+- Top 10 (hash `#top3`): **día seleccionado**; fill `min(10, N)`; P **78–95%** desc (no low-P backfill); cuota **max 3.50**; **no hard-min 1.30**; anti-trivial / no SHOTS_*; diversity labels/familias; **solo tip primary**; tip_results / tip board ricos → **admin**; Aciertos = mismo universo + ✓/✗/pendiente (`/tips/day-results`)
 - Panel General: O1.5 / O2.5 / BTTS + Media liga n≥20; **sin** tip/suggest
 - 1X2 · DC/DNB · O/U 0.5–4.5 · BTTS (secondary) · corners/cards/SOT · value ≥5% (book); **nunca SHOTS_***
-- Panel ladders: SOT 0.5–11.5; córners 1.5–11.5; tarjetas 0.5–5.5; Tiros 14.5–24.5; Over+Under; BTTS en Goles; General icons `over-goals`/`avg-*` PNG (BTTS intacto); shell `hb150`
-- Top 10: tip label + % only
+- Panel ladders: SOT 0.5–11.5; córners 1.5–11.5; tarjetas 0.5–5.5; Tiros 14.5–24.5; Over+Under; BTTS en Goles; General icons `over-goals`/`avg-*` PNG (BTTS intacto); shell `hb156`
+- Top 10: tip label + % + cuota (si hay tipOdds)
 - Tips: anti-trivial; lane **P≥78%** + cuota≥1.25; solo playable en `tip_results`; BTTS secondary-only
 - Stats primario = `/stats/match-averages` (métricas en una línea móvil); tip % = tipMarketProb raw
 - Crests: FotMob PSG/Elche/Deportivo/Leverkusen/Schalke/Racing Santander/Paris FC + BL roster; audit `node scripts/audit-crests.mjs`

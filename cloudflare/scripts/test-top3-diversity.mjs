@@ -1,4 +1,4 @@
-/** Tests for Top 10 exact-label + family diversity (max 3 per family) + soft fill. */
+/** Tests for Top 10 exact-label + family diversity (max 3 per family) + P 78–95% band. */
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -36,7 +36,7 @@ function extractFunction(name) {
 
 const api = new Function(
   `const TOP10_MIN_PROB = 78;
-   const TOP10_SOFT_MIN_PROB = 69;
+   const TOP10_MAX_PROB = 95;
    const TOP10_MIN_ODDS = 1.3;
    const TOP10_MAX_ODDS = 3.5;
    const TOP10_TRIVIAL_LABELS = new Set(['OVER_05', 'UNDER_45']);
@@ -196,8 +196,9 @@ check(
 check('empty list remains empty', selectDiverseTips([], 10, 1, 3).length === 0);
 check('buildTop10Pool exists', src.includes('function buildTop10Pool('));
 check('pickTop10Tips exists', src.includes('function pickTop10Tips('));
-check('soft min prob is 69', src.includes('const TOP10_SOFT_MIN_PROB = 69'));
+check('no soft backfill constant', !src.includes('TOP10_SOFT_MIN_PROB'));
 check('primary min prob is 78', src.includes('const TOP10_MIN_PROB = 78'));
+check('max prob is 95', src.includes('const TOP10_MAX_PROB = 95'));
 check('Top 10 has no multi-day window constant', !src.includes('TOP10_WINDOW_DAYS'));
 check(
   'Top 10 builds from selected calendar day (?date=), not days= / best-bets',
@@ -219,40 +220,42 @@ check(
   src.includes('Primary tip candidates only') &&
     !/function buildTop10Pool\([\s\S]*?isSecondary:\s*true[\s\S]*?function pickTop10Tips/.test(src)
 );
-
-/** 15 mixed-prob candidates → diversity returns 10 (primary preferred via sort order). */
-const mixedProb15 = [
-  { tipLabel: 'OVER_15', matchId: 1, m: { id: 1 }, meta: { primaryPass: true, prob: 82, score: 0.4, kind: 'est' } },
-  { tipLabel: 'OVER_25', matchId: 2, m: { id: 2 }, meta: { primaryPass: true, prob: 78, score: 0.38, kind: 'est' } },
-  { tipLabel: 'OVER_35', matchId: 3, m: { id: 3 }, meta: { primaryPass: false, prob: 71, score: 0.3, kind: 'est' } },
-  { tipLabel: 'UNDER_25', matchId: 4, m: { id: 4 }, meta: { primaryPass: false, prob: 70, score: 0.29, kind: 'est' } },
-  { tipLabel: 'BTTS_YES', matchId: 5, m: { id: 5 }, meta: { primaryPass: true, prob: 79, score: 0.35, kind: 'book' } },
-  { tipLabel: 'BTTS_NO', matchId: 6, m: { id: 6 }, meta: { primaryPass: false, prob: 69, score: 0.28, kind: 'est' } },
-  { tipLabel: 'HOME_WIN', matchId: 7, m: { id: 7 }, meta: { primaryPass: true, prob: 80, score: 0.39, kind: 'book' } },
-  { tipLabel: 'AWAY_WIN', matchId: 8, m: { id: 8 }, meta: { primaryPass: false, prob: 72, score: 0.31, kind: 'est' } },
-  { tipLabel: 'CORNERS_OVER_95', matchId: 9, m: { id: 9 }, meta: { primaryPass: true, prob: 79, score: 0.36, kind: 'est' } },
-  { tipLabel: 'CORNERS_UNDER_95', matchId: 10, m: { id: 10 }, meta: { primaryPass: false, prob: 69, score: 0.27, kind: 'est' } },
-  { tipLabel: 'CARDS_OVER_45', matchId: 11, m: { id: 11 }, meta: { primaryPass: true, prob: 79, score: 0.34, kind: 'est' } },
-  { tipLabel: 'CARDS_UNDER_45', matchId: 12, m: { id: 12 }, meta: { primaryPass: false, prob: 70, score: 0.28, kind: 'est' } },
-  { tipLabel: 'SOT_OVER_75', matchId: 13, m: { id: 13 }, meta: { primaryPass: false, prob: 71, score: 0.29, kind: 'est' } },
-  { tipLabel: 'DC_1X', matchId: 14, m: { id: 14 }, meta: { primaryPass: true, prob: 79, score: 0.37, kind: 'book' } },
-  { tipLabel: 'DC_X2', matchId: 15, m: { id: 15 }, meta: { primaryPass: false, prob: 69, score: 0.26, kind: 'est' } },
-];
-const ranked15 = [...mixedProb15].sort((a, b) => {
-  const aPri = a.meta.primaryPass ? 1 : 0;
-  const bPri = b.meta.primaryPass ? 1 : 0;
-  if (bPri !== aPri) return bPri - aPri;
-  return b.meta.prob - a.meta.prob;
-});
-const filled10 = selectDiverseTips(ranked15, 10, 1, 3);
-check('15 mixed-prob candidates fill to 10', filled10.length === 10);
 check(
-  'soft fill prefers primary-pass tips first',
-  filled10.slice(0, 5).every((x) => x.meta.primaryPass)
+  'Top 10 row shows tipOdds when present',
+  /async function renderTop3[\s\S]*?tipOddsDisplay\(bet\.tipOdds\)/.test(
+    src.slice(src.indexOf('async function renderTop3'), src.indexOf('async function renderTop3') + 2200)
+  )
+);
+
+/** 15 mixed-prob candidates → only P 78–95 fill; no soft-floor backfill. */
+const mixedProb15 = [
+  { tipLabel: 'OVER_15', matchId: 1, m: { id: 1 }, meta: { prob: 92, score: 0.4, kind: 'est' } },
+  { tipLabel: 'OVER_25', matchId: 2, m: { id: 2 }, meta: { prob: 78, score: 0.38, kind: 'est' } },
+  { tipLabel: 'OVER_35', matchId: 3, m: { id: 3 }, meta: { prob: 71, score: 0.3, kind: 'est' } },
+  { tipLabel: 'UNDER_25', matchId: 4, m: { id: 4 }, meta: { prob: 70, score: 0.29, kind: 'est' } },
+  { tipLabel: 'BTTS_YES', matchId: 5, m: { id: 5 }, meta: { prob: 88, score: 0.35, kind: 'book' } },
+  { tipLabel: 'BTTS_NO', matchId: 6, m: { id: 6 }, meta: { prob: 69, score: 0.28, kind: 'est' } },
+  { tipLabel: 'HOME_WIN', matchId: 7, m: { id: 7 }, meta: { prob: 85, score: 0.39, kind: 'book' } },
+  { tipLabel: 'AWAY_WIN', matchId: 8, m: { id: 8 }, meta: { prob: 72, score: 0.31, kind: 'est' } },
+  { tipLabel: 'CORNERS_OVER_95', matchId: 9, m: { id: 9 }, meta: { prob: 81, score: 0.36, kind: 'est' } },
+  { tipLabel: 'CORNERS_UNDER_95', matchId: 10, m: { id: 10 }, meta: { prob: 69, score: 0.27, kind: 'est' } },
+  { tipLabel: 'CARDS_OVER_45', matchId: 11, m: { id: 11 }, meta: { prob: 79, score: 0.34, kind: 'est' } },
+  { tipLabel: 'CARDS_UNDER_45', matchId: 12, m: { id: 12 }, meta: { prob: 70, score: 0.28, kind: 'est' } },
+  { tipLabel: 'SOT_OVER_75', matchId: 13, m: { id: 13 }, meta: { prob: 71, score: 0.29, kind: 'est' } },
+  { tipLabel: 'DC_1X', matchId: 14, m: { id: 14 }, meta: { prob: 83, score: 0.37, kind: 'book' } },
+  { tipLabel: 'DC_X2', matchId: 15, m: { id: 15 }, meta: { prob: 69, score: 0.26, kind: 'est' } },
+];
+const inBand15 = mixedProb15.filter((x) => x.meta.prob >= 78 && x.meta.prob <= 95);
+const ranked15 = [...inBand15].sort((a, b) => b.meta.prob - a.meta.prob);
+const filled10 = selectDiverseTips(ranked15, 10, 1, 3);
+check('in-band candidates fill without soft floor', filled10.length === inBand15.length || filled10.length === 10);
+check(
+  'sorted pool is descending by probability',
+  ranked15.every((x, i) => i === 0 || ranked15[i - 1].meta.prob >= x.meta.prob)
 );
 check(
-  'soft fill includes at least one soft-floor tip when primary underfills families',
-  filled10.some((x) => !x.meta.primaryPass) || filled10.filter((x) => x.meta.primaryPass).length >= 7
+  'no soft-floor tip survives band filter',
+  filled10.every((x) => x.meta.prob >= 78 && x.meta.prob <= 95)
 );
 
 void monoOu;
@@ -260,33 +263,54 @@ void mixed;
 
 check(
   'null tipOdds uses model-implied 1/p inside band',
-  Math.abs(tipOddsForTop10Band({ tipOdds: null }, 70) - 1 / 0.7) < 1e-9
+  Math.abs(tipOddsForTop10Band({ tipOdds: null }, 80) - 1 / 0.8) < 1e-9
 );
 check(
   'null tipOdds candidate is eligible (not rejected by odds band)',
   tipPlayableScore(
+    { suggestedBet: 'OVER_25', tipOdds: null, oddsSource: 'model', confidenceScore: 80 },
+    78
+  ) != null
+);
+check(
+  'P below 78 rejected (no backfill)',
+  tipPlayableScore(
     { suggestedBet: 'OVER_25', tipOdds: null, oddsSource: 'model', confidenceScore: 76 },
-    69
+    78
+  ) == null
+);
+check(
+  'P above 95 rejected',
+  tipPlayableScore(
+    { suggestedBet: 'OVER_25', tipOdds: 1.04, oddsSource: 'model', confidenceScore: 96 },
+    78
+  ) == null
+);
+check(
+  'P=95 inclusive still eligible',
+  tipPlayableScore(
+    { suggestedBet: 'DC_1X', tipOdds: 1.05, oddsSource: 'model', confidenceScore: 95 },
+    78
   ) != null
 );
 check(
   'high-P short odds (<1.30) still eligible for Top 10',
   tipPlayableScore(
     { suggestedBet: 'DC_1X', tipOdds: 1.1, oddsSource: 'model', confidenceScore: 90 },
-    69
+    78
   ) != null
 );
 check(
   'longshot odds above max still rejected',
   tipPlayableScore(
-    { suggestedBet: 'AWAY_WIN', tipOdds: 4.2, oddsSource: 'model', confidenceScore: 70 },
-    69
+    { suggestedBet: 'AWAY_WIN', tipOdds: 4.2, oddsSource: 'model', confidenceScore: 80 },
+    78
   ) == null
 );
 check('finished matches excluded from Top 10 status', isTop10MatchStatus('finished') === false);
 check('scheduled matches allowed', isTop10MatchStatus('scheduled') === true);
 
-// Soft floor P≥69; high-P 1/p <1.30 must still fill (no min-odds starve).
+// Band P 78–95; high-P 1/p <1.30 must still fill (no min-odds starve).
 const nullOddsPool = Array.from({ length: 12 }, (_, i) => ({
   id: 1000 + i,
   status: 'scheduled',
@@ -318,11 +342,17 @@ check(
   'high P with null tipOdds stays eligible via 1/p (<1.30)',
   tipPlayableScore(
     { suggestedBet: 'OVER_25', tipOdds: null, oddsSource: 'model', confidenceScore: 80 },
-    69
+    78
   ) != null
 );
+check(
+  'pool sorts descending by probability',
+  buildTop10Pool(nullOddsPool).every(
+    (x, i, arr) => i === 0 || arr[i - 1].meta.prob >= x.meta.prob
+  )
+);
 
-/** Live regression shape: 2026-10-30 — 4 matches, only 2 with P≥69 (one short model odds). */
+/** Live regression shape: 2026-10-30 — 4 matches, only 2 with P≥78 (one short model odds). */
 const day30LiveShape = [
   {
     id: 27084,
@@ -375,7 +405,7 @@ const day30LiveShape = [
 ];
 const day30Picked = pickTop10Tips(day30LiveShape, 10);
 check(
-  '2026-10-30 short-odds shape: high-P OVER_25 + DNB_HOME → 2 tips (2 below soft floor)',
+  '2026-10-30 short-odds shape: high-P OVER_25 + DNB_HOME → 2 tips (2 below band)',
   day30Picked.length === 2 &&
     day30Picked.some((x) => x.matchId === 27065 && x.tipLabel === 'OVER_25') &&
     day30Picked.some((x) => x.matchId === 27085 && x.tipLabel === 'DNB_HOME')
@@ -384,6 +414,10 @@ check(
   'Top 10 never surfaces secondary even when secondary P/family is diversifying',
   day30Picked.every((x) => x.tipLabel !== 'BTTS_YES' && x.tipLabel !== 'UNDER_25' && x.tipLabel !== 'HOME_WIN') &&
     !day30Picked.some((x) => x.isSecondary)
+);
+check(
+  'day30 picks ordered by descending P',
+  day30Picked[0].matchId === 27085 && day30Picked[1].matchId === 27065
 );
 
 /** Diversity trap: 3× ou primary already in, match secondary corners must NOT replace primary SOT. */
@@ -527,7 +561,7 @@ const tenEligible = Array.from({ length: 12 }, (_, i) => ({
   suggestedBet: i % 2 === 0 ? 'OVER_15' : 'HOME_WIN',
   tipOdds: 1.35 + (i % 5) * 0.05,
   oddsSource: 'model',
-  tipMarketProb: 72 + (i % 8),
+  tipMarketProb: 78 + (i % 8),
   confidenceScore: 50,
 }));
 check('pickTop10Tips fills 10 when N>=10', pickTop10Tips(tenEligible, 10).length === 10);
@@ -544,10 +578,24 @@ check(
       suggestedBet: 'OVER_15',
       tipOdds: 1.4,
       oddsSource: 'model',
-      tipMarketProb: 71,
+      tipMarketProb: 81,
       confidenceScore: 40,
     },
   ]).length === 1
+);
+check(
+  'tipMarketProb below 78 does not backfill',
+  buildTop10Pool([
+    {
+      id: 43,
+      status: 'scheduled',
+      suggestedBet: 'OVER_15',
+      tipOdds: 1.4,
+      oddsSource: 'model',
+      tipMarketProb: 71,
+      confidenceScore: 40,
+    },
+  ]).length === 0
 );
 
 console.log(failed ? `\n${failed} checks failed` : `\n${passed}/${passed} checks passed`);

@@ -22,6 +22,8 @@ const fixture = {
 const stats = {
   10: [
     {
+      team_id: 10,
+      match_date: '2026-11-01 18:00:00',
       goals_scored: 2,
       shots_for: 12,
       shots_against: 10,
@@ -34,6 +36,8 @@ const stats = {
       reds_for: 0,
     },
     {
+      team_id: 10,
+      match_date: '2026-10-28 18:00:00',
       goals_scored: 0,
       shots_for: 8,
       shots_against: 9,
@@ -48,6 +52,8 @@ const stats = {
   ],
   20: [
     {
+      team_id: 20,
+      match_date: '2026-11-02 18:00:00',
       goals_scored: 1,
       shots_for: 8,
       shots_against: 11,
@@ -63,13 +69,28 @@ const stats = {
 };
 
 const preds = {
-  77: { home_xg: 1.4, away_xg: 1.1 },
+  77: { match_id: 77, home_xg: 1.4, away_xg: 1.1 },
 };
 
 const db = {
   async all(sql, ...params) {
     if (sql.includes('FROM matches m')) return [fixture];
-    if (sql.includes('FROM team_stats')) return (stats[Number(params[0])] || []).slice(0, params[2]);
+    if (sql.includes('FROM team_stats')) {
+      // Batched: IN (teamIds...) + beforeDate bounds
+      const ids = [];
+      for (const p of params) {
+        const n = Number(p);
+        if (Number.isFinite(n) && (n === 10 || n === 20)) ids.push(n);
+      }
+      const out = [];
+      for (const id of ids.length ? ids : [10, 20]) {
+        out.push(...(stats[id] || []));
+      }
+      return out;
+    }
+    if (sql.includes('FROM predictions')) {
+      return Object.values(preds);
+    }
     if (sql.includes('AVG(CASE WHEN ts.is_home')) {
       return [];
     }
@@ -124,5 +145,7 @@ assert.ok(cards.matches[0].matchAvg > 0);
 const routeSource = await readFile(new URL('../src/index.js', import.meta.url), 'utf8');
 assert.match(routeSource, /GET['"]?\s*&&\s*path === ['"]\/api\/v1\/stats\/match-averages['"]/);
 assert.match(routeSource, /listMatchAveragesForDate/);
+assert.ok(routeSource.includes('/lineups'));
+assert.ok(routeSource.includes('fetchLineupsForMatch'));
 
 console.log('match averages helper + route: ok');

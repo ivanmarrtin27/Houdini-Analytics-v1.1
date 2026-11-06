@@ -45,13 +45,18 @@ if (!/async function renderTop3[\s\S]{0,900}matches\/today\?date=/.test(src)) {
 
 const api = new Function(
   `const TOP10_MIN_PROB = 78;
-   const TOP10_SOFT_MIN_PROB = 69;
+   const TOP10_MAX_PROB = 95;
    const TOP10_MIN_ODDS = 1.3;
    const TOP10_MAX_ODDS = 3.5;
    const TOP10_TRIVIAL_LABELS = new Set(['OVER_05', 'UNDER_45']);
    const TOP10_MAX_PER_FAMILY = 3;
    const TOP10_LIMIT = 10;
    function tipProbPct(raw) {
+     const tipMarket = raw?.tipMarketProb ?? raw?.tip_market_prob;
+     if (tipMarket != null && Number(tipMarket) > 0) {
+       const n = Number(tipMarket);
+       return Math.trunc(n <= 1 ? n * 100 : n);
+     }
      const conf = raw?.confidenceScore != null ? Number(raw.confidenceScore) : null;
      return conf != null && conf > 0 ? conf : null;
    }
@@ -88,7 +93,7 @@ console.log(
           id: x.matchId,
           tip: x.tipLabel,
           p: x.meta.prob,
-          primary: x.meta.primaryPass,
+          odds: x.m?.tipOdds ?? null,
           date: x.m?.matchDate,
         })),
       },

@@ -162,5 +162,57 @@ check(
   teamNameScore('BVB', 'Borussia Dortmund') === 100
 );
 
+check(
+  'Sparta Praha vs Sparta Prague aliases ≥85',
+  teamNameScore('Sparta Praha', 'Sparta Prague') >= 85
+);
+check(
+  'GNK Dinamo vs Dinamo Zagreb ≥85',
+  teamNameScore('GNK Dinamo', 'Dinamo Zagreb') >= 85
+);
+check(
+  'Union SG vs Union St.Gilloise ≥85',
+  teamNameScore('Union SG', 'Union St.Gilloise') >= 85
+);
+check(
+  'H. Beer-Sheva vs Hapoel Beer Sheva ≥85',
+  teamNameScore('H. Beer-Sheva', 'Hapoel Beer Sheva') >= 85
+);
+check(
+  "H. Beer-Sheva vs Hapoel Be'er Sheva ≥85",
+  teamNameScore('H. Beer-Sheva', "Hapoel Be'er Sheva") >= 85
+);
+check('N.E.C. vs NEC Nijmegen ≥85', teamNameScore('N.E.C.', 'NEC Nijmegen') >= 85);
+check('Omonia vs Omonia Nicosia ≥85', teamNameScore('Omonia', 'Omonia Nicosia') >= 85);
+check('RC Celta vs Celta Vigo ≥85', teamNameScore('RC Celta', 'Celta Vigo') >= 85);
+
+const uelFm = [
+  { teams: { home: { name: 'Sparta Prague' }, away: { name: 'AFC Bournemouth' } } },
+  { teams: { home: { name: 'Sunderland' }, away: { name: 'Dinamo Zagreb' } } },
+  { teams: { home: { name: 'Celta Vigo' }, away: { name: 'Union St.Gilloise' } } },
+  { teams: { home: { name: 'Hapoel Beer Sheva' }, away: { name: 'OFI Crete' } } },
+  { teams: { home: { name: 'NEC Nijmegen' }, away: { name: 'Omonia Nicosia' } } },
+];
+check(
+  'Sparta Praha–Bournemouth name-matches FotMob Sparta Prague',
+  findBestFixtureMatch(uelFm, 'Sparta Praha', 'Bournemouth') === uelFm[0]
+);
+check(
+  'Sunderland–GNK Dinamo name-matches FotMob Dinamo Zagreb',
+  findBestFixtureMatch(uelFm, 'Sunderland', 'GNK Dinamo') === uelFm[1]
+);
+check(
+  'Celta–Union SG name-matches FotMob Celta Vigo–Union St.Gilloise',
+  findBestFixtureMatch(uelFm, 'Celta', 'Union SG') === uelFm[2]
+);
+check(
+  'H. Beer-Sheva–OFI name-matches FotMob Hapoel Beer Sheva',
+  findBestFixtureMatch(uelFm, 'H. Beer-Sheva', 'OFI Crete') === uelFm[3]
+);
+check(
+  'N.E.C.–Omonia name-matches FotMob NEC Nijmegen–Omonia Nicosia',
+  findBestFixtureMatch(uelFm, 'N.E.C.', 'Omonia') === uelFm[4]
+);
+
 console.log(failed ? `\n${failed} checks failed` : `\n${passed}/${passed} checks passed`);
 process.exit(failed ? 1 : 0);

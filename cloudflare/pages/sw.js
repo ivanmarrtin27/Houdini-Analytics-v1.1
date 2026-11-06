@@ -11,7 +11,7 @@
  * the shell changes, so clients pick the new files.
  */
 
-const VERSION = 'hb-v150';
+const VERSION = 'hb-v157';
 const SHELL_CACHE = `houdini-shell-${VERSION}`;
 const DATA_CACHE = `houdini-data-${VERSION}`;
 const DATA_TTL_MS = 60_000;
@@ -19,8 +19,8 @@ const DATA_TTL_MS = 60_000;
 const SHELL_ASSETS = [
   '/',
   '/index.html',
-  '/app.js?v=hb150',
-  '/styles.css?v=hb150',
+  '/app.js?v=hb157',
+  '/styles.css?v=hb157',
   '/manifest.webmanifest',
   '/icons/icon.svg',
   '/icons/icon-192.png',

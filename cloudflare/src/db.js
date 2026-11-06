@@ -207,9 +207,31 @@ function teamMetricAverage(rows, metric) {
   };
 }
 
+/** Isolate memory cache for Stats tab (date|metric|sort|n). */
+const matchAveragesCache = new Map();
+const MATCH_AVERAGES_TTL_MS = 45 * 1000;
+const MATCH_AVERAGES_CACHE_MAX = 40;
+
+function teamStatsAsOfFromRows(byTeam, teamId, beforeDate, n) {
+  const all = byTeam.get(Number(teamId)) || [];
+  const before = String(beforeDate || '').slice(0, 19);
+  const lim = Math.max(1, Math.min(30, Number(n) || 10));
+  if (!before) return all.slice(0, lim);
+  const out = [];
+  for (const row of all) {
+    const md = String(row.match_date || '').slice(0, 19);
+    if (md && md < before) {
+      out.push(row);
+      if (out.length >= lim) break;
+    }
+  }
+  return out;
+}
+
 /**
  * Per-match recent team averages for one allowlisted match day.
  * Uses only team_stats before each fixture kickoff to avoid lookahead.
+ * Batches team_stats + predictions (avoids N+1 per fixture).
  */
 export async function listMatchAveragesForDate(
   db,
@@ -218,65 +240,154 @@ export async function listMatchAveragesForDate(
   const safeMetric = MATCH_AVERAGE_FIELDS[metric] ? metric : 'goals';
   const safeSort = sort === 'low' ? 'low' : 'high';
   const sampleSize = Math.max(1, Math.min(30, Number(n) || 10));
+  const cacheKey = `${date}|${safeMetric}|${safeSort}|${sampleSize}`;
+  const cached = matchAveragesCache.get(cacheKey);
+  if (cached && Date.now() - cached.at < MATCH_AVERAGES_TTL_MS) {
+    return cached.data;
+  }
+
   const matches = await getByDate(db, date);
-  const leagueAvgCache = new Map();
+  if (!matches.length) {
+    const empty = {
+      date,
+      metric: safeMetric,
+      sort: safeSort,
+      n: sampleSize,
+      matches: [],
+      meta: { withData: 0, total: 0 },
+    };
+    matchAveragesCache.set(cacheKey, { at: Date.now(), data: empty });
+    return empty;
+  }
+
+  const teamIds = [
+    ...new Set(
+      matches.flatMap((m) => [Number(m.homeTeam?.id), Number(m.awayTeam?.id)]).filter((id) => id > 0)
+    ),
+  ];
+  const matchIds = matches.map((m) => Number(m.id)).filter((id) => id > 0);
+  let maxKickoff = String(matches[0].matchDate || '').slice(0, 19);
+  for (const m of matches) {
+    const md = String(m.matchDate || '').slice(0, 19);
+    if (md && md > maxKickoff) maxKickoff = md;
+  }
+  if (!maxKickoff) maxKickoff = `${date} 23:59:59`;
+
+  const teamPlaceholders = teamIds.map(() => '?').join(',');
+  const matchPlaceholders = matchIds.map(() => '?').join(',');
+
+  const statsPromise =
+    teamIds.length > 0
+      ? db.all(
+          `SELECT * FROM team_stats
+           WHERE team_id IN (${teamPlaceholders})
+             AND datetime(match_date) < datetime(?)
+             AND date(match_date) >= date(?, '-150 days')
+           ORDER BY team_id ASC, match_date DESC`,
+          ...teamIds,
+          maxKickoff,
+          maxKickoff
+        )
+      : Promise.resolve([]);
+
+  const predsPromise =
+    matchIds.length > 0 && safeMetric === 'goals'
+      ? db.all(
+          `SELECT match_id, home_xg, away_xg FROM predictions
+           WHERE match_id IN (${matchPlaceholders})`,
+          ...matchIds
+        )
+      : Promise.resolve([]);
+
+  const leagueIds = [
+    ...new Set(
+      matches
+        .map((m) => Number(m.leagueId ?? m.league_id))
+        .filter((id) => Number.isFinite(id) && id > 0)
+    ),
+  ];
+  const leaguePromise =
+    safeMetric !== 'goals' && leagueIds.length
+      ? Promise.all(leagueIds.map(async (id) => [id, await leagueGoalAverages(db, id)]))
+      : Promise.resolve([]);
+
+  const [statsRows, predRows, leaguePairs] = await Promise.all([
+    statsPromise,
+    predsPromise,
+    leaguePromise,
+  ]);
+
+  const byTeam = new Map();
+  for (const row of statsRows || []) {
+    const tid = Number(row.team_id);
+    if (!byTeam.has(tid)) byTeam.set(tid, []);
+    byTeam.get(tid).push(row);
+  }
+
+  const predByMatch = new Map();
+  for (const row of predRows || []) {
+    predByMatch.set(Number(row.match_id), row);
+  }
+
+  const leagueAvgCache = new Map(leaguePairs || []);
   const { metricExpectedMatchAvg } = await import('./services/predictionService.js');
-  const rows = await Promise.all(
-    matches.map(async (match) => {
-      const [homeRows, awayRows] = await Promise.all([
-        lastNForTeamAsOf(db, match.homeTeam.id, sampleSize, match.matchDate),
-        lastNForTeamAsOf(db, match.awayTeam.id, sampleSize, match.matchDate),
-      ]);
-      const home = teamMetricAverage(homeRows, safeMetric);
-      const away = teamMetricAverage(awayRows, safeMetric);
-      let matchAvg = null;
-      if (safeMetric === 'goals') {
-        const pred = await db.first(
-          `SELECT home_xg, away_xg FROM predictions WHERE match_id = ?`,
-          match.id
-        );
-        const hx = pred?.home_xg != null ? Number(pred.home_xg) : null;
-        const ax = pred?.away_xg != null ? Number(pred.away_xg) : null;
-        if (hx != null && Number.isFinite(hx) && ax != null && Number.isFinite(ax)) {
-          matchAvg = Number((hx + ax).toFixed(2));
-        }
-      } else {
-        const leagueId = Number(match.leagueId ?? match.league_id);
-        let league = leagueAvgCache.get(leagueId);
-        if (!league && Number.isFinite(leagueId) && leagueId > 0) {
-          league = await leagueGoalAverages(db, leagueId);
-          leagueAvgCache.set(leagueId, league);
-        }
-        if (league) {
-          matchAvg = metricExpectedMatchAvg(homeRows, awayRows, league, safeMetric);
-        }
+
+  const rows = matches.map((match) => {
+    const homeRows = teamStatsAsOfFromRows(
+      byTeam,
+      match.homeTeam.id,
+      match.matchDate,
+      sampleSize
+    );
+    const awayRows = teamStatsAsOfFromRows(
+      byTeam,
+      match.awayTeam.id,
+      match.matchDate,
+      sampleSize
+    );
+    const home = teamMetricAverage(homeRows, safeMetric);
+    const away = teamMetricAverage(awayRows, safeMetric);
+    let matchAvg = null;
+    if (safeMetric === 'goals') {
+      const pred = predByMatch.get(Number(match.id));
+      const hx = pred?.home_xg != null ? Number(pred.home_xg) : null;
+      const ax = pred?.away_xg != null ? Number(pred.away_xg) : null;
+      if (hx != null && Number.isFinite(hx) && ax != null && Number.isFinite(ax)) {
+        matchAvg = Number((hx + ax).toFixed(2));
       }
-      /* Fallback: raw historical sum (legacy) if model/xg missing */
-      if (matchAvg == null && (home.avg != null || away.avg != null)) {
-        matchAvg = Number(((home.avg || 0) + (away.avg || 0)).toFixed(2));
+    } else {
+      const leagueId = Number(match.leagueId ?? match.league_id);
+      const league = leagueAvgCache.get(leagueId);
+      if (league) {
+        matchAvg = metricExpectedMatchAvg(homeRows, awayRows, league, safeMetric);
       }
-      return {
-        ...match,
-        metric: safeMetric,
-        matchAvg,
-        homeAverage: home,
-        awayAverage: away,
-        coverage: {
-          home: home.covered,
-          away: away.covered,
-          complete: home.covered && away.covered,
-          partial: home.covered !== away.covered,
-        },
-      };
-    })
-  );
+    }
+    /* Fallback: raw historical sum (legacy) if model/xg missing */
+    if (matchAvg == null && (home.avg != null || away.avg != null)) {
+      matchAvg = Number(((home.avg || 0) + (away.avg || 0)).toFixed(2));
+    }
+    return {
+      ...match,
+      metric: safeMetric,
+      matchAvg,
+      homeAverage: home,
+      awayAverage: away,
+      coverage: {
+        home: home.covered,
+        away: away.covered,
+        complete: home.covered && away.covered,
+        partial: home.covered !== away.covered,
+      },
+    };
+  });
+
   rows.sort((a, b) => {
     if (a.matchAvg == null) return b.matchAvg == null ? 0 : 1;
     if (b.matchAvg == null) return -1;
     return safeSort === 'low' ? a.matchAvg - b.matchAvg : b.matchAvg - a.matchAvg;
   });
   const withData = rows.filter((row) => row.matchAvg != null).length;
-  return {
+  const result = {
     date,
     metric: safeMetric,
     sort: safeSort,
@@ -284,6 +395,12 @@ export async function listMatchAveragesForDate(
     matches: rows,
     meta: { withData, total: rows.length },
   };
+  matchAveragesCache.set(cacheKey, { at: Date.now(), data: result });
+  if (matchAveragesCache.size > MATCH_AVERAGES_CACHE_MAX) {
+    const oldest = matchAveragesCache.keys().next().value;
+    matchAveragesCache.delete(oldest);
+  }
+  return result;
 }
 
 export async function getScheduledIdsOnDate(db, dateYmd) {
@@ -1913,7 +2030,7 @@ export async function recoverPrematureVoidTips(db, limit = 80) {
 }
 
 /** Corners/cards/SOT/shots need team_stats; without them stay pending (not void). */
-function tipBetNeedsExtras(bet) {
+export function tipBetNeedsExtras(bet) {
   const b = String(bet || '');
   return (
     b.startsWith('CORNERS_') ||
@@ -1923,7 +2040,7 @@ function tipBetNeedsExtras(bet) {
   );
 }
 
-function tipExtrasReady(bet, extras) {
+export function tipExtrasReady(bet, extras) {
   const b = String(bet || '');
   if (b.startsWith('CORNERS_')) return extras.cornersTotal != null;
   if (b.startsWith('CARDS_')) return extras.yellowsTotal != null;
@@ -2197,6 +2314,71 @@ export async function setMeta(db, key, value) {
 
 export async function getTipResultByMatchId(db, matchId) {
   return db.first(`SELECT * FROM tip_results WHERE match_id = ?`, matchId);
+}
+
+/** @returns {Promise<Map<number, object>>} */
+export async function getTipResultsByMatchIds(db, matchIds) {
+  const map = new Map();
+  const ids = [...new Set((matchIds || []).map(Number).filter((id) => id > 0))];
+  if (!ids.length) return map;
+  const CHUNK = 80;
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const slice = ids.slice(i, i + CHUNK);
+    const ph = slice.map(() => '?').join(',');
+    const rows = await db.all(`SELECT * FROM tip_results WHERE match_id IN (${ph})`, ...slice);
+    for (const r of rows) map.set(Number(r.match_id), r);
+  }
+  return map;
+}
+
+/**
+ * Batched corner/card/shot totals per match for tip grading (no N+1).
+ * @returns {Promise<Map<number, { cornersTotal: number|null, yellowsTotal: number|null, shotsTotal: number|null, shotsOnTargetTotal: number|null }>>}
+ */
+export async function getMatchExtrasByMatchIds(db, matchIds) {
+  const map = new Map();
+  const ids = [...new Set((matchIds || []).map(Number).filter((id) => id > 0))];
+  if (!ids.length) return map;
+  const homeBy = new Map();
+  const awayBy = new Map();
+  const CHUNK = 80;
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const slice = ids.slice(i, i + CHUNK);
+    const ph = slice.map(() => '?').join(',');
+    const rows = await db.all(
+      `SELECT match_id, is_home, corners_for, yellows_for, shots_for, shots_on_target_for
+       FROM team_stats WHERE match_id IN (${ph})`,
+      ...slice
+    );
+    for (const r of rows || []) {
+      const mid = Number(r.match_id);
+      if (Number(r.is_home) === 1) homeBy.set(mid, r);
+      else awayBy.set(mid, r);
+    }
+  }
+  for (const mid of ids) {
+    const homeStat = homeBy.get(mid);
+    const awayStat = awayBy.get(mid);
+    let cornersTotal = null;
+    let yellowsTotal = null;
+    let shotsTotal = null;
+    let shotsOnTargetTotal = null;
+    if (homeStat?.corners_for != null && awayStat?.corners_for != null) {
+      cornersTotal = Number(homeStat.corners_for) + Number(awayStat.corners_for);
+    }
+    if (homeStat?.yellows_for != null && awayStat?.yellows_for != null) {
+      yellowsTotal = Number(homeStat.yellows_for) + Number(awayStat.yellows_for);
+    }
+    if (homeStat?.shots_for != null && awayStat?.shots_for != null) {
+      shotsTotal = Number(homeStat.shots_for) + Number(awayStat.shots_for);
+    }
+    if (homeStat?.shots_on_target_for != null && awayStat?.shots_on_target_for != null) {
+      shotsOnTargetTotal =
+        Number(homeStat.shots_on_target_for) + Number(awayStat.shots_on_target_for);
+    }
+    map.set(mid, { cornersTotal, yellowsTotal, shotsTotal, shotsOnTargetTotal });
+  }
+  return map;
 }
 
 /**
