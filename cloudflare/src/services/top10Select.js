@@ -63,9 +63,16 @@ export function tipProbPct(raw) {
 
 export function tipOddsForTop10Band(m, probPct) {
   const raw = m?.tipOdds != null ? Number(m.tipOdds) : null;
-  if (raw != null && Number.isFinite(raw) && raw > 1) return raw;
   const p = Number(probPct) / 100;
-  if (Number.isFinite(p) && p > 0.01 && p < 0.99) return 1 / p;
+  const implied =
+    Number.isFinite(p) && p > 0.01 && p < 0.99 ? 1 / p : null;
+  // Prefer in-band book/model cuota; if raw is a longshot, fall back to 1/p so
+  // high-P tips still fill quiet days (P band is the product gate, not cuota alone).
+  if (raw != null && Number.isFinite(raw) && raw > 1 && raw <= TOP10_MAX_ODDS) {
+    return raw;
+  }
+  if (implied != null && implied <= TOP10_MAX_ODDS) return implied;
+  if (raw != null && Number.isFinite(raw) && raw > 1) return raw;
   return null;
 }
 

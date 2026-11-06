@@ -99,7 +99,9 @@ export async function getDayResults(db, dateYmd) {
   const matches = await store.getByDate(db, date, null);
   const allIds = matches.map((m) => m.id);
   const existing = await store.getPredictionsByMatchIds(db, allIds);
-  const missing = missingPredictionIds(allIds, existing, 8);
+  // Predict every missing tip for this calendar day so the board can fill
+  // min(qualifying, day tips) up to Top 10 — do not starve on the list GET cap of 8.
+  const missing = missingPredictionIds(allIds, existing, Math.max(allIds.length, 40));
   if (missing.length) {
     try {
       await predictMany(db, missing);

@@ -301,11 +301,11 @@ check(
   ) != null
 );
 check(
-  'longshot odds above max still rejected',
+  'longshot tipOdds falls back to 1/p so high-P still fills',
   tipPlayableScore(
     { suggestedBet: 'AWAY_WIN', tipOdds: 4.2, oddsSource: 'model', confidenceScore: 80 },
     78
-  ) == null
+  ) != null
 );
 check('finished matches excluded from Top 10 status', isTop10MatchStatus('finished') === false);
 check('scheduled matches allowed', isTop10MatchStatus('scheduled') === true);

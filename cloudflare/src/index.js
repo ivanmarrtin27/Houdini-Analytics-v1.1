@@ -516,7 +516,10 @@ async function handleApi(request, env, ctx) {
         : await store.getUpcoming(db, win.days, lid);
     const allIds = matches.map((m) => m.id);
     const existing = await store.getPredictionsByMatchIds(db, allIds);
-    const missing = missingPredictionIds(allIds, existing, 8);
+    // Date boards (Top 10 / Partidos day) need the full day predicted so fill
+    // can return all P 78–95% tips (up to 10). Broader windows keep a smaller cap.
+    const predictCap = win.mode === 'date' ? Math.max(allIds.length, 40) : 8;
+    const missing = missingPredictionIds(allIds, existing, predictCap);
     if (missing.length) await predictMany(db, missing);
     const predMap = await store.getPredictionsByMatchIds(db, allIds);
     const oddsMap = await store.getOddsByMatchIds(db, allIds);

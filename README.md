@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="cloudflare/public/brand/houdini-bet-wordmark.png" alt="Houdini Analytics" width="360" />
+  <img src="cloudflare/public/brand/houdini-analytics-lockup.png" alt="Houdini Analytics" width="420" />
 </p>
 
 <h1 align="center">Houdini Analytics v1.1</h1>
@@ -31,23 +31,23 @@
 |---|---|
 | **App (día a día)** | https://houdini-analytics.pages.dev |
 | **Worker / API** | https://houdini-bet.ivanmarrtin2703.workers.dev |
+| **Repo** | https://github.com/ivanmarrtin27/Houdini-Analytics-v1.1 |
 | **Health** | `/health` |
 | **REST** | `/api/v1/...` |
 
-Dominio custom `houdini-bet.dev` — previsto cuando auth y Premium estén listos para producción.
+Dominio custom `houdini-bet.dev` — previsto cuando auth y Premium pago estén listos para producción.
 
 ## Características
 
 - **Partidos** — ventana hoy + 14 días; ligas top europeas, Segunda y competiciones UEFA; live con refresco y proyección en tiempo real
-- **Mercados** — 1X2 · doble oportunidad / DNB · over/under · BTTS · córners, tarjetas y tiros a puerta (sin mercados de tiros totales)
-- **Top 10 del día** — probabilidad ≥69% y cuota en rango razonable; diversidad por familia de mercado
-- **Semanal** — combinada ~cuota 10 y conservadora ~cuota 5 (estimación del modelo; alternativas con «Otra»)
-- **Stats** — seguimiento de tips recomendados (aciertos, fallos, pendientes)
-- **Ligas** — explorador por país, clasificación y acceso al próximo partido del equipo
-- **UI** — interfaz móvil pulida (cabecera compacta, navegación con indicador deslizante, PWA instalable)
+- **Mercados** — 1X2 · doble oportunidad / DNB · over/under · BTTS · córners, tarjetas y tiros a puerta (sin mercados `SHOTS_*`)
+- **Top 10 del día** — tip primary con P **78–95%** (desc), cuota máx. 3.50, diversidad por familia; sin backfill low-P
+- **Aciertos** — mismo universo Top del día (`/tips/day-results`) con ✓/✗/pendiente (sin cuotas/yield en UI)
+- **Stats** — medias por partido/día (`/stats/match-averages`)
+- **Ligas** — explorador por país, clasificación y próximo partido del equipo
+- **Auth / Premium** — registro, login y Google OAuth; free censor hacia `#premium` (pago Stripe pendiente de lanzamiento formal)
+- **UI** — PWA móvil (isotipo Analytics, tabbar tap-only, panel de análisis)
 - **Datos** — sync programado (FixtureDownload + FotMob; enriquecimiento opcional vía API-Football)
-
-**Premium / pagos:** hay trabajo previo de activación con Stripe; el producto público en Pages sigue en fase **beta gratuita** — no prometemos funciones de pago hasta el lanzamiento formal.
 
 ## Aviso
 
@@ -68,9 +68,10 @@ Código de producción: [`cloudflare/`](./cloudflare). Backend Express + MySQL a
 ## Estructura del proyecto
 
 ```
-Houdini Analytics/
+Houdini-Analytics-v1.1/
 ├── cloudflare/          # Worker, D1, UI estática, scripts de test
 │   ├── public/          # PWA (app.js, styles, brand, icons)
+│   ├── pages/           # alias deploy Pages (sync desde public)
 │   ├── src/             # index.js, servicios, modelo live
 │   └── migrations/      # esquema D1
 ├── legacy/              # CLI / backend local (referencia)
@@ -105,7 +106,7 @@ npx wrangler pages deploy pages --project-name houdini-analytics --branch main
 npx wrangler d1 migrations apply houdini-bet-db --remote
 ```
 
-**Secrets (Wrangler):** `SYNC_SECRET` (sync manual); opcional `API_FOOTBALL_KEY` (cuotas/stats).
+**Secrets (Wrangler):** `SYNC_SECRET` (sync manual); opcional `API_FOOTBALL_KEY` (cuotas/stats); auth `AUTH_SECRET` + Google.
 
 **Tests:**
 
@@ -120,7 +121,8 @@ cd cloudflare && npm test
 | GET | `/api/v1/status` |
 | GET | `/api/v1/matches/today?days=0\|14` |
 | GET | `/api/v1/matches/best-bets` |
-| GET | `/api/v1/combos/weekly` |
+| GET | `/api/v1/tips/day-results` |
+| GET | `/api/v1/stats/match-averages` |
 | GET | `/api/v1/matches/:id/prediction` |
 | GET | `/api/v1/leagues/:apiId/table` |
 | POST | `/api/v1/sync/manual` (header `x-sync-secret`) |
@@ -129,7 +131,7 @@ cd cloudflare && npm test
 
 ```bash
 cd legacy/backend
-# API_BASE_URL=https://houdini-bet.pages.dev
+# API_BASE_URL=https://houdini-analytics.pages.dev
 npm install && npm run cli
 ```
 
@@ -137,13 +139,13 @@ Sin `API_BASE_URL` apunta a MySQL local (solo desarrollo legacy).
 
 ## Roadmap
 
-1. Registro e inicio de sesión
-2. Planes Premium con suscripción
-3. Dominio custom opcional
+1. Stripe real (weekly/monthly) + webhook en dominio custom
+2. Auth OAuth redirects al dominio de producto
+3. Dominio custom opcional (`houdini-bet.dev`)
 
 ## Autor
 
-[Iván Martín Molina](https://ivanmartin.pages.dev/) · [@ivanmarrtin2703](https://github.com/ivanmarrtin2703)
+[Iván Martín Molina](https://ivanmartin.pages.dev/) · [@ivanmarrtin27](https://github.com/ivanmarrtin27)
 
 ## Licencia
 

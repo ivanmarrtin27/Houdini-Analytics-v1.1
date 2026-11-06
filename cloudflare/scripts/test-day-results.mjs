@@ -31,6 +31,9 @@ check('route day-results registered', INDEX.includes("/api/v1/tips/day-results")
 check('UI renderAciertos present', APP.includes('async function renderAciertos'));
 check('pages synced with renderAciertos', PAGES_APP.includes('async function renderAciertos'));
 check('no Próximamente placeholder in public shell', !APP.includes("aciertos.soonTitle"));
+check('Aciertos rows omit tipOdds display', !/function aciertosRowHtml[\s\S]*?tipOddsDisplay\(item\.tipOdds\)/.test(APP));
+check('Aciertos summary omits yield', !APP.includes("t('aciertos.yield')") && !APP.includes('formatAciertosYield'));
+check('tab enter helper present', APP.includes('function triggerViewEnter'));
 check('SHOTS rejected as trivial', isTrivialTop10Label('SHOTS_OVER_225'));
 check('OVER_05 trivial', isTrivialTop10Label('OVER_05'));
 
@@ -83,6 +86,34 @@ const picked = pickTop10Tips(matches, TOP10_LIMIT, { includeFinished: true });
 check('includes finished in day board pool', picked.some((p) => Number(p.matchId) === 1));
 check('excludes SHOTS_*', !picked.some((p) => String(p.tipLabel).startsWith('SHOTS_')));
 check('fills from eligible only', picked.length === 3);
+
+/** Quiet day: 6 qualifying tips → show all 6 (cap still 10). */
+const sixDay = Array.from({ length: 6 }, (_, i) => ({
+  id: 200 + i,
+  status: i % 2 === 0 ? 'finished' : 'scheduled',
+  suggestedBet: i % 2 === 0 ? 'OVER_15' : 'HOME_WIN',
+  tipMarketProb: 90 - i,
+  tipOdds: 1.35 + i * 0.05,
+  oddsSource: 'model',
+  homeGoals: 2,
+  awayGoals: 1,
+  homeTeam: { name: `H${i}` },
+  awayTeam: { name: `A${i}` },
+}));
+const sixPicked = pickTop10Tips(sixDay, TOP10_LIMIT, { includeFinished: true });
+check(
+  'day board fills all 6 qualifying tips (no under-show)',
+  sixPicked.length === 6 && new Set(sixPicked.map((p) => p.matchId)).size === 6
+);
+check(
+  'long book cuota still fills when P in 78–95 (implied fallback)',
+  tipPlayableScore({
+    suggestedBet: 'AWAY_WIN',
+    tipMarketProb: 82,
+    tipOdds: 4.2,
+    oddsSource: 'book',
+  }) != null
+);
 
 const liveOnly = pickTop10Tips(matches, TOP10_LIMIT, { includeFinished: false });
 check('live Top 10 skips finished', liveOnly.length === 1 && Number(liveOnly[0].matchId) === 3);

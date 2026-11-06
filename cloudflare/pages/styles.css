@@ -1,5 +1,5 @@
 :root {
-  /* ESportsArena â dense tipster board */
+  /* ESportsArena Ã¢Â€Â” dense tipster board */
   --pitch: #0a0a0a;
   --board: #141414;
   --board-2: #1e1e1e;
@@ -71,7 +71,7 @@ body.boot-pending > :not(#boot-splash) {
   visibility: hidden;
 }
 
-/* Consent gate — block app until choice */
+/* Consent gate â€” block app until choice */
 html.consent-needed,
 html.consent-needed body {
   overflow: hidden;
@@ -99,7 +99,7 @@ html.consent-needed #consent-gate {
   opacity: 1;
 }
 
-/* Auth required after consent — shell inert; modal cannot dismiss */
+/* Auth required after consent â€” shell inert; modal cannot dismiss */
 body.auth-required {
   overflow: hidden;
 }
@@ -367,7 +367,7 @@ body.auth-required .auth-form__submit.primary:hover {
   }
 }
 
-/* ââ Boot splash ââ */
+/* Ã¢Â€Â”Ã¢Â€Â” Boot splash Ã¢Â€Â”Ã¢Â€Â” */
 .boot-splash {
   position: fixed;
   inset: 0;
@@ -415,7 +415,7 @@ body.auth-required .auth-form__submit.primary:hover {
   display: block;
   object-fit: contain;
   object-position: center;
-  /* Analytics isotipo — black pad */
+  /* Analytics isotipo â€” black pad */
   background: #000;
   padding: 0.45rem;
   box-sizing: border-box;
@@ -436,7 +436,7 @@ body.auth-required .auth-form__submit.primary:hover {
   background: var(--accent, #dc2626);
   animation: boot-bar-slide 1.35s ease-in-out infinite;
 }
-/* Wordmark lives in the PNG â never duplicate brand text on splash */
+/* Wordmark lives in the PNG Ã¢Â€Â” never duplicate brand text on splash */
 .boot-splash__brand {
   display: none !important;
 }
@@ -518,7 +518,7 @@ body.auth-required .auth-form__submit.primary:hover {
   flex-shrink: 0;
   object-fit: contain;
   object-position: center;
-  /* Transparent isotipo — no black tile */
+  /* Transparent isotipo â€” no black tile */
   background: transparent;
   padding: 0;
   box-sizing: border-box;
@@ -1509,7 +1509,7 @@ h2 {
 }
 .seg--wrap .seg__btn { flex: 1 1 0; min-width: 0; text-align: center; }
 
-/* Soft track â used by Partidos filters */
+/* Soft track Ã¢Â€Â” used by Partidos filters */
 .seg--track {
   display: flex;
   flex-wrap: nowrap;
@@ -2071,7 +2071,7 @@ h2 {
 
 .perf-summary { margin: 0 0 0.55rem; }
 
-/* —— Aciertos: Top del día (resultado) —— */
+/* â€”â€” Aciertos: Top del dÃ­a (resultado) â€”â€” */
 .view--aciertos {
   padding-top: 0.55rem;
 }
@@ -2111,75 +2111,124 @@ h2 {
 }
 .aciertos-board__date {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   align-items: center;
-  gap: 0.45rem 0.55rem;
+  justify-content: center;
+  gap: var(--hb-chrome-gap);
+  padding: 0.35rem 0 0.85rem;
+  border-bottom: var(--hb-chrome-rule);
 }
+.aciertos-board__date-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  width: 100%;
+  min-width: 0;
+}
+/* Ghost chevron via shared .hb-chrome-chevron; keep class for legacy hooks */
 .aciertos-board__arrow {
+  flex-shrink: 0;
+}
+.aciertos-board__date-chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  padding: 0;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--board);
-  color: var(--chalk);
-  cursor: pointer;
-}
-.aciertos-board__arrow:hover {
-  border-color: var(--fog);
-  color: var(--accent);
-}
-.aciertos-board__arrow svg {
-  width: 1rem;
-  height: 1rem;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2.2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.aciertos-board__date-chip {
-  min-width: 6.5rem;
+  flex: 0 1 auto;
+  min-width: 7.5rem;
+  max-width: 12rem;
+  min-height: var(--hb-chrome-btn);
+  padding: 0.35rem 0.5rem;
   text-align: center;
-  font-size: 0.92rem;
-  font-weight: 600;
+  font-size: 0.88rem;
+  font-weight: 700;
   letter-spacing: -0.01em;
+  text-transform: capitalize;
   color: var(--chalk);
   font-variant-numeric: tabular-nums;
+  text-wrap: pretty;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .aciertos-board__presets {
-  display: inline-flex;
-  gap: 0.35rem;
-  margin-left: auto;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 0.4rem;
+  width: 100%;
+  max-width: 22rem;
+  margin: 0;
 }
 .aciertos-board__preset {
   appearance: none;
-  border: 1px solid var(--line);
-  background: transparent;
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: var(--hb-chrome-btn);
+  margin: 0;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.28);
   color: var(--fog-2);
   font: inherit;
   font-size: 0.78rem;
-  font-weight: 600;
-  padding: 0.35rem 0.7rem;
-  border-radius: 999px;
+  font-weight: 700;
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(220, 38, 38, 0.2);
+  transition:
+    color var(--motion) ease,
+    background-color var(--motion) ease,
+    border-color var(--motion) ease;
 }
 .aciertos-board__preset.is-active {
   color: var(--chalk);
-  border-color: rgba(220, 38, 38, 0.45);
-  background: rgba(220, 38, 38, 0.12);
+  border-color: transparent;
+  background: var(--accent);
 }
 .aciertos-board__preset:hover {
   color: var(--chalk);
-  border-color: var(--fog);
+  background: rgba(255, 255, 255, 0.05);
+}
+.aciertos-board__preset.is-active:hover {
+  background: var(--accent-soft);
+  color: var(--chalk);
+}
+.aciertos-board__preset:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .aciertos-board__preset {
+    transition: none;
+  }
+}
+@media (min-width: 720px) {
+  .aciertos-board__date {
+    padding: 0.25rem 0 0.95rem;
+  }
+  .aciertos-board__date-chip {
+    min-width: 11rem;
+    max-width: none;
+    font-size: 1rem;
+  }
+  .aciertos-board__presets {
+    max-width: 24rem;
+    gap: 0.5rem;
+  }
+  .aciertos-board__preset {
+    padding-inline: 0.85rem;
+    font-size: 0.84rem;
+  }
 }
 
 .aciertos-summary {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.55rem;
   padding: 0.85rem 0.95rem;
   border: 1px solid var(--line);
@@ -2212,12 +2261,6 @@ h2 {
 .aciertos-summary__value--hit {
   color: #4ade80;
 }
-.aciertos-summary__value--yield-pos {
-  color: #4ade80;
-}
-.aciertos-summary__value--yield-neg {
-  color: #f87171;
-}
 .aciertos-summary__empty {
   grid-column: 1 / -1;
   margin: 0;
@@ -2226,7 +2269,7 @@ h2 {
   text-align: center;
 }
 .aciertos-summary > .hb-censor {
-  grid-column: span 2;
+  grid-column: span 1;
   min-width: 0;
 }
 .aciertos-summary__locked {
@@ -2381,23 +2424,94 @@ h2 {
     transform: none;
   }
 }
+@keyframes hb-view-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+/* Tab enter: Partidos / Top 10 / Stats â€” subtle rise, reuse Aciertos stagger on rows */
+#partidos.view-enter,
+#top3.view-enter,
+#stats.view-enter {
+  animation: hb-view-enter 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+#partidos.view-enter .league-match,
+#top3.view-enter .card--top3,
+#stats.view-enter .match-stats-row {
+  animation: aciertos-row-in 0.35s ease both;
+}
+#partidos.view-enter .league-match:nth-child(1),
+#top3.view-enter .card--top3:nth-child(1),
+#stats.view-enter .match-stats-row:nth-child(1) {
+  animation-delay: 0ms;
+}
+#partidos.view-enter .league-match:nth-child(2),
+#top3.view-enter .card--top3:nth-child(2),
+#stats.view-enter .match-stats-row:nth-child(2) {
+  animation-delay: 40ms;
+}
+#partidos.view-enter .league-match:nth-child(3),
+#top3.view-enter .card--top3:nth-child(3),
+#stats.view-enter .match-stats-row:nth-child(3) {
+  animation-delay: 80ms;
+}
+#partidos.view-enter .league-match:nth-child(4),
+#top3.view-enter .card--top3:nth-child(4),
+#stats.view-enter .match-stats-row:nth-child(4) {
+  animation-delay: 120ms;
+}
+#partidos.view-enter .league-match:nth-child(5),
+#top3.view-enter .card--top3:nth-child(5),
+#stats.view-enter .match-stats-row:nth-child(5) {
+  animation-delay: 160ms;
+}
+#partidos.view-enter .league-match:nth-child(6),
+#top3.view-enter .card--top3:nth-child(6),
+#stats.view-enter .match-stats-row:nth-child(6) {
+  animation-delay: 200ms;
+}
+#partidos.view-enter .league-match:nth-child(7),
+#top3.view-enter .card--top3:nth-child(7),
+#stats.view-enter .match-stats-row:nth-child(7) {
+  animation-delay: 240ms;
+}
+#partidos.view-enter .league-match:nth-child(8),
+#top3.view-enter .card--top3:nth-child(8),
+#stats.view-enter .match-stats-row:nth-child(8) {
+  animation-delay: 280ms;
+}
 @media (prefers-reduced-motion: reduce) {
-  .card--aciertos {
+  .card--aciertos,
+  .card--top3,
+  .match-stats-row,
+  #partidos.view-enter,
+  #top3.view-enter,
+  #stats.view-enter,
+  #partidos.view-enter .league-match,
+  #top3.view-enter .card--top3,
+  #stats.view-enter .match-stats-row {
     animation: none;
   }
 }
 @media (max-width: 640px) {
   .aciertos-summary {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     padding: 0.7rem 0.75rem;
     gap: 0.4rem;
   }
   .aciertos-summary__value {
     font-size: 1.02rem;
   }
+  .aciertos-board__date {
+    gap: 0.55rem;
+  }
   .aciertos-board__presets {
-    width: 100%;
-    margin-left: 0;
+    max-width: 100%;
   }
   .card--aciertos {
     grid-template-columns: auto minmax(0, 1fr);
@@ -2950,7 +3064,7 @@ h2 {
   font-size: 0.78rem;
 }
 
-/* —— Cuotas target calculator —— */
+/* â€”â€” Cuotas target calculator â€”â€” */
 .cuotas-target {
   display: grid;
   gap: 0.75rem;
@@ -3215,7 +3329,7 @@ h2 {
   min-height: 4rem;
 }
 
-/* —— Cuotas results —— */
+/* â€”â€” Cuotas results â€”â€” */
 .odds-board__hint {
   margin: 0.55rem 0 0.45rem;
   font-size: var(--type-meta);
@@ -3334,7 +3448,7 @@ h2 {
   font-weight: 700;
 }
 
-/* ââ Combinadas (Cuotas) ââ */
+/* Ã¢Â€Â”Ã¢Â€Â” Combinadas (Cuotas) Ã¢Â€Â”Ã¢Â€Â” */
 .combo-board {
   display: grid;
   gap: 0.65rem;
@@ -3460,7 +3574,7 @@ h2 {
   font-weight: 700;
 }
 
-/* Partidos cards â densas y legibles en iPhone (~390px) */
+/* Partidos cards Ã¢Â€Â” densas y legibles en iPhone (~390px) */
 .stack--matches {
   gap: 0.65rem;
 }
@@ -3493,7 +3607,7 @@ h2 {
   }
 }
 
-/* ââ Match board (Betmines-style density) ââ */
+/* Ã¢Â€Â”Ã¢Â€Â” Match board (Betmines-style density) Ã¢Â€Â”Ã¢Â€Â” */
 .match-board {
   display: grid;
   gap: 0;
@@ -3907,7 +4021,7 @@ h2 {
   }
 }
 
-/* ââ Ajustes / privacidad ââ */
+/* Ã¢Â€Â”Ã¢Â€Â” Ajustes / privacidad Ã¢Â€Â”Ã¢Â€Â” */
 .ajustes-bar {
   display: flex;
   align-items: center;
@@ -4491,7 +4605,7 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
   color: var(--fog-2);
 }
 
-/* Match panel â Oddster-inspired, Houdini tokens */
+/* Match panel Ã¢Â€Â” Oddster-inspired, Houdini tokens */
 .mp { display: grid; gap: 0.65rem; }
 .mp--enter {
   animation: mpEnter 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -4794,7 +4908,7 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
   color: var(--fog);
 }
 
-/* Poisson ladders (Tiros / Córners / Tarjetas) */
+/* Poisson ladders (Tiros / CÃ³rners / Tarjetas) */
 .ladder-expected {
   margin: 0.35rem 0 0.85rem;
   padding: 0.75rem 0.8rem;
@@ -4959,7 +5073,7 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
   margin-bottom: 0.55rem;
 }
 
-/* Prob bars â keep as-is (user preference) */
+/* Prob bars Ã¢Â€Â” keep as-is (user preference) */
 .prob-row {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(4rem, 1fr) 2.6rem;
@@ -5024,7 +5138,7 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
   border-color: currentColor;
   animation: live-pulse 1.8s ease-in-out infinite;
 }
-/* Forma: V=victoria Â· E=empate Â· D=derrota (tambiÃ©n W/L legacy) */
+/* Forma: V=victoria Ã‚Â· E=empate Ã‚Â· D=derrota (tambiÃƒÂ©n W/L legacy) */
 .badge.V,
 .badge.W {
   color: #052e16;
@@ -5675,7 +5789,7 @@ p.premium-promo__badge[data-premium-discount-badge] {
   .views-track { animation: none; transition: none; }
 }
 
-/* ââ Tipster sheet (BetMines-like) ââ */
+/* Ã¢Â€Â”Ã¢Â€Â” Tipster sheet (BetMines-like) Ã¢Â€Â”Ã¢Â€Â” */
 body.tipster {
   padding-bottom: calc(var(--dock-h) + env(safe-area-inset-bottom, 0px) + 1rem);
 }
@@ -5996,7 +6110,7 @@ body.tipster .market-tabs__btn.is-active {
   outline-offset: -2px;
 }
 
-/* ââ Tipster mobile polish (iOS + Android) ââ */
+/* Ã¢Â€Â”Ã¢Â€Â” Tipster mobile polish (iOS + Android) Ã¢Â€Â”Ã¢Â€Â” */
 @media (max-width: 719px) {
   body.tipster {
     padding-bottom: calc(var(--dock-h) + env(safe-area-inset-bottom, 0px) + 1.25rem);
@@ -6164,7 +6278,7 @@ body.tipster .market-tabs__btn.is-active {
   }
 }
 
-/* ï¿½ï¿½ Oddster-like browse layout (Houdini brand) ï¿½ï¿½ */
+/* Ã¯Â¿Â½Ã¯Â¿Â½ Oddster-like browse layout (Houdini brand) Ã¯Â¿Â½Ã¯Â¿Â½ */
 body.browse-layout {
   --dock-h: 0px;
 }
@@ -6175,7 +6289,7 @@ body.browse-layout {
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.5rem);
 }
 
-/* Mobile bottom tab bar (browse-layout) — desktop uses header .v2-nav */
+/* Mobile bottom tab bar (browse-layout) â€” desktop uses header .v2-nav */
 .app-tabbar {
   display: none;
 }
@@ -6505,7 +6619,7 @@ body.tipster .v2-header .search-field {
   cursor: pointer;
   pointer-events: none;
 }
-/* Unified Partidos filter chips (date · status) */
+/* Unified Partidos filter chips (date Â· status) */
 .browse-chips {
   display: flex;
   flex-wrap: wrap;
@@ -6975,7 +7089,7 @@ body.tipster .v2-header .search-field {
   min-width: 0;
 }
 
-/* ── Live strip (match list row) ───────────────────────────────────── */
+/* â”€â”€ Live strip (match list row) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .live-strip {
   display: flex;
   flex-wrap: wrap;
@@ -7038,7 +7152,7 @@ body.tipster .v2-header .search-field {
   color: var(--fog);
 }
 
-/* ── Live panel (analysis) ─────────────────────────────────────────── */
+/* â”€â”€ Live panel (analysis) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .mp-live {
   display: grid;
   gap: 0.5rem;
@@ -7150,7 +7264,7 @@ body.tipster .v2-header .search-field {
 .view--partidos { padding-top: 0.5rem; }
 .sheet--top3 { display: flex; flex-direction: column; gap: 0.75rem; }
 
-/* —— Ligas explorer (carpetas → tabla) + Top 3 —— */
+/* â€”â€” Ligas explorer (carpetas â†’ tabla) + Top 3 â€”â€” */
 .ligas-explorer {
   display: flex;
   flex-direction: column;
@@ -7449,6 +7563,7 @@ body.tipster .v2-header .search-field {
 }
 .card--top3 {
   position: relative;
+  animation: aciertos-row-in 0.35s ease both;
 }
 .top3-rank {
   position: absolute;
@@ -7628,7 +7743,7 @@ body.browse-layout [role="button"] {
   .v2-header .account-btn__initial {
     font-size: 1rem;
   }
-  /* Header nav → bottom tab bar on mobile */
+  /* Header nav â†’ bottom tab bar on mobile */
   .v2-header-inner > .v2-nav {
     display: none !important;
   }
@@ -7771,7 +7886,7 @@ body.browse-layout [role="button"] {
   }
 }
 
-/* Free tip/prob censor — Analytics chrome: soft veil + Premium crown (tap → #premium) */
+/* Free tip/prob censor â€” Analytics chrome: soft veil + Premium crown (tap â†’ #premium) */
 .hb-censor {
   position: relative;
   display: block;
@@ -7973,7 +8088,7 @@ body.browse-layout [role="button"] {
   color: var(--fog);
 }
 
-/* Premium market tabs — Oddster layout, Houdini red accent */
+/* Premium market tabs â€” Oddster layout, Houdini red accent */
 .mp-trend-summary {
   margin: 0.25rem 0 0.85rem;
   padding: 1rem 0.95rem 0.95rem;
@@ -8244,7 +8359,7 @@ body.browse-layout [role="button"] {
   }
 }
 
-/* Light theme — shell / lists / panel / modals / perfil / premium */
+/* Light theme â€” shell / lists / panel / modals / perfil / premium */
 body[data-theme='light'] {
   --pitch: #f4f4f5;
   --board: #ffffff;
@@ -8432,7 +8547,7 @@ body[data-theme='light'] .hb-toast__item--info { color: var(--fog-2); }
   border: 0;
 }
 
-/* —— League market Stats (ex-Semanal) —— */
+/* â€”â€” League market Stats (ex-Semanal) â€”â€” */
 .league-stats {
   display: grid;
   gap: 0.85rem;
@@ -8651,7 +8766,7 @@ body[data-theme='light'] .hb-toast__item--info { color: var(--fog-2); }
   .league-stats__league { grid-area: league; }
   .league-stats__score { grid-area: score; }
   .league-stats__num:nth-of-type(1) { grid-area: nums; justify-self: start; }
-  .league-stats__num:nth-of-type(2)::before { content: " · "; color: var(--fog-2); }
+  .league-stats__num:nth-of-type(2)::before { content: " Â· "; color: var(--fog-2); }
   .league-stats__num:nth-of-type(2) { grid-area: nums; justify-self: start; margin-left: 3.2rem; }
 }
 
@@ -8973,6 +9088,7 @@ body[data-theme='light'] .hb-toast__item--info { color: var(--fog-2); }
   font: inherit;
   text-align: left;
   cursor: pointer;
+  animation: aciertos-row-in 0.35s ease both;
 }
 .match-stats-row:hover {
   border-color: var(--line-strong);
