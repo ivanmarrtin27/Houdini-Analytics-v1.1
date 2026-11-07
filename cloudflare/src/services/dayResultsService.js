@@ -9,6 +9,8 @@ import { pickTop10Tips, TOP10_LIMIT, tipProbPct } from './top10Select.js';
 import { computeStakeResults } from './roi.js';
 import { predictMany } from './predictionService.js';
 import { resolveTeamLogoUrl } from './teamLogos.js';
+import { isTipMarket } from './tipMarkets.js';
+import { enrichMatchesMissingExtras } from './syncService.js';
 
 const CACHE_TTL_MS = 45 * 1000;
 const CACHE_MAX = 24;
@@ -32,6 +34,11 @@ function cacheSet(key, payload) {
   }
 }
 
+/** Drop Aciertos mem cache after live settle / scores change. */
+export function invalidateDayResultsCache() {
+  dayResultsCache.clear();
+}
+
 function tipMarketProbFromPrediction(p, bet) {
   if (!p || !bet) return null;
   const raw = modelProbForBet(p, bet);
@@ -39,13 +46,30 @@ function tipMarketProbFromPrediction(p, bet) {
   return Number((raw * 100).toFixed(2));
 }
 
+/**
+ * Only missing / off-allowlist / schema-gap rows. Off-best primary is fine —
+ * pickTop10Tips re-picks from probs on read.
+ */
 function missingPredictionIds(allIds, existingMap, cap = 8) {
-  const missing = [];
+  const out = [];
   for (const id of allIds || []) {
-    if (!existingMap.has(Number(id))) missing.push(Number(id));
-    if (missing.length >= cap) break;
+    if (out.length >= cap) break;
+    const nid = Number(id);
+    const pred = existingMap.get(nid);
+    if (!pred) {
+      out.push(nid);
+      continue;
+    }
+    const primary = pred.suggested_bet;
+    if (primary && !isTipMarket(primary)) {
+      out.push(nid);
+      continue;
+    }
+    if (pred.corners_over75_prob == null && pred.corners_over85_prob != null) {
+      out.push(nid);
+    }
   }
-  return missing;
+  return out;
 }
 
 /**
@@ -63,6 +87,7 @@ export function gradeDayTipOutcome(tipLabel, match, tipRow, extras) {
   }
 
   const st = String(match?.status || '').toLowerCase();
+  if (st === 'postponed' || st === 'cancelled') return 'void';
   const hg = match?.homeGoals ?? match?.home_goals;
   const ag = match?.awayGoals ?? match?.away_goals;
   if (st !== 'finished' || hg == null || ag == null) return 'pending';
@@ -118,8 +143,14 @@ export async function getDayResults(db, dateYmd) {
     const bet = p?.suggested_bet ?? null;
     const oddsMeta = resolveTipOdds(bet, p, odds);
     const conf = p?.confidence_score != null ? Number(p.confidence_score) : null;
+    // Spread prediction probs so pickTop10Tips can re-pick from allowlist
+    // instead of trusting a stale suggested_bet (HOME_WIN / DNB / SOT_UNDER_* …).
     return {
       ...m,
+      ...p,
+      // prediction.id must not clobber matches.id (broke tip_results/extras lookup).
+      id: m.id,
+      match_id: m.id,
       suggestedBet: bet,
       confidenceScore: conf,
       tipMarketProb: tipMarketProbFromPrediction(p, bet),
@@ -135,10 +166,41 @@ export async function getDayResults(db, dateYmd) {
     .map((item) => Number(item.matchId ?? item.m?.id))
     .filter((id) => Number.isFinite(id) && id > 0);
 
-  const [tipMap, extrasMap] = await Promise.all([
+  let [tipMap, extrasMap] = await Promise.all([
     store.getTipResultsByMatchIds(db, pickIds),
     store.getMatchExtrasByMatchIds(db, pickIds),
   ]);
+
+  // FT prop tips (SOT/corners/cards) without team_stats → FotMob enrich on-read, then settle.
+  const needExtras = [];
+  for (const item of picked) {
+    const m = item.m || {};
+    const matchId = Number(item.matchId ?? m.id);
+    const tipLabel = item.tipLabel || m.suggestedBet;
+    if (!store.tipBetNeedsExtras(tipLabel)) continue;
+    const st = String(m.status || '').toLowerCase();
+    const hg = m.homeGoals ?? m.home_goals;
+    const ag = m.awayGoals ?? m.away_goals;
+    if (st !== 'finished' || hg == null || ag == null) continue;
+    const tipRow = tipMap.get(matchId);
+    if (tipRow && String(tipRow.suggested_bet || '') === tipLabel) {
+      const o = String(tipRow.outcome || 'pending').toLowerCase();
+      if (o === 'hit' || o === 'miss' || o === 'void') continue;
+    }
+    const extras = extrasMap.get(matchId) || {};
+    if (store.tipExtrasReady(tipLabel, extras)) continue;
+    needExtras.push(m);
+  }
+  if (needExtras.length) {
+    try {
+      await enrichMatchesMissingExtras(db, needExtras);
+      await store.settlePendingTips(db, Math.max(40, needExtras.length * 2));
+      extrasMap = await store.getMatchExtrasByMatchIds(db, pickIds);
+      tipMap = await store.getTipResultsByMatchIds(db, pickIds);
+    } catch (_) {
+      /* grade with whatever extras exist; no invent */
+    }
+  }
 
   const items = picked.map((item, i) => {
     const m = item.m || {};
@@ -196,6 +258,17 @@ export async function getDayResults(db, dateYmd) {
         odds: it.tipOdds,
         source: it.oddsSource,
       });
+      try {
+        await store.writeSettledTipOutcome(db, {
+          matchId: it.matchId,
+          suggestedBet: it.suggestedBet,
+          homeGoals: it.homeGoals,
+          awayGoals: it.awayGoals,
+          outcome: o,
+        });
+      } catch (_) {
+        /* board still returns graded outcome */
+      }
     }
   }
   const resolved = hits + misses;

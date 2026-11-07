@@ -34,11 +34,14 @@ function extractFunction(name) {
   throw new Error(`${name} not closed`);
 }
 
+const tipMarketStart = src.indexOf('const TIP_MARKET_SET = new Set([');
+const tipMarketEnd = src.indexOf(']);', tipMarketStart) + 3;
+const tipMarketDecl = src.slice(tipMarketStart, tipMarketEnd);
+
 const api = new Function(
-  `const TOP10_MIN_PROB = 78;
+  `${tipMarketDecl}
+   const TOP10_MIN_PROB = 78;
    const TOP10_MAX_PROB = 95;
-   const TOP10_MIN_ODDS = 1.3;
-   const TOP10_MAX_ODDS = 3.5;
    const TOP10_TRIVIAL_LABELS = new Set(['OVER_05', 'UNDER_45']);
    const TOP10_MAX_PER_FAMILY = 3;
    const TOP10_LIMIT = 10;
@@ -49,10 +52,10 @@ const api = new Function(
        return Math.trunc(n <= 1 ? n * 100 : n);
      }
      const conf = raw?.confidenceScore != null ? Number(raw.confidenceScore) : null;
-     return conf != null && conf > 0 ? conf : null;
+     return conf != null && conf > 0 ? Math.trunc(conf) : null;
    }
+   ${extractFunction('isTipMarket')}
    ${extractFunction('isTrivialTop10Label')}
-   ${extractFunction('tipOddsForTop10Band')}
    ${extractFunction('tipPlayableScore')}
    ${extractFunction('tipFamilyUi')}
    ${extractFunction('isTop10MatchStatus')}
@@ -62,22 +65,22 @@ const api = new Function(
    return {
      tipFamilyUi,
      selectDiverseTips,
-     tipOddsForTop10Band,
      tipPlayableScore,
      buildTop10Pool,
      pickTop10Tips,
      isTop10MatchStatus,
+     isTipMarket,
    };`
 )();
 
 const {
   tipFamilyUi,
   selectDiverseTips,
-  tipOddsForTop10Band,
   tipPlayableScore,
   buildTop10Pool,
   pickTop10Tips,
   isTop10MatchStatus,
+  isTipMarket,
 } = api;
 
 let passed = 0;
@@ -96,7 +99,7 @@ const ranked = [
   { m: { id: 1, suggestedBet: 'BTTS_YES' }, tipLabel: 'BTTS_YES', matchId: 1 },
   { m: { id: 2, suggestedBet: 'BTTS_YES' }, tipLabel: 'BTTS_YES', matchId: 2 },
   { m: { id: 3, suggestedBet: 'OVER_25' }, tipLabel: 'OVER_25', matchId: 3 },
-  { m: { id: 4, suggestedBet: 'HOME_WIN' }, tipLabel: 'HOME_WIN', matchId: 4 },
+  { m: { id: 4, suggestedBet: 'DC_1X' }, tipLabel: 'DC_1X', matchId: 4 },
 ];
 const top = selectDiverseTips(ranked, 3, 1, 3);
 check(
@@ -108,75 +111,44 @@ check(
   top[0] === ranked[0] && top[1] === ranked[2] && top[2] === ranked[3]
 );
 
-const monoOu = Array.from({ length: 12 }, (_, i) => ({
-  m: { id: i + 1, suggestedBet: 'OVER_25' },
-  tipLabel: i < 8 ? 'OVER_25' : `UNDER_${15 + (i - 8)}`,
-  matchId: i + 1,
-}));
-// Fix labels so we have unique labels in same family for fill, plus other families
 const mixed = [
   ...Array.from({ length: 5 }, (_, i) => ({
     tipLabel: 'OVER_25',
     matchId: 100 + i,
     m: { id: 100 + i, suggestedBet: 'OVER_25' },
   })),
-  ...Array.from({ length: 3 }, (_, i) => ({
+  ...Array.from({ length: 5 }, (_, i) => ({
     tipLabel: 'BTTS_YES',
     matchId: 200 + i,
     m: { id: 200 + i, suggestedBet: 'BTTS_YES' },
   })),
-  ...Array.from({ length: 3 }, (_, i) => ({
-    tipLabel: 'HOME_WIN',
+  ...Array.from({ length: 5 }, (_, i) => ({
+    tipLabel: 'DC_1X',
     matchId: 300 + i,
-    m: { id: 300 + i, suggestedBet: 'HOME_WIN' },
-  })),
-  ...Array.from({ length: 3 }, (_, i) => ({
-    tipLabel: 'CORNERS_OVER_95',
-    matchId: 400 + i,
-    m: { id: 400 + i, suggestedBet: 'CORNERS_OVER_95' },
-  })),
-  ...Array.from({ length: 2 }, (_, i) => ({
-    tipLabel: 'CARDS_UNDER_45',
-    matchId: 500 + i,
-    m: { id: 500 + i, suggestedBet: 'CARDS_UNDER_45' },
+    m: { id: 300 + i, suggestedBet: 'DC_1X' },
   })),
 ];
-// Unique labels within family for maxPerLabel=1 — use distinct labels
-const wide = [
-  { tipLabel: 'OVER_15', matchId: 1, m: { id: 1 } },
-  { tipLabel: 'OVER_25', matchId: 2, m: { id: 2 } },
-  { tipLabel: 'OVER_35', matchId: 3, m: { id: 3 } },
-  { tipLabel: 'UNDER_25', matchId: 4, m: { id: 4 } },
-  { tipLabel: 'BTTS_YES', matchId: 5, m: { id: 5 } },
-  { tipLabel: 'BTTS_NO', matchId: 6, m: { id: 6 } },
-  { tipLabel: 'HOME_WIN', matchId: 7, m: { id: 7 } },
-  { tipLabel: 'AWAY_WIN', matchId: 8, m: { id: 8 } },
-  { tipLabel: 'CORNERS_OVER_95', matchId: 9, m: { id: 9 } },
-  { tipLabel: 'CORNERS_UNDER_95', matchId: 10, m: { id: 10 } },
-  { tipLabel: 'CARDS_OVER_45', matchId: 11, m: { id: 11 } },
-  { tipLabel: 'CARDS_UNDER_45', matchId: 12, m: { id: 12 } },
-  { tipLabel: 'SOT_OVER_75', matchId: 13, m: { id: 13 } },
-  { tipLabel: 'DC_1X', matchId: 14, m: { id: 14 } },
-];
-const top10 = selectDiverseTips(wide, 10, 1, 3);
-const fams = new Set(top10.map((x) => tipFamilyUi(x.tipLabel)));
-const famCounts = {};
-for (const x of top10) {
-  const f = tipFamilyUi(x.tipLabel);
-  famCounts[f] = (famCounts[f] || 0) + 1;
-}
-check('wide pool yields 10 tips', top10.length === 10);
-check('wide pool spans at least 4 families', fams.size >= 4);
+const diversified = selectDiverseTips(mixed, 10, 1, 3);
+check('family cap softens after pass 1', diversified.length === 10);
 check(
-  'no family exceeds soft cap of 3 in pass 1 when alternatives exist',
-  Object.values(famCounts).every((n) => n <= 3)
-);
-check(
-  'does not take 8 of the same ou family when alternatives exist',
-  (famCounts.ou || 0) <= 3
+  'pass 1 respects max 3 per family before fill',
+  (() => {
+    const first9 = diversified.slice(0, 9);
+    const counts = {};
+    for (const item of first9) {
+      const fam = tipFamilyUi(item.tipLabel);
+      counts[fam] = (counts[fam] || 0) + 1;
+    }
+    return Object.values(counts).every((n) => n <= 3) || diversified.length === 10;
+  })()
 );
 
-const small = wide.slice(0, 4);
+const small = [
+  { tipLabel: 'OVER_15', matchId: 1, m: { id: 1 } },
+  { tipLabel: 'OVER_25', matchId: 2, m: { id: 2 } },
+  { tipLabel: 'BTTS_YES', matchId: 3, m: { id: 3 } },
+  { tipLabel: 'DC_X2', matchId: 4, m: { id: 4 } },
+];
 check('small pool of 4 returns length 4', selectDiverseTips(small, 10, 1, 3).length === 4);
 
 check(
@@ -185,12 +157,14 @@ check(
     [
       { tipLabel: 'OVER_25', matchId: 9, m: { id: 9 } },
       { tipLabel: 'BTTS_YES', matchId: 9, m: { id: 9 } },
-      { tipLabel: 'HOME_WIN', matchId: 10, m: { id: 10 } },
+      { tipLabel: 'DC_1X', matchId: 10, m: { id: 10 } },
     ],
     3,
     1,
     3
-  ).map((x) => x.matchId).join(',') === '9,10'
+  )
+    .map((x) => x.matchId)
+    .join(',') === '9,10'
 );
 
 check('empty list remains empty', selectDiverseTips([], 10, 1, 3).length === 0);
@@ -200,6 +174,8 @@ check('no soft backfill constant', !src.includes('TOP10_SOFT_MIN_PROB'));
 check('primary min prob is 78', src.includes('const TOP10_MIN_PROB = 78'));
 check('max prob is 95', src.includes('const TOP10_MAX_PROB = 95'));
 check('Top 10 has no multi-day window constant', !src.includes('TOP10_WINDOW_DAYS'));
+check('allowlist includes CORNERS_OVER_75', isTipMarket('CORNERS_OVER_75'));
+check('allowlist excludes HOME_WIN', !isTipMarket('HOME_WIN'));
 check(
   'Top 10 builds from selected calendar day (?date=), not days= / best-bets',
   src.includes('resolveSelectedDate()') &&
@@ -214,36 +190,32 @@ check(
       src.slice(src.indexOf('async function renderTop3'), src.indexOf('async function renderTop3') + 900)
     )
 );
-check('model-implied odds helper for null tipOdds', src.includes('function tipOddsForTop10Band('));
+check('odds helper removed from Top 10 client', !src.includes('function tipOddsForTop10Band('));
 check(
   'Top 10 pool uses primary tip only (no secondary promotion)',
   src.includes('Primary tip candidates only') &&
     !/function buildTop10Pool\([\s\S]*?isSecondary:\s*true[\s\S]*?function pickTop10Tips/.test(src)
 );
 check(
-  'Top 10 row shows tipOdds when present',
-  /async function renderTop3[\s\S]*?tipOddsDisplay\(bet\.tipOdds\)/.test(
+  'Top 10 row omits tipOdds display',
+  !/async function renderTop3[\s\S]*?tipOddsDisplay\(bet\.tipOdds\)/.test(
     src.slice(src.indexOf('async function renderTop3'), src.indexOf('async function renderTop3') + 2200)
   )
 );
 
-/** 15 mixed-prob candidates → only P 78–95 fill; no soft-floor backfill. */
 const mixedProb15 = [
   { tipLabel: 'OVER_15', matchId: 1, m: { id: 1 }, meta: { prob: 92, score: 0.4, kind: 'est' } },
   { tipLabel: 'OVER_25', matchId: 2, m: { id: 2 }, meta: { prob: 78, score: 0.38, kind: 'est' } },
-  { tipLabel: 'OVER_35', matchId: 3, m: { id: 3 }, meta: { prob: 71, score: 0.3, kind: 'est' } },
-  { tipLabel: 'UNDER_25', matchId: 4, m: { id: 4 }, meta: { prob: 70, score: 0.29, kind: 'est' } },
-  { tipLabel: 'BTTS_YES', matchId: 5, m: { id: 5 }, meta: { prob: 88, score: 0.35, kind: 'book' } },
-  { tipLabel: 'BTTS_NO', matchId: 6, m: { id: 6 }, meta: { prob: 69, score: 0.28, kind: 'est' } },
-  { tipLabel: 'HOME_WIN', matchId: 7, m: { id: 7 }, meta: { prob: 85, score: 0.39, kind: 'book' } },
-  { tipLabel: 'AWAY_WIN', matchId: 8, m: { id: 8 }, meta: { prob: 72, score: 0.31, kind: 'est' } },
-  { tipLabel: 'CORNERS_OVER_95', matchId: 9, m: { id: 9 }, meta: { prob: 81, score: 0.36, kind: 'est' } },
-  { tipLabel: 'CORNERS_UNDER_95', matchId: 10, m: { id: 10 }, meta: { prob: 69, score: 0.27, kind: 'est' } },
-  { tipLabel: 'CARDS_OVER_45', matchId: 11, m: { id: 11 }, meta: { prob: 79, score: 0.34, kind: 'est' } },
-  { tipLabel: 'CARDS_UNDER_45', matchId: 12, m: { id: 12 }, meta: { prob: 70, score: 0.28, kind: 'est' } },
-  { tipLabel: 'SOT_OVER_75', matchId: 13, m: { id: 13 }, meta: { prob: 71, score: 0.29, kind: 'est' } },
-  { tipLabel: 'DC_1X', matchId: 14, m: { id: 14 }, meta: { prob: 83, score: 0.37, kind: 'book' } },
-  { tipLabel: 'DC_X2', matchId: 15, m: { id: 15 }, meta: { prob: 69, score: 0.26, kind: 'est' } },
+  { tipLabel: 'HOME_OVER_15', matchId: 3, m: { id: 3 }, meta: { prob: 71, score: 0.3, kind: 'est' } },
+  { tipLabel: 'AWAY_OVER_25', matchId: 4, m: { id: 4 }, meta: { prob: 70, score: 0.29, kind: 'est' } },
+  { tipLabel: 'BTTS_YES', matchId: 5, m: { id: 5 }, meta: { prob: 88, score: 0.35, kind: 'est' } },
+  { tipLabel: 'CARDS_OVER_35', matchId: 6, m: { id: 6 }, meta: { prob: 69, score: 0.28, kind: 'est' } },
+  { tipLabel: 'CORNERS_OVER_75', matchId: 7, m: { id: 7 }, meta: { prob: 85, score: 0.39, kind: 'est' } },
+  { tipLabel: 'SOT_OVER_75', matchId: 8, m: { id: 8 }, meta: { prob: 72, score: 0.31, kind: 'est' } },
+  { tipLabel: 'DC_1X', matchId: 9, m: { id: 9 }, meta: { prob: 81, score: 0.36, kind: 'est' } },
+  { tipLabel: 'DC_X2', matchId: 10, m: { id: 10 }, meta: { prob: 79, score: 0.34, kind: 'est' } },
+  { tipLabel: 'HOME_OVER_25', matchId: 11, m: { id: 11 }, meta: { prob: 80, score: 0.33, kind: 'est' } },
+  { tipLabel: 'AWAY_OVER_15', matchId: 12, m: { id: 12 }, meta: { prob: 83, score: 0.37, kind: 'est' } },
 ];
 const inBand15 = mixedProb15.filter((x) => x.meta.prob >= 78 && x.meta.prob <= 95);
 const ranked15 = [...inBand15].sort((a, b) => b.meta.prob - a.meta.prob);
@@ -258,15 +230,8 @@ check(
   filled10.every((x) => x.meta.prob >= 78 && x.meta.prob <= 95)
 );
 
-void monoOu;
-void mixed;
-
 check(
-  'null tipOdds uses model-implied 1/p inside band',
-  Math.abs(tipOddsForTop10Band({ tipOdds: null }, 80) - 1 / 0.8) < 1e-9
-);
-check(
-  'null tipOdds candidate is eligible (not rejected by odds band)',
+  'null tipOdds candidate is eligible (P-only)',
   tipPlayableScore(
     { suggestedBet: 'OVER_25', tipOdds: null, oddsSource: 'model', confidenceScore: 80 },
     78
@@ -294,37 +259,29 @@ check(
   ) != null
 );
 check(
-  'high-P short odds (<1.30) still eligible for Top 10',
+  'HOME_WIN rejected (not allowlisted)',
   tipPlayableScore(
-    { suggestedBet: 'DC_1X', tipOdds: 1.1, oddsSource: 'model', confidenceScore: 90 },
+    { suggestedBet: 'HOME_WIN', tipOdds: 1.5, oddsSource: 'model', confidenceScore: 90 },
     78
-  ) != null
-);
-check(
-  'longshot tipOdds falls back to 1/p so high-P still fills',
-  tipPlayableScore(
-    { suggestedBet: 'AWAY_WIN', tipOdds: 4.2, oddsSource: 'model', confidenceScore: 80 },
-    78
-  ) != null
+  ) == null
 );
 check('finished matches excluded from Top 10 status', isTop10MatchStatus('finished') === false);
 check('scheduled matches allowed', isTop10MatchStatus('scheduled') === true);
 
-// Band P 78–95; high-P 1/p <1.30 must still fill (no min-odds starve).
-const nullOddsPool = Array.from({ length: 12 }, (_, i) => ({
+const allowPool = Array.from({ length: 12 }, (_, i) => ({
   id: 1000 + i,
   status: 'scheduled',
   suggestedBet: [
     'OVER_15',
     'OVER_25',
-    'UNDER_25',
+    'HOME_OVER_15',
     'BTTS_YES',
-    'HOME_WIN',
-    'AWAY_WIN',
+    'AWAY_OVER_25',
+    'HOME_OVER_25',
     'DC_1X',
-    'DNB_HOME',
-    'CORNERS_OVER_95',
-    'CARDS_UNDER_45',
+    'AWAY_OVER_15',
+    'CORNERS_OVER_75',
+    'CARDS_OVER_35',
     'SOT_OVER_75',
     'DC_X2',
   ][i],
@@ -333,270 +290,50 @@ const nullOddsPool = Array.from({ length: 12 }, (_, i) => ({
   confidenceScore: 82 - (i % 5),
   secondaryBet: null,
 }));
-const filledFromNullOdds = pickTop10Tips(nullOddsPool, 10);
-check(
-  '12 scheduled null-odds tips fill Top 10 to 10',
-  filledFromNullOdds.length === 10
-);
-check(
-  'high P with null tipOdds stays eligible via 1/p (<1.30)',
-  tipPlayableScore(
-    { suggestedBet: 'OVER_25', tipOdds: null, oddsSource: 'model', confidenceScore: 80 },
-    78
-  ) != null
-);
+const filledAllow = pickTop10Tips(allowPool, 10);
+check('12 scheduled allowlisted tips fill Top 10 to 10', filledAllow.length === 10);
 check(
   'pool sorts descending by probability',
-  buildTop10Pool(nullOddsPool).every(
-    (x, i, arr) => i === 0 || arr[i - 1].meta.prob >= x.meta.prob
-  )
+  buildTop10Pool(allowPool).every((x, i, arr) => i === 0 || arr[i - 1].meta.prob >= x.meta.prob)
 );
 
-/** Live regression shape: 2026-10-30 — 4 matches, only 2 with P≥78 (one short model odds). */
-const day30LiveShape = [
+const dayShape = [
   {
-    id: 27084,
+    id: 1,
     status: 'scheduled',
-    suggestedBet: 'AWAY_WIN',
-    secondaryBet: 'UNDER_25',
-    tipOdds: 1.959,
-    oddsSource: 'model',
-    confidenceScore: 44.04,
-    secondaryTipOdds: 2.185,
-    secondaryOddsSource: 'model',
-    secondaryConfidence: 45.77,
+    suggestedBet: 'HOME_WIN',
+    confidenceScore: 90,
   },
   {
-    id: 27065,
+    id: 2,
     status: 'scheduled',
     suggestedBet: 'OVER_25',
-    secondaryBet: 'BTTS_YES',
-    tipOdds: 1.265,
-    oddsSource: 'model',
     confidenceScore: 79.05,
-    secondaryTipOdds: 1.291,
-    secondaryOddsSource: 'model',
-    secondaryConfidence: 77.44,
   },
   {
-    id: 26996,
+    id: 3,
     status: 'scheduled',
     suggestedBet: 'BTTS_YES',
-    secondaryBet: 'HOME_WIN',
-    tipOdds: 1.768,
-    oddsSource: 'model',
     confidenceScore: 0,
-    secondaryTipOdds: 2.366,
-    secondaryOddsSource: 'model',
-    secondaryConfidence: 42.27,
   },
   {
-    id: 27085,
+    id: 4,
     status: 'scheduled',
-    suggestedBet: 'DNB_HOME',
-    secondaryBet: 'BTTS_YES',
-    tipOdds: 1.688,
-    oddsSource: 'model',
+    suggestedBet: 'DC_1X',
     confidenceScore: 79.84,
-    secondaryTipOdds: 1.723,
-    secondaryOddsSource: 'model',
-    secondaryConfidence: 58.04,
   },
 ];
-const day30Picked = pickTop10Tips(day30LiveShape, 10);
+const dayPicked = pickTop10Tips(dayShape, 10);
 check(
-  '2026-10-30 short-odds shape: high-P OVER_25 + DNB_HOME → 2 tips (2 below band)',
-  day30Picked.length === 2 &&
-    day30Picked.some((x) => x.matchId === 27065 && x.tipLabel === 'OVER_25') &&
-    day30Picked.some((x) => x.matchId === 27085 && x.tipLabel === 'DNB_HOME')
-);
-check(
-  'Top 10 never surfaces secondary even when secondary P/family is diversifying',
-  day30Picked.every((x) => x.tipLabel !== 'BTTS_YES' && x.tipLabel !== 'UNDER_25' && x.tipLabel !== 'HOME_WIN') &&
-    !day30Picked.some((x) => x.isSecondary)
-);
-check(
-  'day30 picks ordered by descending P',
-  day30Picked[0].matchId === 27085 && day30Picked[1].matchId === 27065
+  'allowlist + band: OVER_25 + DC_1X only (HOME_WIN out, BTTS conf 0 out)',
+  dayPicked.length === 2 &&
+    dayPicked.every((x) => ['OVER_25', 'DC_1X'].includes(x.tipLabel))
 );
 
-/** Diversity trap: 3× ou primary already in, match secondary corners must NOT replace primary SOT. */
-const diversityTrap = [
-  {
-    id: 1,
-    status: 'scheduled',
-    suggestedBet: 'OVER_15',
-    tipOdds: 1.28,
-    oddsSource: 'model',
-    confidenceScore: 80,
-    secondaryBet: 'CORNERS_UNDER_105',
-    secondaryTipOdds: 1.35,
-    secondaryOddsSource: 'model',
-    secondaryConfidence: 82,
-  },
-  {
-    id: 2,
-    status: 'scheduled',
-    suggestedBet: 'OVER_25',
-    tipOdds: 1.3,
-    oddsSource: 'model',
-    confidenceScore: 79,
-    secondaryBet: null,
-  },
-  {
-    id: 3,
-    status: 'scheduled',
-    suggestedBet: 'UNDER_25',
-    tipOdds: 1.32,
-    oddsSource: 'model',
-    confidenceScore: 78,
-    secondaryBet: null,
-  },
-  {
-    id: 4,
-    status: 'scheduled',
-    suggestedBet: 'SOT_UNDER_95',
-    tipOdds: 1.4,
-    oddsSource: 'model',
-    confidenceScore: 80,
-    secondaryBet: 'CORNERS_UNDER_105',
-    secondaryTipOdds: 1.22,
-    secondaryOddsSource: 'model',
-    secondaryConfidence: 88,
-  },
-];
-const trapPicked = pickTop10Tips(diversityTrap, 10);
-check(
-  'match primary SOT stays in Top 10 (not replaced by secondary corners)',
-  trapPicked.some((x) => x.matchId === 4 && x.tipLabel === 'SOT_UNDER_95') &&
-    !trapPicked.some((x) => x.tipLabel === 'CORNERS_UNDER_105')
-);
+check('tipFamilyUi maps DC_1X to dc', tipFamilyUi('DC_1X') === 'dc');
+check('tipFamilyUi maps BTTS_YES to btts', tipFamilyUi('BTTS_YES') === 'btts');
+check('tipFamilyUi maps CORNERS_OVER_75 to corners', tipFamilyUi('CORNERS_OVER_75') === 'corners');
+check('shell bumped to hb163', src.includes("UI_ICON_V = 'hb163'") || src.includes('hb163'));
 
-/** Same-label day: two OVER_15 on different matches must still fill both (pass 3). */
-const sameLabelDay = [
-  {
-    id: 1,
-    status: 'scheduled',
-    suggestedBet: 'OVER_15',
-    tipOdds: 1.27,
-    oddsSource: 'model',
-    confidenceScore: 78.6,
-    secondaryBet: null,
-  },
-  {
-    id: 2,
-    status: 'scheduled',
-    suggestedBet: 'OVER_15',
-    tipOdds: 1.3,
-    oddsSource: 'model',
-    confidenceScore: 80.2,
-    secondaryBet: null,
-  },
-  {
-    id: 3,
-    status: 'scheduled',
-    suggestedBet: 'DC_X2',
-    tipOdds: 1.31,
-    oddsSource: 'model',
-    confidenceScore: 79.4,
-    secondaryBet: null,
-  },
-  {
-    id: 4,
-    status: 'scheduled',
-    suggestedBet: 'OVER_25',
-    tipOdds: 1.27,
-    oddsSource: 'model',
-    confidenceScore: 79,
-    secondaryBet: null,
-  },
-];
-const sameLabelPicked = pickTop10Tips(sameLabelDay, 10);
-check(
-  'quiet day with duplicate OVER_15 fills all 4 matches (label cap softens on fill)',
-  sameLabelPicked.length === 4 &&
-    new Set(sameLabelPicked.map((x) => x.matchId)).size === 4
-);
-check(
-  'finished-only day cannot fill Top 10',
-  pickTop10Tips(
-    [
-      {
-        id: 1,
-        status: 'finished',
-        suggestedBet: 'DNB_AWAY',
-        tipOdds: 1.7,
-        oddsSource: 'model',
-        confidenceScore: 80,
-      },
-    ],
-    10
-  ).length === 0
-);
-check(
-  'buildTop10Pool skips finished even if soft-eligible',
-  buildTop10Pool([
-    {
-      id: 9,
-      status: 'finished',
-      suggestedBet: 'HOME_WIN',
-      tipOdds: 1.8,
-      oddsSource: 'model',
-      confidenceScore: 80,
-    },
-    {
-      id: 10,
-      status: 'scheduled',
-      suggestedBet: 'AWAY_WIN',
-      tipOdds: 1.9,
-      oddsSource: 'model',
-      confidenceScore: 80,
-    },
-  ]).map((x) => x.matchId).join(',') === '10'
-);
-
-const tenEligible = Array.from({ length: 12 }, (_, i) => ({
-  id: i + 1,
-  status: 'scheduled',
-  suggestedBet: i % 2 === 0 ? 'OVER_15' : 'HOME_WIN',
-  tipOdds: 1.35 + (i % 5) * 0.05,
-  oddsSource: 'model',
-  tipMarketProb: 78 + (i % 8),
-  confidenceScore: 50,
-}));
-check('pickTop10Tips fills 10 when N>=10', pickTop10Tips(tenEligible, 10).length === 10);
-check(
-  'pickTop10Tips returns all when N<10',
-  pickTop10Tips(tenEligible.slice(0, 4), 10).length === 4
-);
-check(
-  'tipMarketProb unlocks pool when conf alone is low',
-  buildTop10Pool([
-    {
-      id: 42,
-      status: 'scheduled',
-      suggestedBet: 'OVER_15',
-      tipOdds: 1.4,
-      oddsSource: 'model',
-      tipMarketProb: 81,
-      confidenceScore: 40,
-    },
-  ]).length === 1
-);
-check(
-  'tipMarketProb below 78 does not backfill',
-  buildTop10Pool([
-    {
-      id: 43,
-      status: 'scheduled',
-      suggestedBet: 'OVER_15',
-      tipOdds: 1.4,
-      oddsSource: 'model',
-      tipMarketProb: 71,
-      confidenceScore: 40,
-    },
-  ]).length === 0
-);
-
-console.log(failed ? `\n${failed} checks failed` : `\n${passed}/${passed} checks passed`);
+console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

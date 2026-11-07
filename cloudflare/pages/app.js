@@ -1,4 +1,4 @@
-const API = '';
+﻿const API = '';
 
 const PRIVACY_KEY = 'houdini_privacy_v1';
 const CONSENT_KEY = 'houdini_consent_v1';
@@ -407,7 +407,7 @@ function acceptConsent(choice) {
   startAppAfterConsent();
 }
 
-/** No third-party telemetry yet â€” gated for future use. */
+/** No third-party telemetry yet — gated for future use. */
 function trackEvent(name, payload) {
   if (!privacyPrefs.analytics) return;
   try {
@@ -573,7 +573,7 @@ const LIGAS_FOLDERS = [
   },
   {
     key: 'spain',
-    label: 'EspaÃ±a',
+    label: 'España',
     badge: 'ESP',
     flagCountry: 'Spain',
     leagues: [
@@ -609,7 +609,7 @@ let cachedBets = [];
 let bestBetsLimit = 40;
 let bestBetsHasMore = false;
 let livePollTimer = null;
-/** Match open in the analysis panel â€” used to refresh its live block in place. */
+/** Match open in the analysis panel — used to refresh its live block in place. */
 let panelLiveCtx = null;
 /** Market tab on Hoy: top | 1x2 | ou25 | btts | valor */
 let hoyMarketTab = 'top';
@@ -628,12 +628,12 @@ function contentUnlocked() {
   return Boolean(premiumState.premium);
 }
 
-/** @deprecated use contentUnlocked â€” kept as alias for older call sites */
+/** @deprecated use contentUnlocked — kept as alias for older call sites */
 function tipsUnlocked() {
   return contentUnlocked();
 }
 
-/** Blur veil + Premium crown lock for free users (Analytics chrome; tap â†’ #premium). */
+/** Blur veil + Premium crown lock for free users (Analytics chrome; tap → #premium). */
 function hbCensorWrap(html, { block = false } = {}) {
   if (!html) return '';
   if (contentUnlocked()) return html;
@@ -643,14 +643,14 @@ function hbCensorWrap(html, { block = false } = {}) {
   )}">
     <div class="hb-censor__veil" aria-hidden="true">${html}</div>
     <div class="hb-censor__lock" aria-hidden="true">
-      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb159" width="22" height="22" alt="" decoding="async" />
+      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb168" width="22" height="22" alt="" decoding="async" />
       <span class="hb-censor__lock-title">${escapeHtml(t('censor.title'))}</span>
       <span class="hb-censor__lock-sub">${escapeHtml(t('censor.sub'))}</span>
     </div>
   </div>`;
 }
 
-/** Prob bands: >80% hi Â· 60â€“80% mid Â· 50â€“59% neu Â· <50% lo */
+/** Prob bands: >80% hi · 60–80% mid · 50–59% neu · <50% lo */
 function hbPillTone(v) {
   const n = Number(v);
   if (!Number.isFinite(n)) return 'muted';
@@ -662,13 +662,13 @@ function hbPillTone(v) {
 
 function hbPillHtml(v) {
   if (v == null || !Number.isFinite(Number(v))) {
-    return `<span class="hb-pill hb-pill--muted">â€”</span>`;
+    return `<span class="hb-pill hb-pill--muted">—</span>`;
   }
   const n = Number(v);
   return `<span class="hb-pill hb-pill--${hbPillTone(n)}" data-target="${n}">0%</span>`;
 }
 
-/** Trend table with colored pills (blurred) for free users â€” Oddster-style. */
+/** Trend table with colored pills (blurred) for free users — Oddster-style. */
 function lockedTrendTableHtml({ title, homeName, awayName, metrics }) {
   if (!(metrics || []).length) return '';
   const rows = (metrics || [])
@@ -686,7 +686,7 @@ function lockedTrendTableHtml({ title, homeName, awayName, metrics }) {
     <div class="hb-trend__wrap">
       <table class="hb-trend__table">
         <thead><tr>
-          <th>MÃ©trica</th>
+          <th>Métrica</th>
           <th>${escapeHtml(homeName || 'Local')}</th>
           <th>${escapeHtml(awayName || 'Visit.')}</th>
           <th>Partido</th>
@@ -735,7 +735,7 @@ function mpTrendTableSection({
 
 /**
  * Premium market tab: Oddster-style summary + Over table + optional Under table.
- * Data from expected + ladderRows / underRows â€” no new API fields.
+ * Data from expected + ladderRows / underRows — no new API fields.
  */
 function marketTrendUnlockedHtml({
   title,
@@ -773,14 +773,14 @@ function marketTrendUnlockedHtml({
   }
   const fmtExpAttr = (v) => {
     if (v == null || !Number.isFinite(Number(v))) {
-      return `<span class="mp-trend-table__num">â€”</span>`;
+      return `<span class="mp-trend-table__num">—</span>`;
     }
     const n = Number(v);
     return `<span class="mp-trend-table__num" data-count-to="${n}" data-count-decimals="1">0.0</span>`;
   };
   const fmtExpVal = (v, cls, tag = 'span') => {
     if (v == null || !Number.isFinite(Number(v))) {
-      return `<${tag} class="${cls}">â€”</${tag}>`;
+      return `<${tag} class="${cls}">—</${tag}>`;
     }
     const n = Number(v);
     return `<${tag} class="${cls}" data-count-to="${n}" data-count-decimals="1">0.0</${tag}>`;
@@ -833,7 +833,7 @@ function marketTrendUnlockedHtml({
   return `${summary}${beforeTablesHtml || ''}${overTable}${underTable}`;
 }
 
-/** Goals-tab BTTS block: one clear Yes % + subtle No â€” not a 3-col H/A/Match grid. */
+/** Goals-tab BTTS block: one clear Yes % + subtle No — not a 3-col H/A/Match grid. */
 function bttsPanelHtml(pred, { leagueRate = null } = {}) {
   const yes = pred?.btts_yes_prob != null ? Number(pred.btts_yes_prob) : null;
   const no =
@@ -846,13 +846,13 @@ function bttsPanelHtml(pred, { leagueRate = null } = {}) {
   const yesBar = Math.max(0, Math.min(100, Math.round(yes * 100)));
   const league =
     leagueRate != null && Number.isFinite(Number(leagueRate))
-      ? `<span class="mp-btts__league muted">${escapeHtml(t('panel.leagueAvg'))} Â· ${(
+      ? `<span class="mp-btts__league muted">${escapeHtml(t('panel.leagueAvg'))} · ${(
           Number(leagueRate) * 100
         ).toFixed(0)}%</span>`
       : '';
   const noHtml =
     no != null && Number.isFinite(no)
-      ? `<span class="mp-btts__no">${escapeHtml(t('panel.bttsNo'))} Â· <span data-target="${no}">0%</span></span>`
+      ? `<span class="mp-btts__no">${escapeHtml(t('panel.bttsNo'))} · <span data-target="${no}">0%</span></span>`
       : '';
   const meta =
     noHtml || league
@@ -941,36 +941,37 @@ let cachedTipSummary = null;
 let tipPerfCacheKey = '';
 let tipPerfCache = null;
 
-const COUNTRY_FLAG = {
-  Spain: 'ðŸ‡ªðŸ‡¸',
-  England: 'ðŸ´ó §ó ¢ó ¥ó ®ó §ó ¿',
-  Italy: 'ðŸ‡®ðŸ‡¹',
-  Germany: 'ðŸ‡©ðŸ‡ª',
-  France: 'ðŸ‡«ðŸ‡·',
-  Portugal: 'ðŸ‡µðŸ‡¹',
-  Netherlands: 'ðŸ‡³ðŸ‡±',
-  Belgium: 'ðŸ‡§ðŸ‡ª',
-  Brazil: 'ðŸ‡§ðŸ‡·',
-  Argentina: 'ðŸ‡¦ðŸ‡·',
-  Mexico: 'ðŸ‡²ðŸ‡½',
-  USA: 'ðŸ‡ºðŸ‡¸',
-  'United States': 'ðŸ‡ºðŸ‡¸',
-  World: 'ðŸŒ',
-  Europe: 'ðŸ‡ªðŸ‡º',
+/** ISO/short codes — no emoji flags (avoid UTF-8 mojibake on Windows). */
+const COUNTRY_ISO = {
+  Spain: 'ES',
+  England: 'EN',
+  Italy: 'IT',
+  Germany: 'DE',
+  France: 'FR',
+  Portugal: 'PT',
+  Netherlands: 'NL',
+  Belgium: 'BE',
+  Brazil: 'BR',
+  Argentina: 'AR',
+  Mexico: 'MX',
+  USA: 'US',
+  'United States': 'US',
+  World: 'INT',
+  Europe: 'EU',
 };
 
 const COUNTRY_ES = {
-  Spain: 'EspaÃ±a',
+  Spain: 'España',
   England: 'Inglaterra',
   Italy: 'Italia',
   Germany: 'Alemania',
   France: 'Francia',
   Portugal: 'Portugal',
-  Netherlands: 'PaÃ­ses Bajos',
-  Belgium: 'BÃ©lgica',
+  Netherlands: 'Países Bajos',
+  Belgium: 'Bélgica',
   Brazil: 'Brasil',
   Argentina: 'Argentina',
-  Mexico: 'MÃ©xico',
+  Mexico: 'México',
   USA: 'EE. UU.',
   'United States': 'EE. UU.',
   World: 'Internacional',
@@ -996,64 +997,66 @@ const BET_LABELS = {
   AWAY_WIN: 'Victoria visitante',
   DC_1X: 'Doble oportunidad 1X',
   DC_X2: 'Doble oportunidad X2',
-  DNB_HOME: 'Empate no vÃ¡lido Â· local',
-  DNB_AWAY: 'Empate no vÃ¡lido Â· visitante',
-  OVER_05: 'MÃ¡s de 0,5 goles',
+  DNB_HOME: 'Empate no válido · local',
+  DNB_AWAY: 'Empate no válido · visitante',
+  OVER_05: 'Más de 0,5 goles',
   UNDER_05: 'Menos de 0,5 goles',
-  OVER_15: 'MÃ¡s de 1,5 goles',
+  OVER_15: 'Más de 1,5 goles',
   UNDER_15: 'Menos de 1,5 goles',
-  OVER_25: 'MÃ¡s de 2,5 goles',
+  OVER_25: 'Más de 2,5 goles',
   UNDER_25: 'Menos de 2,5 goles',
-  OVER_35: 'MÃ¡s de 3,5 goles',
+  OVER_35: 'Más de 3,5 goles',
   UNDER_35: 'Menos de 3,5 goles',
-  OVER_45: 'MÃ¡s de 4,5 goles',
+  OVER_45: 'Más de 4,5 goles',
   UNDER_45: 'Menos de 4,5 goles',
-  BTTS_YES: 'Ambos marcan â€” SÃ­',
-  BTTS_NO: 'Ambos marcan â€” No',
-  HOME_OVER_05: 'Local Â· MÃ¡s de 0,5 goles',
-  HOME_UNDER_05: 'Local Â· Menos de 0,5 goles',
-  HOME_OVER_15: 'Local Â· MÃ¡s de 1,5 goles',
-  HOME_UNDER_15: 'Local Â· Menos de 1,5 goles',
-  HOME_OVER_25: 'Local Â· MÃ¡s de 2,5 goles',
-  HOME_UNDER_25: 'Local Â· Menos de 2,5 goles',
-  HOME_OVER_35: 'Local Â· MÃ¡s de 3,5 goles',
-  HOME_UNDER_35: 'Local Â· Menos de 3,5 goles',
-  AWAY_OVER_05: 'Visitante Â· MÃ¡s de 0,5 goles',
-  AWAY_UNDER_05: 'Visitante Â· Menos de 0,5 goles',
-  AWAY_OVER_15: 'Visitante Â· MÃ¡s de 1,5 goles',
-  AWAY_UNDER_15: 'Visitante Â· Menos de 1,5 goles',
-  AWAY_OVER_25: 'Visitante Â· MÃ¡s de 2,5 goles',
-  AWAY_UNDER_25: 'Visitante Â· Menos de 2,5 goles',
-  AWAY_OVER_35: 'Visitante Â· MÃ¡s de 3,5 goles',
-  AWAY_UNDER_35: 'Visitante Â· Menos de 3,5 goles',
-  CORNERS_OVER_85: 'MÃ¡s de 8,5 cÃ³rners',
-  CORNERS_UNDER_85: 'Menos de 8,5 cÃ³rners',
-  CORNERS_OVER_95: 'MÃ¡s de 9,5 cÃ³rners',
-  CORNERS_UNDER_95: 'Menos de 9,5 cÃ³rners',
-  CORNERS_OVER_105: 'MÃ¡s de 10,5 cÃ³rners',
-  CORNERS_UNDER_105: 'Menos de 10,5 cÃ³rners',
-  SHOTS_OVER_225: 'MÃ¡s de 22,5 tiros',
+  BTTS_YES: 'Ambos marcan — Sí',
+  BTTS_NO: 'Ambos marcan — No',
+  HOME_OVER_05: 'Local · Más de 0,5 goles',
+  HOME_UNDER_05: 'Local · Menos de 0,5 goles',
+  HOME_OVER_15: 'Local · Más de 1,5 goles',
+  HOME_UNDER_15: 'Local · Menos de 1,5 goles',
+  HOME_OVER_25: 'Local · Más de 2,5 goles',
+  HOME_UNDER_25: 'Local · Menos de 2,5 goles',
+  HOME_OVER_35: 'Local · Más de 3,5 goles',
+  HOME_UNDER_35: 'Local · Menos de 3,5 goles',
+  AWAY_OVER_05: 'Visitante · Más de 0,5 goles',
+  AWAY_UNDER_05: 'Visitante · Menos de 0,5 goles',
+  AWAY_OVER_15: 'Visitante · Más de 1,5 goles',
+  AWAY_UNDER_15: 'Visitante · Menos de 1,5 goles',
+  AWAY_OVER_25: 'Visitante · Más de 2,5 goles',
+  AWAY_UNDER_25: 'Visitante · Menos de 2,5 goles',
+  AWAY_OVER_35: 'Visitante · Más de 3,5 goles',
+  AWAY_UNDER_35: 'Visitante · Menos de 3,5 goles',
+  CORNERS_OVER_75: 'Más de 7,5 córners',
+  CORNERS_UNDER_75: 'Menos de 7,5 córners',
+  CORNERS_OVER_85: 'Más de 8,5 córners',
+  CORNERS_UNDER_85: 'Menos de 8,5 córners',
+  CORNERS_OVER_95: 'Más de 9,5 córners',
+  CORNERS_UNDER_95: 'Menos de 9,5 córners',
+  CORNERS_OVER_105: 'Más de 10,5 córners',
+  CORNERS_UNDER_105: 'Menos de 10,5 córners',
+  SHOTS_OVER_225: 'Más de 22,5 tiros',
   SHOTS_UNDER_225: 'Menos de 22,5 tiros',
-  SHOTS_OVER_255: 'MÃ¡s de 25,5 tiros',
+  SHOTS_OVER_255: 'Más de 25,5 tiros',
   SHOTS_UNDER_255: 'Menos de 25,5 tiros',
-  SOT_OVER_75: 'MÃ¡s de 7,5 tiros a puerta',
+  SOT_OVER_75: 'Más de 7,5 tiros a puerta',
   SOT_UNDER_75: 'Menos de 7,5 tiros a puerta',
-  SOT_OVER_85: 'MÃ¡s de 8,5 tiros a puerta',
+  SOT_OVER_85: 'Más de 8,5 tiros a puerta',
   SOT_UNDER_85: 'Menos de 8,5 tiros a puerta',
-  SOT_OVER_95: 'MÃ¡s de 9,5 tiros a puerta',
+  SOT_OVER_95: 'Más de 9,5 tiros a puerta',
   SOT_UNDER_95: 'Menos de 9,5 tiros a puerta',
-  CARDS_OVER_35: 'MÃ¡s de 3,5 amarillas',
+  CARDS_OVER_35: 'Más de 3,5 amarillas',
   CARDS_UNDER_35: 'Menos de 3,5 amarillas',
-  CARDS_OVER_45: 'MÃ¡s de 4,5 amarillas',
+  CARDS_OVER_45: 'Más de 4,5 amarillas',
   CARDS_UNDER_45: 'Menos de 4,5 amarillas',
 };
 
 const FAMILY_LABELS = {
   '1X2': '1X2',
-  ou: 'MÃ¡s/Menos',
+  ou: 'Más/Menos',
   btts: 'Ambos marcan',
   goles: 'Goles',
-  corners: 'CÃ³rners',
+  corners: 'Córners',
   cards: 'Amarillas',
   shots: 'Tiros',
   shots_on_target: 'Tiros a puerta',
@@ -1063,7 +1066,7 @@ const FAMILY_LABELS = {
 /** Align with predictionService MIN_VALUE (5% edge vs fair book). */
 const MIN_VALUE_EDGE = 0.05;
 
-/** "15" â†’ "1,5" (ES) / "1.5" (EN) ; "105" â†’ "10,5" / "10.5" */
+/** "15" → "1,5" (ES) / "1.5" (EN) ; "105" → "10,5" / "10.5" */
 function lineFromSuffix(suffix) {
   const s = String(suffix || '');
   const sep = getUiLang() === 'en' ? '.' : ',';
@@ -1074,7 +1077,7 @@ function lineFromSuffix(suffix) {
 
 function labelBetFallback(code, homeName, awayName) {
   const raw = String(code || '').toUpperCase();
-  if (!raw) return 'â€”';
+  if (!raw) return '—';
   const home = String(homeName || '').trim();
   const away = String(awayName || '').trim();
   const en = getUiLang() === 'en';
@@ -1087,13 +1090,13 @@ function labelBetFallback(code, homeName, awayName) {
   const m = raw.match(/^(HOME_|AWAY_|CORNERS_|CARDS_|SHOTS_|SOT_)?(OVER|UNDER)_(\d+)$/);
   if (!m) return code;
   const scope = m[1] || '';
-  const side = m[2] === 'OVER' ? (en ? 'Over' : 'MÃ¡s de') : en ? 'Under' : 'Menos de';
+  const side = m[2] === 'OVER' ? (en ? 'Over' : 'Más de') : en ? 'Under' : 'Menos de';
   const line = lineFromSuffix(m[3]);
   let unit = en ? 'goals' : 'goles';
   let who = '';
-  if (scope === 'HOME_') who = home ? `${home} Â· ` : en ? 'Home Â· ' : 'Local Â· ';
-  else if (scope === 'AWAY_') who = away ? `${away} Â· ` : en ? 'Away Â· ' : 'Visitante Â· ';
-  else if (scope === 'CORNERS_') unit = en ? 'corners' : 'cÃ³rners';
+  if (scope === 'HOME_') who = home ? `${home} · ` : en ? 'Home · ' : 'Local · ';
+  else if (scope === 'AWAY_') who = away ? `${away} · ` : en ? 'Away · ' : 'Visitante · ';
+  else if (scope === 'CORNERS_') unit = en ? 'corners' : 'córners';
   else if (scope === 'CARDS_') unit = en ? 'cards' : 'amarillas';
   else if (scope === 'SHOTS_') unit = en ? 'shots' : 'tiros';
   else if (scope === 'SOT_') unit = en ? 'shots on target' : 'tiros a puerta';
@@ -1186,7 +1189,7 @@ const TEAM_FLAG_ISO = {
   ghana: 'gh',
   cameroon: 'cm',
   'ivory coast': "ci",
-  "cÃ´te d'ivoire": 'ci',
+  "côte d'ivoire": 'ci',
   algeria: 'dz',
   tunisia: 'tn',
   guinea: 'gn',
@@ -1223,7 +1226,7 @@ const TEAM_FLAG_ISO = {
   'cayman islands': 'ky',
   'trinidad and tobago': 'tt',
   curacao: 'cw',
-  'curaÃ§ao': 'cw',
+  'curaçao': 'cw',
   suriname: 'sr',
   guyana: 'gy',
   dominica: 'dm',
@@ -1287,10 +1290,10 @@ function escapeHtml(value) {
 
 /**
  * Human tip label. Pass home/away so HOME_/AWAY_ markets use team names
- * instead of Â«Local/VisitanteÂ».
+ * instead of «Local/Visitante».
  */
 function labelBet(code, homeName, awayName) {
-  if (!code) return 'â€”';
+  if (!code) return '—';
   const home = String(homeName || '').trim();
   const away = String(awayName || '').trim();
   const raw = String(code).toUpperCase();
@@ -1312,7 +1315,7 @@ function labelFamily(family) {
   const key = `family.${family}`;
   const translated = t(key);
   if (translated !== key) return translated;
-  return FAMILY_LABELS[family] || family || 'â€”';
+  return FAMILY_LABELS[family] || family || '—';
 }
 
 function teamInitials(name) {
@@ -1331,11 +1334,11 @@ function flagUrlForTeam(name) {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/Ã¸/g, 'o')
-    .replace(/Ã¦/g, 'ae')
-    .replace(/ÃƒÂ¥/g, 'a')
-    .replace(/Ã…'/g, 'l')
-    .replace(/Ã„'/g, 'd')
+    .replace(/ø/g, 'o')
+    .replace(/æ/g, 'ae')
+    .replace(/å/g, 'a')
+    .replace(/ł/g, 'l')
+    .replace(/đ/g, 'd')
     .replace(/&/g, ' and ')
     .replace(/\//g, ' ')
     .replace(/nott'?m\b/g, 'nottm')
@@ -1550,11 +1553,11 @@ function normalizeCrestKey(name) {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/Ã¸/g, 'o')
-    .replace(/Ã¦/g, 'ae')
-    .replace(/ÃƒÂ¥/g, 'a')
-    .replace(/Ã…'/g, 'l')
-    .replace(/Ã„'/g, 'd')
+    .replace(/ø/g, 'o')
+    .replace(/æ/g, 'ae')
+    .replace(/å/g, 'a')
+    .replace(/ł/g, 'l')
+    .replace(/đ/g, 'd')
     .replace(/&/g, ' and ')
     .replace(/\//g, ' ')
     .replace(/[^a-z0-9.\s'-]/g, ' ')
@@ -1646,14 +1649,22 @@ function formatMatchTimeShort(value) {
 function matchStatusPill(m) {
   if (m.status === 'live') {
     const min = m.elapsedMinute != null ? `${Number(m.elapsedMinute)}'` : 'LIVE';
-    return `${min} Â· ${t('chip.liveFull')}`;
+    return `${min} · ${t('chip.liveFull')}`;
   }
+  if (m.status === 'postponed') return t('chip.postponed');
+  if (m.status === 'cancelled') return t('chip.cancelled');
   return '';
 }
 
 function mpVsMidLabel(m, live) {
+  if (m.status === 'postponed' || m.status === 'cancelled') {
+    return {
+      text: m.status === 'postponed' ? t('chip.postponed') : t('chip.cancelled'),
+      score: false,
+    };
+  }
   if (m.status !== 'live' && m.status !== 'finished') {
-    const time = formatMatchTimeShort(m.matchDate) || 'â€”';
+    const time = formatMatchTimeShort(m.matchDate) || '—';
     return { text: time, score: false };
   }
   const hg = live?.homeGoals ?? m.homeGoals;
@@ -1661,11 +1672,11 @@ function mpVsMidLabel(m, live) {
   if (hg != null && ag != null) {
     return { text: `${Number(hg)}-${Number(ag)}`, score: true };
   }
-  return { text: 'â€”', score: false };
+  return { text: '—', score: false };
 }
 
 function mpVsBrandMarkHtml() {
-  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb159" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
+  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb168" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
 }
 
 function mpVsMidHtml(m, live) {
@@ -1793,7 +1804,7 @@ function matchEventsHtml(events, { stack = false, split = false } = {}) {
   if (split) {
     const home = focus.filter((e) => e.isHome === true);
     const away = focus.filter((e) => e.isHome === false);
-    // Three grid cells for .mp-teams (1fr auto 1fr) â€” home | spacer | away
+    // Three grid cells for .mp-teams (1fr auto 1fr) — home | spacer | away
     // Always paint cols (even empty) so the dashed divider spans both teams.
     return `<div class="mp-live-events__col mp-live-events__col--home" aria-label="Eventos local">${home.map(eventChipHtml).join('')}</div>
       <div class="mp-live-events__mid" aria-hidden="true"></div>
@@ -1806,7 +1817,7 @@ function matchEventsHtml(events, { stack = false, split = false } = {}) {
 const LIVE_TIP_META = {
   secured: { label: 'SEGURO', cls: 'live-tip--secured' },
   alive: { label: 'VIVO', cls: 'live-tip--alive' },
-  fading: { label: 'DIFÃCIL', cls: 'live-tip--fading' },
+  fading: { label: 'DIFÍCIL', cls: 'live-tip--fading' },
   dead: { label: 'FALLADO', cls: 'live-tip--dead' },
   unknown: { label: 'EN CURSO', cls: 'live-tip--unknown' },
 };
@@ -1814,7 +1825,7 @@ const LIVE_TIP_META = {
 function liveTipChip(tip) {
   if (!tip || !tip.label) return '';
   const meta = LIVE_TIP_META[tip.status] || LIVE_TIP_META.unknown;
-  const prob = tip.prob != null ? ` Â· ${Math.round(Number(tip.prob) * 100)}%` : '';
+  const prob = tip.prob != null ? ` · ${Math.round(Number(tip.prob) * 100)}%` : '';
   return hbCensorWrap(
     `<span class="live-tip ${meta.cls}">${escapeHtml(meta.label)}${escapeHtml(prob)}</span>`
   );
@@ -1854,7 +1865,7 @@ function livePanelHtml(live, homeName, awayName) {
   const reds = live.redCards || {};
   const redChip =
     Number(reds.home) > 0 || Number(reds.away) > 0
-      ? `<span class="mp-live__red" title="Roja(s) en vivo: la proyecciÃ³n ya las ajusta">${11 -
+      ? `<span class="mp-live__red" title="Roja(s) en vivo: la proyección ya las ajusta">${11 -
         Math.min(Number(reds.home) || 0, 4)}v${11 - Math.min(Number(reds.away) || 0, 4)}</span>`
       : '';
   const delta = (now, before) => {
@@ -1871,12 +1882,12 @@ function livePanelHtml(live, homeName, awayName) {
   return `
     <section class="mp-live">
       <div class="mp-live__head">
-        <span class="mp-live__badge"><span class="league-match__live-dot"></span>${escapeHtml(t('chip.liveFull'))} Â· ${escapeHtml(
+        <span class="mp-live__badge"><span class="league-match__live-dot"></span>${escapeHtml(t('chip.liveFull'))} · ${escapeHtml(
           minute
         )}</span>
         ${score ? `<span class="mp-live__score">${escapeHtml(score)}</span>` : ''}
         ${redChip}
-        <span class="mp-live__left">Quedan ~${Number(live.remaining || 0)}â€²</span>
+        <span class="mp-live__left">Quedan ~${Number(live.remaining || 0)}′</span>
       </div>
       ${hbCensorWrap(
         `<div class="mp-live__bar" role="img" aria-label="Probabilidades en vivo: local ${h}%, empate ${d}%, visitante ${a}%">
@@ -1901,14 +1912,14 @@ function livePanelHtml(live, homeName, awayName) {
         live.tip
           ? hbCensorWrap(
               `<div class="mp-live__tip">
-              <span class="mp-live__tip-key">Tip Â· ${escapeHtml(
+              <span class="mp-live__tip-key">Tip · ${escapeHtml(
                 labelBet(live.tip.label, homeName, awayName)
               )}</span>
               <span class="live-tip ${(LIVE_TIP_META[live.tip.status] || LIVE_TIP_META.unknown).cls}">${escapeHtml(
                 (LIVE_TIP_META[live.tip.status] || LIVE_TIP_META.unknown).label
               )}${
                 live.tip.prob != null
-                  ? ` Â· ${Math.round(Number(live.tip.prob) * 100)}%`
+                  ? ` · ${Math.round(Number(live.tip.prob) * 100)}%`
                   : ''
               }</span>
             </div>`,
@@ -1942,10 +1953,14 @@ function browseMidHtml(m) {
     const score =
       m.homeGoals != null && m.awayGoals != null
         ? `${Number(m.homeGoals)}-${Number(m.awayGoals)}`
-        : 'â€”';
+        : '—';
     return `<span class="league-match__score">${escapeHtml(score)}</span>${roundHtml}`;
   }
-  const time = formatMatchTimeShort(m.matchDate) || 'â€”';
+  if (m.status === 'postponed' || m.status === 'cancelled') {
+    const lab = m.status === 'postponed' ? t('chip.postponed') : t('chip.cancelled');
+    return `<span class="league-match__kickoff league-match__kickoff--void">${escapeHtml(lab)}</span>${roundHtml}`;
+  }
+  const time = formatMatchTimeShort(m.matchDate) || '—';
   return `<span class="league-match__kickoff">${escapeHtml(time)}</span>${roundHtml}`;
 }
 
@@ -1956,7 +1971,7 @@ function sumRecentAvg(recentAvgs, key) {
   return Number(((Number(h) || 0) + (Number(a) || 0)).toFixed(2));
 }
 
-const UI_ICON_V = 'hb159';
+const UI_ICON_V = 'hb168';
 const MP_STAT_ICON_PX = 20;
 const mpStatImg = (file) =>
   `<img class="mp-stat__icon mp-stat__icon--img" src="/icons/ui/${file}?v=${UI_ICON_V}" width="${MP_STAT_ICON_PX}" height="${MP_STAT_ICON_PX}" alt="" aria-hidden="true" decoding="async" />`;
@@ -1986,7 +2001,7 @@ function keyStatCard({ title, valueHtml, barPct, tone = 'accent', sub = '', icon
     </article>`;
 }
 
-/** General Â«Probabilidades claveÂ» cards â€” visible for free (no Premium censor). */
+/** General «Probabilidades clave» cards — visible for free (no Premium censor). */
 function pctStatCard(title, prob, leagueRate = null, iconHtml = '') {
   const p = pct(prob);
   const rate =
@@ -1994,11 +2009,11 @@ function pctStatCard(title, prob, leagueRate = null, iconHtml = '') {
   const sub =
     rate != null
       ? `<span class="muted">${escapeHtml(t('panel.leagueAvg'))} ${Math.round(rate * 100)}%</span>`
-      : `<span class="muted">${escapeHtml(t('panel.leagueAvg'))} â€”</span>`;
+      : `<span class="muted">${escapeHtml(t('panel.leagueAvg'))} —</span>`;
   if (p == null) {
     return keyStatCard({
       title,
-      valueHtml: `<span class="mp-stat__num">â€”</span>`,
+      valueHtml: `<span class="mp-stat__num">—</span>`,
       barPct: 0,
       tone: 'muted',
       sub,
@@ -2021,11 +2036,11 @@ function avgStatCard(title, value, scale, leagueAvg = null, iconHtml = '') {
   const sub =
     leagueAvg != null && Number.isFinite(Number(leagueAvg))
       ? `<span class="muted">${escapeHtml(t('panel.leagueAvg'))} ${Number(leagueAvg).toFixed(1)}</span>`
-      : `<span class="muted">${escapeHtml(t('panel.leagueAvg'))} â€”</span>`;
+      : `<span class="muted">${escapeHtml(t('panel.leagueAvg'))} —</span>`;
   if (value == null || Number.isNaN(Number(value))) {
     return keyStatCard({
       title,
-      valueHtml: `<span class="mp-stat__num">â€”</span>`,
+      valueHtml: `<span class="mp-stat__num">—</span>`,
       barPct: 0,
       tone: 'muted',
       sub,
@@ -2053,7 +2068,7 @@ function avgStatCard(title, value, scale, leagueAvg = null, iconHtml = '') {
 function expectedCardHtml({ title, homeName, awayName, homeLogo, awayLogo, homeExp, awayExp, matchExp }) {
   if (homeExp == null && awayExp == null && matchExp == null) return '';
   const pill = (v) => {
-    if (v == null) return '<span class="ladder-pill ladder-pill--muted">â€”</span>';
+    if (v == null) return '<span class="ladder-pill ladder-pill--muted">—</span>';
     return `<span class="ladder-pill ladder-pill--hi">${Number(v).toFixed(1)}</span>`;
   };
   return hbCensorWrap(
@@ -2067,7 +2082,7 @@ function expectedCardHtml({ title, homeName, awayName, homeLogo, awayLogo, homeE
           ${pill(homeExp)}
         </div>
         <div class="ladder-expected__mid muted">Partido<br/><strong>${
-          matchExp != null ? Number(matchExp).toFixed(1) : 'â€”'
+          matchExp != null ? Number(matchExp).toFixed(1) : '—'
         }</strong></div>
         <div class="ladder-expected__side ladder-expected__side--away">
           ${crestHtml(awayName, awayLogo, 'sm')}
@@ -2086,7 +2101,7 @@ function ladderLineProb(side, line) {
   return v == null ? null : v;
 }
 
-/** Poisson P(K=k | Î») â€” mirror Worker matchModel.poissonP. */
+/** Poisson P(K=k | λ) — mirror Worker matchModel.poissonP. */
 function poissonP(k, lambda) {
   const lam = Number(lambda);
   const kk = Number(k);
@@ -2097,7 +2112,7 @@ function poissonP(k, lambda) {
   return (Math.exp(-lam) * lam ** kk) / fact;
 }
 
-/** P(X > L) = 1 âˆ’ Î£ P(0..âŒŠLâŒ‹) â€” mirror Worker poissonOverLadder. */
+/** P(X > L) = 1 − Σ P(0..⌊L⌋) — mirror Worker poissonOverLadder. */
 function poissonOver(lambda, line) {
   if (lambda == null || line == null || line === '') return null;
   const lam = Number(lambda);
@@ -2109,7 +2124,7 @@ function poissonOver(lambda, line) {
   return Math.max(0, Math.min(1, 1 - under));
 }
 
-/** Prefer ladder over-prob; fallback Poisson CDF from Î». */
+/** Prefer ladder over-prob; fallback Poisson CDF from λ. */
 function ladderOrPoisson(sideLadder, lambda, line) {
   const fromLadder = ladderLineProb(sideLadder, line);
   if (fromLadder != null) return fromLadder;
@@ -2117,7 +2132,7 @@ function ladderOrPoisson(sideLadder, lambda, line) {
 }
 
 /**
- * One row per line L: Home/Away/Match = P(Over L) or P(Under L)=1âˆ’over.
+ * One row per line L: Home/Away/Match = P(Over L) or P(Under L)=1−over.
  * Drops rows where all three columns are null. Overs decrease with L; Unders increase.
  */
 function buildOuRows(lines, opts = {}) {
@@ -2163,7 +2178,7 @@ function buildUnderRows(lines, opts = {}) {
   return buildOuRows(lines, { ...opts, side: 'under' });
 }
 
-/** Goals Over 0.5â€“3.5 from flat prediction fields (same L H/A/Match). BTTS is separate. */
+/** Goals Over 0.5–3.5 from flat prediction fields (same L H/A/Match). BTTS is separate. */
 function goalsTrendRows(p) {
   const pred = p || {};
   const over = (n) => t('panel.overLine', { n });
@@ -2196,7 +2211,7 @@ function goalsTrendRows(p) {
   return rows.filter((r) => r.home != null || r.away != null || r.match != null);
 }
 
-/** Goals Under 0.5â€“3.5 â€” explicit under_* fields, else 1âˆ’over. */
+/** Goals Under 0.5–3.5 — explicit under_* fields, else 1−over. */
 function goalsTrendUnderRows(p) {
   const pred = p || {};
   const under = (n) => t('panel.underLine', { n });
@@ -2258,7 +2273,7 @@ function marketLineLabel(line) {
   return getUiLang() === 'en' ? raw : raw.replace('.', ',');
 }
 
-/** "MÃ¡s de X" / "Menos de X" rows for one ladder side, filtered by the wanted lines. */
+/** "Más de X" / "Menos de X" rows for one ladder side, filtered by the wanted lines. */
 function ladderProbRows(side, lines) {
   const map = ladderProbsMap(side);
   const rows = [];
@@ -2290,7 +2305,7 @@ function marketAveragesHtml({
       ? Number(leagueAverage) / 2
       : null;
   const format = (value) => {
-    if (value == null || !Number.isFinite(Number(value))) return 'â€”';
+    if (value == null || !Number.isFinite(Number(value))) return '—';
     return Number(value).toFixed(1).replace('.', getUiLang() === 'en' ? '.' : ',');
   };
   const leagueLabel = leagueProxy ? t('panel.avgProxy') : t('panel.avgLeague');
@@ -2325,7 +2340,7 @@ function marketAveragesHtml({
 }
 
 /**
- * Market tab (tiros a puerta / cÃ³rners / tarjetas) with the same shape as the
+ * Market tab (tiros a puerta / córners / tarjetas) with the same shape as the
  * "Goles" tab: an Expected card plus one Market Section per scope.
  */
 function extrasPanel({
@@ -2416,12 +2431,12 @@ function scoreGridHtml(grid, topScores, homeName, awayName) {
       <div class="mp-score__top">${list}</div>
       ${
         top
-          ? `<p class="mp-score__caption">MÃ¡s probable: <strong>${top.home}-${top.away}</strong> (<span data-target="${Number(
+          ? `<p class="mp-score__caption">Más probable: <strong>${top.home}-${top.away}</strong> (<span data-target="${Number(
               top.prob
             )}" data-target-decimals="1">0.0%</span>)</p>`
           : ''
       }
-      <p class="mp-score__axis muted">Filas: ${escapeHtml(homeName || 'local')} Â· Columnas: ${escapeHtml(
+      <p class="mp-score__axis muted">Filas: ${escapeHtml(homeName || 'local')} · Columnas: ${escapeHtml(
         awayName || 'visitante'
       )}</p>
     </section>`,
@@ -2447,7 +2462,7 @@ function h2hHtml(h2h, homeName) {
     .join('');
   return `
     <section class="mp-h2h">
-      <div class="mp-section-title">Ãšltimos enfrentamientos</div>
+      <div class="mp-section-title">Últimos enfrentamientos</div>
       <ul class="mp-h2h__list">${list}</ul>
     </section>`;
 }
@@ -2488,8 +2503,8 @@ function lineupsHtml(lineups, homeName, awayName) {
   return `<section class="mp-lineups">
     <div class="mp-section-title">${title}</div>
     <div class="mp-lineups__cols">
-      ${lineupSideHtml(home, homeName || 'Local') || '<div class="mp-lineups__side muted">â€”</div>'}
-      ${lineupSideHtml(away, awayName || 'Visitante') || '<div class="mp-lineups__side muted">â€”</div>'}
+      ${lineupSideHtml(home, homeName || 'Local') || '<div class="mp-lineups__side muted">—</div>'}
+      ${lineupSideHtml(away, awayName || 'Visitante') || '<div class="mp-lineups__side muted">—</div>'}
     </div>
   </section>`;
 }
@@ -2536,7 +2551,7 @@ function leagueTableHtml(table, homeName, awayName) {
     .join('');
   return `
     <section class="mp-table">
-      <div class="mp-section-title">ClasificaciÃ³n</div>
+      <div class="mp-section-title">Clasificación</div>
       <div class="mp-table__wrap">
         <table class="mp-table__grid">
           <thead><tr><th>#</th><th>Equipo</th><th>PJ</th><th>Pts</th><th>DG</th></tr></thead>
@@ -2577,7 +2592,7 @@ function mpTeamCol(name, logo, side, form) {
   return `
     <div class="mp-team mp-team--${side}">
       ${crestHtml(name, logo, 'lg')}
-      <div class="mp-team__name">${escapeHtml(name || 'â€”')}</div>
+      <div class="mp-team__name">${escapeHtml(name || '—')}</div>
       <div class="mp-team__side">${label}</div>
       <div class="mp-team__form">${formHtml(form, side)}</div>
     </div>`;
@@ -2624,7 +2639,7 @@ function pct(n) {
 
 function pctLabel(n) {
   const p = pct(n);
-  if (p == null) return 'â€”';
+  if (p == null) return '—';
   return `${(p * 100).toFixed(0)}%`;
 }
 
@@ -2646,7 +2661,7 @@ function prefersReducedMotion() {
 }
 
 /**
- * Count-up % from data-target (0â€“1 fraction) â†’ "67%" / "12.3%".
+ * Count-up % from data-target (0–1 fraction) → "67%" / "12.3%".
  * Skips free blur (.hb-censor): snap to final. Once per reveal / tab switch.
  */
 function animatePercents(root) {
@@ -2795,7 +2810,7 @@ function formatMatchDate(value) {
     hour: '2-digit',
     minute: '2-digit',
   });
-  return `${weekday} ${datePart} Â· ${timePart}`;
+  return `${weekday} ${datePart} · ${timePart}`;
 }
 
 function formBadge(raw) {
@@ -2807,7 +2822,7 @@ function formBadge(raw) {
     V: { letter: en ? 'W' : 'V', cls: 'V', title: t('form.win') },
     E: { letter: en ? 'D' : 'E', cls: 'E', title: t('form.draw') },
   };
-  return map[raw] || { letter: raw || 'â€”', cls: raw || 'E', title: raw || 'â€”' };
+  return map[raw] || { letter: raw || '—', cls: raw || 'E', title: raw || '—' };
 }
 
 /** Last 7 results; newest toward VS (home: reverse DOM; away: newest-first). */
@@ -2866,14 +2881,21 @@ function shortLeagueName(name) {
     .slice(0, 28);
 }
 
-function countryFlag(country) {
+function countryIsoCode(country) {
   const c = String(country || '').trim();
-  return COUNTRY_FLAG[c] || 'ðŸ³ï¸';
+  return COUNTRY_ISO[c] || '';
+}
+
+/** ASCII ISO badge HTML — never emoji (mojibake-safe). */
+function countryIsoBadge(country, className = 'hb-iso') {
+  const code = countryIsoCode(country);
+  if (!code) return '';
+  return `<span class="${className}" aria-hidden="true">${escapeHtml(code)}</span>`;
 }
 
 function countryLabel(country) {
   const c = String(country || '').trim();
-  if (!c) return 'â€”';
+  if (!c) return '—';
   if (getUiLang() === 'en') return c;
   return COUNTRY_ES[c] || c;
 }
@@ -2913,7 +2935,7 @@ function leagueLabelEs(nameOrMatch, apiId = null) {
 function formatLeagueLine(country, name, apiId = null) {
   const c = countryLabel(country);
   const l = leagueLabelEs(name, apiId);
-  return [c !== 'â€”' ? c : '', l].filter(Boolean).join(' Â· ') || t('league.generic');
+  return [c !== '—' ? c : '', l].filter(Boolean).join(' · ') || t('league.generic');
 }
 
 /** Competition crest next to league name (panel / list / Top 10). */
@@ -2924,7 +2946,7 @@ function leagueLogoHtml(url, cls = 'mp-league__logo') {
 
 /**
  * Matchday / jornada from synced RoundNumber (+ optional Group).
- * EPL â†’ Matchday N; rest â†’ Jornada N; degrade to '' when missing.
+ * EPL → Matchday N; rest → Jornada N; degrade to '' when missing.
  */
 function formatRoundLabel(m) {
   if (!m) return '';
@@ -2940,7 +2962,7 @@ function formatRoundLabel(m) {
   }
   if (g) {
     const grupo = /^[A-H]$/i.test(g) ? t('round.group', { g: g.toUpperCase() }) : g;
-    return base ? `${grupo} Â· ${base}` : grupo;
+    return base ? `${grupo} · ${base}` : grupo;
   }
   return base;
 }
@@ -2983,7 +3005,7 @@ function groupLeaguesByCountry(leagues) {
       map.set(key, {
         country: key === '_' ? '' : key,
         label: countryLabel(key === '_' ? '' : key),
-        flag: countryFlag(key === '_' ? '' : key),
+        iso: countryIsoCode(key === '_' ? '' : key),
         leagues: [],
         matchCount: 0,
       });
@@ -3112,7 +3134,7 @@ function ligasStandingsHtml(table) {
       const team = r.team || '';
       return `<tr class="ligas-standings__row" tabindex="0" role="button" data-team-id="${Number(
         r.teamId
-      )}" aria-label="Ver prÃ³ximo partido de ${escapeHtml(team)}">
+      )}" aria-label="Ver próximo partido de ${escapeHtml(team)}">
         <td class="ligas-standings__pos">${Number(r.position)}</td>
         <td>
           <span class="ligas-standings__team">
@@ -3214,6 +3236,8 @@ async function showLigasTable(apiId, { pushHash = true } = {}) {
   tableEl.innerHTML = Array.from({ length: 6 }, () => `<div class="skeleton" aria-hidden="true"></div>`).join('');
 
   try {
+    // Kick table fetch immediately; catalog only needed for labels / unknown check.
+    const tableP = api(`/api/v1/leagues/${aid}/table`);
     const catalog = await ensureLigasCatalog();
     const known = catalog.get(aid);
     if (!known) {
@@ -3225,7 +3249,7 @@ async function showLigasTable(apiId, { pushHash = true } = {}) {
     }
     ligasActiveD1Id = known.id;
     setLigasDetailLogo(known.logoUrl || folderLeague?.logoUrl || null);
-    const data = await api(`/api/v1/leagues/${aid}/table`);
+    const data = await tableP;
     const league = data.league || known;
     ligasActiveD1Id = Number(league.id) || known.id;
     if (nameEl) {
@@ -3234,7 +3258,7 @@ async function showLigasTable(apiId, { pushHash = true } = {}) {
     }
     if (metaEl) {
       const bits = [countryLabel(league.country), folderLeague?.tag].filter(Boolean);
-      metaEl.textContent = bits.length ? bits.join(' Â· ') : 'ClasificaciÃ³n';
+      metaEl.textContent = bits.length ? bits.join(' · ') : 'Clasificación';
     }
     setLigasDetailLogo(
       league.logoUrl || league.logo_url || known.logoUrl || folderLeague?.logoUrl || null
@@ -3307,15 +3331,15 @@ function renderLigasFolders(catalog) {
   }).filter((f) => f.leagues.length > 0);
 
   if (!folders.length) {
-    listEl.innerHTML = `<p class="ligas-standings__empty">No hay ligas que coincidan con la bÃºsqueda.</p>`;
+    listEl.innerHTML = `<p class="ligas-standings__empty">No hay ligas que coincidan con la búsqueda.</p>`;
     return;
   }
 
   listEl.innerHTML = folders
     .map((folder) => {
       const flagHtml = folder.flagCountry
-        ? `<span class="ligas-folder__flag" aria-hidden="true">${countryFlag(folder.flagCountry)}</span>`
-        : `<span class="ligas-folder__uefa" aria-hidden="true">â˜…</span>`;
+        ? countryIsoBadge(folder.flagCountry, 'ligas-folder__flag hb-iso')
+        : `<span class="ligas-folder__uefa" aria-hidden="true">UEFA</span>`;
       const count = folder.leagues.length;
       return `<section class="ligas-folder is-open" data-folder="${escapeHtml(folder.key)}">
         <header class="ligas-folder__head">
@@ -3334,10 +3358,10 @@ function renderLigasFolders(catalog) {
                 leagueLabelEs(l.dbName || l.name, l.apiId)
               )}</span>
               <span class="ligas-league-row__tag">${escapeHtml(
-                `${folder.label} Â· ${l.tag}`
+                `${folder.label} · ${l.tag}`
               )}</span>
             </span>
-            <span class="ligas-league-row__chevron" aria-hidden="true">â€º</span>
+            <span class="ligas-league-row__chevron" aria-hidden="true">›</span>
           </button>`
             )
             .join('')}
@@ -3403,7 +3427,7 @@ function renderLeagueCategories(matches) {
   const toggle = document.getElementById('league-toggle');
   if (!block || !cats) return;
 
-  // Scope chips removed â€” league category sidebar only when a single-liga filter is active.
+  // Scope chips removed — league category sidebar only when a single-liga filter is active.
   const showCats = leagueFilterIds.size > 0;
   block.hidden = !showCats;
   if (!showCats) {
@@ -3416,13 +3440,13 @@ function renderLeagueCategories(matches) {
 
   const nSel = selectedLeagueCount();
   if (label) {
-    label.textContent = nSel ? `Ligas Â· ${nSel} seleccionada${nSel === 1 ? '' : 's'}` : 'Ligas Â· todas';
+    label.textContent = nSel ? `Ligas · ${nSel} seleccionada${nSel === 1 ? '' : 's'}` : 'Ligas · todas';
   }
   block.classList.toggle('is-collapsed', !leaguesPanelOpen);
   if (toggle) toggle.setAttribute('aria-expanded', leaguesPanelOpen ? 'true' : 'false');
 
   if (!leagues.length) {
-    cats.innerHTML = `<p class="league-cats__empty">No hay categorÃ­as en esta ventana.</p>`;
+    cats.innerHTML = `<p class="league-cats__empty">No hay categorías en esta ventana.</p>`;
     return;
   }
 
@@ -3432,7 +3456,7 @@ function renderLeagueCategories(matches) {
     `<div class="league-cats__toolbar">
       <button type="button" class="league-cat league-cat--all${allActive ? ' active' : ''}" data-league-action="all" aria-pressed="${allActive}">
         <span class="league-cat__check" aria-hidden="true"></span>
-        <span class="league-cat__flag" aria-hidden="true">ðŸŸï¸</span>
+        <span class="league-cat__flag hb-iso" aria-hidden="true">ALL</span>
         <span class="league-cat__body">
           <span class="league-cat__name">Todas las ligas</span>
           <span class="league-cat__meta">${escapeHtml(
@@ -3451,10 +3475,10 @@ function renderLeagueCategories(matches) {
       const active = leagueFilterIds.has(id);
       return `<button type="button" class="league-cat${active ? ' active' : ''}" role="option" aria-selected="${active}" data-league="${id}">
         <span class="league-cat__check" aria-hidden="true"></span>
-        <span class="league-cat__flag" aria-hidden="true">${countryFlag(l.country)}</span>
+        ${countryIsoBadge(l.country, 'league-cat__flag hb-iso')}
         <span class="league-cat__body">
           <span class="league-cat__name">${escapeHtml(l.name)}</span>
-          <span class="league-cat__meta">${escapeHtml(countryLabel(l.country))} Â· ${escapeHtml(
+          <span class="league-cat__meta">${escapeHtml(countryLabel(l.country))} · ${escapeHtml(
             t(l.count === 1 ? 'ligas.matchCount' : 'ligas.matchCountPlural', { n: l.count })
           )}</span>
         </span>
@@ -3562,9 +3586,9 @@ const PREMIUM_LIST_PRICES = { weekly: 9.99, monthly: 19.9 };
 
 function formatEuroPrice(n) {
   const v = Number(n);
-  if (!Number.isFinite(v)) return 'â€”';
+  if (!Number.isFinite(v)) return '—';
   const dec = getUiLang() === 'en' ? '.' : ',';
-  return `${v.toFixed(2).replace('.', dec)} â‚¬`;
+  return `${v.toFixed(2).replace('.', dec)} €`;
 }
 
 function discountedListPrice(base, percent) {
@@ -3624,7 +3648,7 @@ function premiumUpsellHtml(source) {
   if (contentUnlocked()) return '';
   return `
     <div class="premium-upsell" data-premium-source="${escapeHtml(source)}">
-      <span class="premium-upsell__lock" aria-hidden="true">ðŸ”’</span>
+      <img class="premium-upsell__lock" src="/icons/ui/premium-crown.png?v=${UI_ICON_V}" width="18" height="18" alt="" aria-hidden="true" decoding="async" />
       <div class="premium-upsell__text">
         <strong>Premium</strong>
         <span>${escapeHtml(t('premium.upsellText'))}</span>
@@ -3647,7 +3671,7 @@ function bindPremiumActivate(root = document) {
   });
 }
 
-/** ?premium=ok|cancel after Stripe (success_url) â€” banner once, then clean URL. */
+/** ?premium=ok|cancel after Stripe (success_url) — banner once, then clean URL. */
 async function handlePremiumReturn() {
   const sp = new URLSearchParams(window.location.search);
   const ret = sp.get('premium');
@@ -3715,116 +3739,116 @@ const I18N = {
     'account.perfil': 'Perfil',
     'account.settings': 'Ajustes',
     'account.help': 'Ayuda',
-    'account.coop': 'CooperaciÃ³n',
+    'account.coop': 'Cooperación',
     'account.privacy': 'Privacidad',
-    'account.logout': 'Cerrar sesiÃ³n',
+    'account.logout': 'Cerrar sesión',
     'account.premiumOn': 'Premium',
     'account.premiumOff': 'Gratuito',
     'perfil.title': 'Perfil',
     'perfil.badgeFree': 'Gratuito',
     'perfil.badgePremium': 'Premium',
-    'perfil.promoLabel': 'CÃ³digo promocional',
+    'perfil.promoLabel': 'Código promocional',
     'perfil.promoApply': 'Aplicar',
-    'perfil.promoPlaceholder': 'CÃ³digo',
-    'perfil.promoOk': 'CÃ³digo aplicado Â· Premium activado',
-    'perfil.promoOkDays': 'CÃ³digo aplicado Â· Premium {days}d',
-    'perfil.promoOkMonth': 'CÃ³digo aplicado Â· 1 mes Premium',
-    'perfil.promoOkDiscount': 'Descuento {pct}% aplicado Â· se usa al pagar',
-    'perfil.promoBad': 'CÃ³digo no vÃ¡lido',
-    'perfil.promoUsed': 'Ya has usado este cÃ³digo',
-    'perfil.promoExpired': 'CÃ³digo agotado o caducado',
-    'perfil.promoNeedAuth': 'Inicia sesiÃ³n para canjear',
-    'premium.priceWeek': '9,99 â‚¬',
-    'premium.priceMonth': '19,90 â‚¬',
-    'premium.discountBadge': 'âˆ’{pct}% promo',
+    'perfil.promoPlaceholder': 'Código',
+    'perfil.promoOk': 'Código aplicado · Premium activado',
+    'perfil.promoOkDays': 'Código aplicado · Premium {days}d',
+    'perfil.promoOkMonth': 'Código aplicado · 1 mes Premium',
+    'perfil.promoOkDiscount': 'Descuento {pct}% aplicado · se usa al pagar',
+    'perfil.promoBad': 'Código no válido',
+    'perfil.promoUsed': 'Ya has usado este código',
+    'perfil.promoExpired': 'Código agotado o caducado',
+    'perfil.promoNeedAuth': 'Inicia sesión para canjear',
+    'premium.priceWeek': '9,99 €',
+    'premium.priceMonth': '19,90 €',
+    'premium.discountBadge': '−{pct}% promo',
     'date.yesterday': 'Ayer',
     'date.today': 'Hoy',
-    'date.tomorrow': 'MaÃ±ana',
+    'date.tomorrow': 'Mañana',
     'search.placeholder': 'Buscar equipo',
     'search.results': 'Resultados',
-    'search.loading': 'Buscandoâ€¦',
+    'search.loading': 'Buscando…',
     'search.empty': 'Sin resultados.',
     'view.top10': 'Top 10 predicciones',
     'view.aciertos': 'Aciertos',
-    'view.stats': 'EstadÃ­sticas por liga y mercado',
+    'view.stats': 'Estadísticas por liga y mercado',
     'view.ligas': 'Ligas',
     'view.partidos': 'Partidos',
     'stats.showWithMatches': 'Mostrar ligas con partidos',
     'stats.empty': 'Sin datos para este mercado',
-    'stats.loading': 'Cargando estadÃ­sticasâ€¦',
-    'panel.emptySelect': 'Selecciona un partido para ver el anÃ¡lisis',
-    'ligas.emptySelect': 'Selecciona una liga para ver la clasificaciÃ³n',
+    'stats.loading': 'Cargando estadísticas…',
+    'panel.emptySelect': 'Selecciona un partido para ver el análisis',
+    'ligas.emptySelect': 'Selecciona una liga para ver la clasificación',
     'ligas.seeMatches': 'Ver partidos de esta liga',
     'ligas.hint':
-      'Elige un paÃ­s y una liga. En escritorio la tabla aparece a la derecha; en mÃ³vil se abre desde la derecha.',
+      'Elige un país y una liga. En escritorio la tabla aparece a la derecha; en móvil se abre desde la derecha.',
     'ligas.noLeagues': 'No hay ligas en la ventana',
-    'ligas.noTable': 'Sin clasificatorio aÃºn',
+    'ligas.noTable': 'Sin clasificatorio aún',
     'ligas.matchCount': '{n} partido',
     'ligas.matchCountPlural': '{n} partidos',
     'empty.noMatches': 'Sin partidos para {date}',
-    'empty.noTips': 'Sin tips jugables hoy (Pâ‰¥{p}% Â· cuota â‰¤{odds})',
-    'empty.noClosedTips': 'Sin tips cerrados aÃºn',
-    'empty.loadingAnalysis': 'Cargando anÃ¡lisisâ€¦',
+    'empty.noTips': 'Sin tips jugables hoy (P≥{p}%)',
+    'empty.noClosedTips': 'Sin tips cerrados aún',
+    'empty.loadingAnalysis': 'Cargando análisis…',
     'form.win': 'Victoria',
     'form.draw': 'Empate',
     'form.loss': 'Derrota',
     'auth.title': 'Cuenta',
-    'auth.tabLogin': 'Inicio de sesiÃ³n',
+    'auth.tabLogin': 'Inicio de sesión',
     'auth.tabRegister': 'Registrarse',
     'auth.google': 'Continuar con Google',
     'auth.telegram': 'Continuar con Telegram',
     'auth.soon': 'Pronto',
     'auth.or': 'o',
     'auth.userOrEmail': 'Usuario o email',
-    'auth.password': 'ContraseÃ±a',
+    'auth.password': 'Contraseña',
     'auth.loginSubmit': 'Entrar',
-    'auth.noAccount': 'Â¿No tienes cuenta?',
-    'auth.registerLink': 'RegÃ­strate',
-    'auth.hasAccount': 'Â¿Ya tienes cuenta?',
-    'auth.loginLink': 'Inicia sesiÃ³n',
+    'auth.noAccount': '¿No tienes cuenta?',
+    'auth.registerLink': 'Regístrate',
+    'auth.hasAccount': '¿Ya tienes cuenta?',
+    'auth.loginLink': 'Inicia sesión',
     'auth.username': 'ID de usuario',
     'auth.name': 'Nombre',
     'auth.email': 'Email',
-    'auth.phone': 'TelÃ©fono',
+    'auth.phone': 'Teléfono',
     'auth.registerSubmit': 'Crear cuenta',
-    'auth.confirmPassword': 'Confirmar contraseÃ±a',
+    'auth.confirmPassword': 'Confirmar contraseña',
     'auth.close': 'Cerrar',
     'premiumModal.title': 'Pasa a Premium',
     'premiumModal.lead':
-      'Desbloquea tips semanales y el acceso completo a Houdini Analytics. Puedes activarlo ahora o mÃ¡s tarde.',
+      'Desbloquea tips semanales y el acceso completo a Houdini Analytics. Puedes activarlo ahora o más tarde.',
     'premiumModal.activate': 'Activar Premium',
     'premiumModal.skip': 'Ahora no',
     'consent.title': 'Cookies y privacidad',
     'consent.lead':
-      'Usamos almacenamiento local para que la app funcione. Las opciones opcionales (analytics stub, bÃºsqueda y filtros) solo se activan si las aceptas.',
-    'consent.age': 'Confirmo que soy mayor de 18 aÃ±os',
+      'Usamos almacenamiento local para que la app funcione. Las opciones opcionales (analytics stub, búsqueda y filtros) solo se activan si las aceptas.',
+    'consent.age': 'Confirmo que soy mayor de 18 años',
     'consent.acceptAll': 'Aceptar todo',
     'consent.necessary': 'Solo necesarias',
     'consent.customize': 'Personalizar',
-    'consent.back': 'â† Volver',
+    'consent.back': '← Volver',
     'consent.customLead':
-      'Elige quÃ© guardar en este dispositivo. Necesitas confirmar la mayorÃ­a de edad para guardar.',
+      'Elige qué guardar en este dispositivo. Necesitas confirmar la mayoría de edad para guardar.',
     'consent.privacy': 'Privacidad',
     'consent.cookies': 'Cookies',
     'consent.notice': 'Aviso',
     'consent.terms': 'Condiciones',
     'toast.payOpenFail': 'No se pudo abrir el pago. Intenta de nuevo en unos segundos.',
     'toast.payStartFail': 'No se pudo iniciar el pago premium: {msg}',
-    'toast.payOk': 'Pago confirmado: premium activado. SerÃ¡ visible en unos segundos.',
+    'toast.payOk': 'Pago confirmado: premium activado. Será visible en unos segundos.',
     'toast.payCancel': 'Pago cancelado sin cargos.',
     'toast.accountDeleted': 'Cuenta eliminada',
     'toast.accountDeleteFail': 'No se pudo eliminar la cuenta',
-    'toast.telegramSoon': 'Telegram Â· Pronto',
-    'toast.nextMatchSearch': 'Buscando prÃ³ximo partidoâ€¦',
-    'toast.noNextMatch': 'Sin partido prÃ³ximo en la ventana',
+    'toast.telegramSoon': 'Telegram · Pronto',
+    'toast.nextMatchSearch': 'Buscando próximo partido…',
+    'toast.noNextMatch': 'Sin partido próximo en la ventana',
     'toast.googleFail': 'No se pudo completar el acceso con Google.',
     'league.generic': 'Liga',
     'league.nations': 'Liga de Naciones',
     'family.1X2': '1X2',
-    'family.ou': 'MÃ¡s/Menos',
+    'family.ou': 'Más/Menos',
     'family.btts': 'Ambos marcan',
     'family.goles': 'Goles',
-    'family.corners': 'CÃ³rners',
+    'family.corners': 'Córners',
     'family.cards': 'Amarillas',
     'family.shots': 'Tiros',
     'family.shots_on_target': 'Tiros a puerta',
@@ -3834,55 +3858,55 @@ const I18N = {
     'bet.AWAY_WIN': 'Victoria visitante',
     'bet.DC_1X': 'Doble oportunidad 1X',
     'bet.DC_X2': 'Doble oportunidad X2',
-    'bet.DNB_HOME': 'Empate no vÃ¡lido Â· local',
-    'bet.DNB_AWAY': 'Empate no vÃ¡lido Â· visitante',
-    'bet.OVER_05': 'MÃ¡s de 0,5 goles',
+    'bet.DNB_HOME': 'Empate no válido · local',
+    'bet.DNB_AWAY': 'Empate no válido · visitante',
+    'bet.OVER_05': 'Más de 0,5 goles',
     'bet.UNDER_05': 'Menos de 0,5 goles',
-    'bet.OVER_15': 'MÃ¡s de 1,5 goles',
+    'bet.OVER_15': 'Más de 1,5 goles',
     'bet.UNDER_15': 'Menos de 1,5 goles',
-    'bet.OVER_25': 'MÃ¡s de 2,5 goles',
+    'bet.OVER_25': 'Más de 2,5 goles',
     'bet.UNDER_25': 'Menos de 2,5 goles',
-    'bet.OVER_35': 'MÃ¡s de 3,5 goles',
+    'bet.OVER_35': 'Más de 3,5 goles',
     'bet.UNDER_35': 'Menos de 3,5 goles',
-    'bet.OVER_45': 'MÃ¡s de 4,5 goles',
+    'bet.OVER_45': 'Más de 4,5 goles',
     'bet.UNDER_45': 'Menos de 4,5 goles',
-    'bet.BTTS_YES': 'Ambos marcan â€” SÃ­',
-    'bet.BTTS_NO': 'Ambos marcan â€” No',
-    'bet.HOME_OVER_05': 'Local Â· MÃ¡s de 0,5 goles',
-    'bet.HOME_UNDER_05': 'Local Â· Menos de 0,5 goles',
-    'bet.HOME_OVER_15': 'Local Â· MÃ¡s de 1,5 goles',
-    'bet.HOME_UNDER_15': 'Local Â· Menos de 1,5 goles',
-    'bet.HOME_OVER_25': 'Local Â· MÃ¡s de 2,5 goles',
-    'bet.HOME_UNDER_25': 'Local Â· Menos de 2,5 goles',
-    'bet.HOME_OVER_35': 'Local Â· MÃ¡s de 3,5 goles',
-    'bet.HOME_UNDER_35': 'Local Â· Menos de 3,5 goles',
-    'bet.AWAY_OVER_05': 'Visitante Â· MÃ¡s de 0,5 goles',
-    'bet.AWAY_UNDER_05': 'Visitante Â· Menos de 0,5 goles',
-    'bet.AWAY_OVER_15': 'Visitante Â· MÃ¡s de 1,5 goles',
-    'bet.AWAY_UNDER_15': 'Visitante Â· Menos de 1,5 goles',
-    'bet.AWAY_OVER_25': 'Visitante Â· MÃ¡s de 2,5 goles',
-    'bet.AWAY_UNDER_25': 'Visitante Â· Menos de 2,5 goles',
-    'bet.AWAY_OVER_35': 'Visitante Â· MÃ¡s de 3,5 goles',
-    'bet.AWAY_UNDER_35': 'Visitante Â· Menos de 3,5 goles',
-    'bet.CORNERS_OVER_85': 'MÃ¡s de 8,5 cÃ³rners',
-    'bet.CORNERS_UNDER_85': 'Menos de 8,5 cÃ³rners',
-    'bet.CORNERS_OVER_95': 'MÃ¡s de 9,5 cÃ³rners',
-    'bet.CORNERS_UNDER_95': 'Menos de 9,5 cÃ³rners',
-    'bet.CORNERS_OVER_105': 'MÃ¡s de 10,5 cÃ³rners',
-    'bet.CORNERS_UNDER_105': 'Menos de 10,5 cÃ³rners',
-    'bet.SHOTS_OVER_225': 'MÃ¡s de 22,5 tiros',
+    'bet.BTTS_YES': 'Ambos marcan — Sí',
+    'bet.BTTS_NO': 'Ambos marcan — No',
+    'bet.HOME_OVER_05': 'Local · Más de 0,5 goles',
+    'bet.HOME_UNDER_05': 'Local · Menos de 0,5 goles',
+    'bet.HOME_OVER_15': 'Local · Más de 1,5 goles',
+    'bet.HOME_UNDER_15': 'Local · Menos de 1,5 goles',
+    'bet.HOME_OVER_25': 'Local · Más de 2,5 goles',
+    'bet.HOME_UNDER_25': 'Local · Menos de 2,5 goles',
+    'bet.HOME_OVER_35': 'Local · Más de 3,5 goles',
+    'bet.HOME_UNDER_35': 'Local · Menos de 3,5 goles',
+    'bet.AWAY_OVER_05': 'Visitante · Más de 0,5 goles',
+    'bet.AWAY_UNDER_05': 'Visitante · Menos de 0,5 goles',
+    'bet.AWAY_OVER_15': 'Visitante · Más de 1,5 goles',
+    'bet.AWAY_UNDER_15': 'Visitante · Menos de 1,5 goles',
+    'bet.AWAY_OVER_25': 'Visitante · Más de 2,5 goles',
+    'bet.AWAY_UNDER_25': 'Visitante · Menos de 2,5 goles',
+    'bet.AWAY_OVER_35': 'Visitante · Más de 3,5 goles',
+    'bet.AWAY_UNDER_35': 'Visitante · Menos de 3,5 goles',
+    'bet.CORNERS_OVER_85': 'Más de 8,5 córners',
+    'bet.CORNERS_UNDER_85': 'Menos de 8,5 córners',
+    'bet.CORNERS_OVER_95': 'Más de 9,5 córners',
+    'bet.CORNERS_UNDER_95': 'Menos de 9,5 córners',
+    'bet.CORNERS_OVER_105': 'Más de 10,5 córners',
+    'bet.CORNERS_UNDER_105': 'Menos de 10,5 córners',
+    'bet.SHOTS_OVER_225': 'Más de 22,5 tiros',
     'bet.SHOTS_UNDER_225': 'Menos de 22,5 tiros',
-    'bet.SHOTS_OVER_255': 'MÃ¡s de 25,5 tiros',
+    'bet.SHOTS_OVER_255': 'Más de 25,5 tiros',
     'bet.SHOTS_UNDER_255': 'Menos de 25,5 tiros',
-    'bet.SOT_OVER_75': 'MÃ¡s de 7,5 tiros a puerta',
+    'bet.SOT_OVER_75': 'Más de 7,5 tiros a puerta',
     'bet.SOT_UNDER_75': 'Menos de 7,5 tiros a puerta',
-    'bet.SOT_OVER_85': 'MÃ¡s de 8,5 tiros a puerta',
+    'bet.SOT_OVER_85': 'Más de 8,5 tiros a puerta',
     'bet.SOT_UNDER_85': 'Menos de 8,5 tiros a puerta',
-    'bet.SOT_OVER_95': 'MÃ¡s de 9,5 tiros a puerta',
+    'bet.SOT_OVER_95': 'Más de 9,5 tiros a puerta',
     'bet.SOT_UNDER_95': 'Menos de 9,5 tiros a puerta',
-    'bet.CARDS_OVER_35': 'MÃ¡s de 3,5 amarillas',
+    'bet.CARDS_OVER_35': 'Más de 3,5 amarillas',
     'bet.CARDS_UNDER_35': 'Menos de 3,5 amarillas',
-    'bet.CARDS_OVER_45': 'MÃ¡s de 4,5 amarillas',
+    'bet.CARDS_OVER_45': 'Más de 4,5 amarillas',
     'bet.CARDS_UNDER_45': 'Menos de 4,5 amarillas',
     'bet.winNamed': 'Victoria {name}',
     'bet.winHome': 'Victoria local',
@@ -3890,19 +3914,19 @@ const I18N = {
     'weekly.window': 'Jornada',
     'weekly.weekend': 'Fin de semana',
     'weekly.thisWeek': 'Esta semana',
-    'weekly.next7': 'PrÃ³ximos 7 dÃ­as',
-    'weekly.next14': 'PrÃ³ximos 14 dÃ­as',
+    'weekly.next7': 'Próximos 7 días',
+    'weekly.next14': 'Próximos 14 días',
     'weekly.league': 'Liga',
     'weekly.allLeagues': 'Todas',
     'perfil.metaFree': 'Plan gratuito',
     'perfil.metaActive': 'Plan Premium activo',
     'perfil.metaUntil': 'Hasta {date}',
-    'perfil.metaDays': ' Â· {n} dÃ­as',
+    'perfil.metaDays': ' · {n} días',
     'perfil.upgrade': 'Mejorar a Premium',
     'perfil.settings': 'Ajustes',
     'perfil.privacy': 'Privacidad',
     'perfil.help': 'Ayuda',
-    'perfil.logout': 'Cerrar sesiÃ³n',
+    'perfil.logout': 'Cerrar sesión',
     'perfil.delete': 'Eliminar cuenta',
 
     'premium.eyebrow': 'Houdini Premium',
@@ -3911,72 +3935,72 @@ const I18N = {
     'premium.planMonthly': 'Mensual',
     'premium.perWeek': '/ semana',
     'premium.perMonth': '/ mes',
-    'premium.popular': 'MÃ¡s popular',
-    'premium.featLine': 'Goles Â· Tiros Â· CÃ³rners Â· Tarjetas Â· Top 10',
-    'premium.note': 'Pago seguro. Sin Stripe verÃ¡s Â«Pago no configuradoÂ».',
+    'premium.popular': 'Más popular',
+    'premium.featLine': 'Goles · Tiros · Córners · Tarjetas · Top 10',
+    'premium.note': 'Pago seguro. Sin Stripe verás «Pago no configurado».',
     'premium.bannerBadge': 'OFERTA ESPECIAL',
     'premium.bannerTitle': 'Houdini Premium',
-    'premium.bannerLead': 'Tip Houdini y estadÃ­sticas avanzadas del partido.',
+    'premium.bannerLead': 'Tip Houdini y estadísticas avanzadas del partido.',
     'premium.bannerCta': 'Ver planes',
     'premium.bannerFeat1': 'Tip del partido + 1X2',
-    'premium.bannerFeat2': 'Tablas Goles Â· Tiros Â· CÃ³rners Â· Tarjetas',
+    'premium.bannerFeat2': 'Tablas Goles · Tiros · Córners · Tarjetas',
     'premium.bannerFeat3': 'Top 10 y combinadas Semanal',
     'premium.bannerFeat4': 'Probabilidades en vivo',
-    'premium.upsellText': 'Tips, ROI y estadÃ­sticas avanzadas van con el plan de pago.',
+    'premium.upsellText': 'Tips, ROI y estadísticas avanzadas van con el plan de pago.',
     'premium.seePlans': 'Ver planes',
     'premium.ariaPlans': 'Ver planes Premium',
-    'premiumModal.stripeLater': 'Pago no configurado todavÃ­a. PodrÃ¡s activarlo mÃ¡s adelante.',
-    'aciertos.title': 'Top del dÃ­a',
-    'aciertos.dateGroup': 'DÃ­a del Top',
-    'aciertos.prevDay': 'DÃ­a anterior',
-    'aciertos.nextDay': 'DÃ­a siguiente',
+    'premiumModal.stripeLater': 'Pago no configurado todavía. Podrás activarlo más adelante.',
+    'aciertos.title': 'Top del día',
+    'aciertos.dateGroup': 'Día del Top',
+    'aciertos.prevDay': 'Día anterior',
+    'aciertos.nextDay': 'Día siguiente',
     'aciertos.resolved': 'Resueltos',
     'aciertos.hitRate': 'Acierto',
     'aciertos.pending': 'Pendiente',
     'aciertos.hit': 'Acierto',
-    'aciertos.miss': 'FallÃ³',
+    'aciertos.miss': 'Falló',
     'aciertos.void': 'Nulo',
-    'aciertos.empty': 'Sin tips Top 10 para este dÃ­a (P 78â€“95%).',
-    'aciertos.loadError': 'No se pudo cargar el Top del dÃ­a',
-    'aciertos.summaryEmpty': 'Sin tips para resumir en este dÃ­a.',
-    'stats.heroTitle': 'EstadÃ­sticas de partidos',
+    'aciertos.empty': 'Sin tips Top 10 para este día (P 78–95%).',
+    'aciertos.loadError': 'No se pudo cargar el Top del día',
+    'aciertos.summaryEmpty': 'Sin tips para resumir en este día.',
+    'stats.heroTitle': 'Estadísticas de partidos',
     'stats.heroLead': 'Compara la forma reciente de cada enfrentamiento.',
-    'stats.sortHigh': 'MÃ¡s altos',
-    'stats.sortLow': 'MÃ¡s bajos',
-    'stats.prevDay': 'DÃ­a anterior',
-    'stats.nextDay': 'DÃ­a siguiente',
+    'stats.sortHigh': 'Más altos',
+    'stats.sortLow': 'Más bajos',
+    'stats.prevDay': 'Día anterior',
+    'stats.nextDay': 'Día siguiente',
     'stats.sortGroup': 'Orden de resultados',
-    'stats.metricGroup': 'MÃ©trica',
+    'stats.metricGroup': 'Métrica',
     'stats.metric.goals': 'Goles',
     'stats.metric.shots': 'Tiros',
-    'stats.metric.corners': 'CÃ³rners',
+    'stats.metric.corners': 'Córners',
     'stats.metric.cards': 'Tarjetas',
     'stats.byLeague': 'Por liga',
-    'stats.backLeagues': 'â† Ligas',
+    'stats.backLeagues': '← Ligas',
     'stats.team': 'Equipo',
     'stats.allTeams': 'Todos los equipos',
     'stats.colLeague': 'Liga',
     'stats.colTotal': 'Partidos totales',
     'stats.colPlayed': 'Partidos jugados',
     'stats.colScore': 'Score',
-    'stats.emptyMatches': 'No hay partidos con datos para este dÃ­a',
+    'stats.emptyMatches': 'No hay partidos con datos para este día',
     'stats.label.goals': 'goles',
     'stats.label.shots': 'tiros',
     'stats.label.sot': 'tiros a puerta',
-    'stats.label.corners': 'cÃ³rners',
+    'stats.label.corners': 'córners',
     'stats.label.cards': 'tarjetas',
     'stats.market.OVER_05': 'Total de goles: +0.5',
-    'stats.market.UNDER_05': 'Total de goles: âˆ’0.5',
+    'stats.market.UNDER_05': 'Total de goles: −0.5',
     'stats.market.OVER_15': 'Total de goles: +1.5',
-    'stats.market.UNDER_15': 'Total de goles: âˆ’1.5',
+    'stats.market.UNDER_15': 'Total de goles: −1.5',
     'stats.market.OVER_25': 'Total de goles: +2.5',
-    'stats.market.UNDER_25': 'Total de goles: âˆ’2.5',
+    'stats.market.UNDER_25': 'Total de goles: −2.5',
     'stats.market.OVER_35': 'Total de goles: +3.5',
-    'stats.market.UNDER_35': 'Total de goles: âˆ’3.5',
+    'stats.market.UNDER_35': 'Total de goles: −3.5',
     'stats.market.OVER_45': 'Total de goles: +4.5',
-    'stats.market.UNDER_45': 'Total de goles: âˆ’4.5',
+    'stats.market.UNDER_45': 'Total de goles: −4.5',
     'stats.market.OVER_55': 'Total de goles: +5.5',
-    'stats.market.UNDER_55': 'Total de goles: âˆ’5.5',
+    'stats.market.UNDER_55': 'Total de goles: −5.5',
     'stats.market.BTTS_YES': 'Ambos equipos marcan: SI',
     'stats.market.BTTS_NO': 'Ambos equipos marcan: NO',
     'stats.market.HOME_WIN': '1',
@@ -3984,20 +4008,20 @@ const I18N = {
     'stats.market.AWAY_WIN': '2',
     'stats.market.AVG_YELLOW': 'Media de tarjetas amarillas por partido',
     'stats.market.AVG_RED': 'Media de tarjetas rojas por partido',
-    'stats.market.AVG_CORNERS': 'Media de cÃ³rners por partido',
-    'panel.avgTitle': 'Promedios recientes Â· {unit}',
+    'stats.market.AVG_CORNERS': 'Media de córners por partido',
+    'panel.avgTitle': 'Promedios recientes · {unit}',
     'panel.avgLeague': 'Media liga / equipo',
     'panel.avgProxy': 'Media proxy (sin muestra liga)',
-    'panel.avgCaption': '{unit} por partido (Ãºltimos partidos)',
-    'panel.avgCaptionProxy': '{unit} por partido Â· liga sin muestra â†’ proxy',
-    'panel.avgCaptionNoTeam': 'Sin muestras de equipo Â· media proxy de referencia',
+    'panel.avgCaption': '{unit} por partido (últimos partidos)',
+    'panel.avgCaptionProxy': '{unit} por partido · liga sin muestra → proxy',
+    'panel.avgCaptionNoTeam': 'Sin muestras de equipo · media proxy de referencia',
     'panel.avgAria': 'Promedios recientes de {unit}',
     'chip.liveFull': 'EN VIVO',
     'round.matchday': 'Matchday {n}',
     'round.jornada': 'Jornada {n}',
     'round.group': 'Grupo {g}',
-    'ligas.searchPlaceholder': 'Buscar liga o paÃ­sâ€¦',
-    'ligas.loadingTable': 'Cargando clasificaciÃ³nâ€¦',
+    'ligas.searchPlaceholder': 'Buscar liga o país…',
+    'ligas.loadingTable': 'Cargando clasificación…',
     'ligas.noMatchSearch': 'No hay ligas que coincidan',
     'ligas.unavailable': 'No disponible en datos',
     'privacy.lead': 'Los tips son informativos. Usamos datos de partidos y cuotas para calcular predicciones. No vendemos datos personales con fines publicitarios. Puedes retirar o cambiar el consentimiento opcional con los interruptores de abajo.',
@@ -4007,33 +4031,33 @@ const I18N = {
     'privacy.linkNotice': 'Aviso',
     'privacy.linkTerms': 'Condiciones',
     'privacy.prefsGroup': 'Preferencias locales',
-    'privacy.analyticsTitle': 'Analytics / telemetrÃ­a',
-    'privacy.analyticsHint': 'Stub local (consola). No enviamos telemetrÃ­a de terceros.',
-    'privacy.searchTitle': 'Guardar bÃºsqueda reciente',
-    'privacy.searchHint': 'Recuerda el Ãºltimo equipo buscado en este dispositivo.',
+    'privacy.analyticsTitle': 'Analytics / telemetría',
+    'privacy.analyticsHint': 'Stub local (consola). No enviamos telemetría de terceros.',
+    'privacy.searchTitle': 'Guardar búsqueda reciente',
+    'privacy.searchHint': 'Recuerda el último equipo buscado en este dispositivo.',
     'privacy.filtersTitle': 'Recordar filtros',
-    'privacy.filtersHint': 'Conserva fecha y Ã¡mbito entre sesiones.',
+    'privacy.filtersHint': 'Conserva fecha y ámbito entre sesiones.',
     'privacy.manageCookies': 'Gestionar cookies',
     'privacy.clearDevice': 'Borrar datos de este dispositivo',
-    'privacy.dataTitle': 'QuÃ© se guarda',
+    'privacy.dataTitle': 'Qué se guarda',
     'privacy.responsible': 'Juega con responsabilidad. Si apuestas, hazlo solo con dinero que puedas permitirte perder.',
     'privacy.close': 'Cerrar',
     'consent.optPrefs': 'Preferencias opcionales',
     'consent.saveCustom': 'Guardar preferencias',
     'consent.docTitle': 'Documento',
-    'consent.backDoc': 'â† Volver',
+    'consent.backDoc': '← Volver',
     'consent.analyticsHintShort': 'Stub local (consola).',
-    'consent.searchTitle': 'Guardar bÃºsqueda',
-    'consent.searchHintShort': 'Ãšltimo equipo buscado.',
-    'consent.filtersHintShort': 'Fecha y Ã¡mbito.',
-    'auth.deleteConfirm': 'Â¿Eliminar tu cuenta de forma permanente? Se borrarÃ¡n tu sesiÃ³n y tus datos de acceso.',
-    'toast.apiOffline': 'No hay conexiÃ³n con la API. Revisa la red e intÃ©ntalo de nuevo.',
+    'consent.searchTitle': 'Guardar búsqueda',
+    'consent.searchHintShort': 'Último equipo buscado.',
+    'consent.filtersHintShort': 'Fecha y ámbito.',
+    'auth.deleteConfirm': '¿Eliminar tu cuenta de forma permanente? Se borrarán tu sesión y tus datos de acceso.',
+    'toast.apiOffline': 'No hay conexión con la API. Revisa la red e inténtalo de nuevo.',
     'nav.sections': 'Secciones',
     'weekly.other': 'Otra',
-    'weekly.days14': '14 dÃ­as',
-    'premium.statusFree': 'Plan gratuito â€” desbloquea tip y estadÃ­sticas avanzadas',
+    'weekly.days14': '14 días',
+    'premium.statusFree': 'Plan gratuito — desbloquea tip y estadísticas avanzadas',
     'premium.statusOn': 'Plan Premium activo',
-    'premium.statusUntil': 'Plan Premium activo Â· hasta {date}',
+    'premium.statusUntil': 'Plan Premium activo · hasta {date}',
     'premium.subscribe': 'Suscribirse',
     'premium.already': 'Ya eres Premium',
     'settings.title': 'Ajustes',
@@ -4062,28 +4086,28 @@ const I18N = {
     'panel.tabSot': 'Tiros a puerta',
     'stats.metric.sot': 'Tiros a puerta',
     'panel.lineups': 'Alineaciones',
-    'panel.lineupsPending': 'Alineaciones aÃºn no publicadas',
-    'panel.tabCorners': 'CÃ³rners',
+    'panel.lineupsPending': 'Alineaciones aún no publicadas',
+    'panel.tabCorners': 'Córners',
     'panel.tabCards': 'Tarjetas',
     'panel.keyProbs': 'Probabilidades clave',
     'panel.leagueAvg': 'Media liga',
-    'panel.over25': 'MÃ¡s de 2,5 goles',
-    'panel.over15': 'MÃ¡s de 1,5 goles',
+    'panel.over25': 'Más de 2,5 goles',
+    'panel.over15': 'Más de 1,5 goles',
     'panel.btts': 'Ambos marcan',
-    'panel.bttsYes': 'SÃ­',
+    'panel.bttsYes': 'Sí',
     'panel.bttsNo': 'No',
     'panel.avgGoals': 'Promedio goles',
-    'panel.avgCorners': 'Promedio cÃ³rners',
+    'panel.avgCorners': 'Promedio córners',
     'panel.avgCards': 'Promedio tarjetas',
     'panel.average': 'Promedio',
-    'panel.metric': 'MÃ©trica',
+    'panel.metric': 'Métrica',
     'panel.home': 'Local',
     'panel.awayShort': 'Visit.',
     'panel.match': 'Partido',
     'panel.expected': 'Esperado',
     'panel.trendsOf': 'Tendencias de {title}',
-    'panel.underTrendsOf': 'Menos de â€” {title}',
-    'panel.overLine': 'MÃ¡s de {n}',
+    'panel.underTrendsOf': 'Menos de — {title}',
+    'panel.overLine': 'Más de {n}',
     'panel.underLine': 'Menos de {n}',
     'panel.goalsTitle': 'goles',
     'panel.goalsExpected': 'Goles esperados',
@@ -4091,20 +4115,22 @@ const I18N = {
     'panel.shotsExpected': 'Tiros totales esperados',
     'panel.sotTitle': 'tiros a puerta',
     'panel.sotExpected': 'Tiros a puerta esperados',
-    'panel.cornersTitle': 'cÃ³rners',
-    'panel.cornersExpected': 'CÃ³rners esperados',
+    'panel.cornersTitle': 'córners',
+    'panel.cornersExpected': 'Córners esperados',
     'panel.cardsTitle': 'tarjetas',
     'panel.cardsExpected': 'Tarjetas esperadas',
-    'panel.offTarget': 'Est. fuera â‰ˆ {h} / {a} / {m}',
-    'censor.aria': 'Solo suscriptores â€” desbloquea con Houdini Premium',
+    'panel.offTarget': 'Est. fuera ≈ {h} / {a} / {m}',
+    'censor.aria': 'Solo suscriptores — desbloquea con Houdini Premium',
     'censor.title': 'Solo suscriptores',
-    'censor.sub': 'Desbloquea las estadÃ­sticas con Houdini Premium',
+    'censor.sub': 'Desbloquea las estadísticas con Houdini Premium',
     'censor.cta': 'Ver planes',
     'chip.all': 'Todos',
     'chip.live': 'En vivo',
     'chip.finished': 'Finalizados',
-    'chip.upcoming': 'PrÃ³ximos',
-    'panel.analysis': 'AnÃ¡lisis',
+    'chip.upcoming': 'Próximos',
+    'chip.postponed': 'Aplazado',
+    'chip.cancelled': 'Cancelado',
+    'panel.analysis': 'Análisis',
   },
   en: {
     'date.unavailable': 'Date unavailable',
@@ -4122,23 +4148,23 @@ const I18N = {
     'perfil.promoLabel': 'Promo code',
     'perfil.promoApply': 'Apply',
     'perfil.promoPlaceholder': 'Code',
-    'perfil.promoOk': 'Code applied Â· Premium unlocked',
-    'perfil.promoOkDays': 'Code applied Â· Premium {days}d',
-    'perfil.promoOkMonth': 'Code applied Â· 1 month Premium',
-    'perfil.promoOkDiscount': '{pct}% off applied Â· used at checkout',
+    'perfil.promoOk': 'Code applied · Premium unlocked',
+    'perfil.promoOkDays': 'Code applied · Premium {days}d',
+    'perfil.promoOkMonth': 'Code applied · 1 month Premium',
+    'perfil.promoOkDiscount': '{pct}% off applied · used at checkout',
     'perfil.promoBad': 'Invalid code',
     'perfil.promoUsed': 'You already used this code',
     'perfil.promoExpired': 'Code exhausted or expired',
     'perfil.promoNeedAuth': 'Sign in to redeem',
-    'premium.priceWeek': 'â‚¬9.99',
-    'premium.priceMonth': 'â‚¬19.90',
-    'premium.discountBadge': 'âˆ’{pct}% promo',
+    'premium.priceWeek': '€9.99',
+    'premium.priceMonth': '€19.90',
+    'premium.discountBadge': '−{pct}% promo',
     'date.yesterday': 'Yesterday',
     'date.today': 'Today',
     'date.tomorrow': 'Tomorrow',
     'search.placeholder': 'Search team',
     'search.results': 'Results',
-    'search.loading': 'Searchingâ€¦',
+    'search.loading': 'Searching…',
     'search.empty': 'No results.',
     'view.top10': 'Top 10 predictions',
     'view.aciertos': 'Hits',
@@ -4147,7 +4173,7 @@ const I18N = {
     'view.partidos': 'Matches',
     'stats.showWithMatches': 'Show leagues with matches',
     'stats.empty': 'No data for this market',
-    'stats.loading': 'Loading statsâ€¦',
+    'stats.loading': 'Loading stats…',
     'panel.emptySelect': 'Select a match to see the analysis',
     'ligas.emptySelect': 'Select a league to see the table',
     'ligas.seeMatches': 'See matches in this league',
@@ -4158,9 +4184,9 @@ const I18N = {
     'ligas.matchCount': '{n} match',
     'ligas.matchCountPlural': '{n} matches',
     'empty.noMatches': 'No matches for {date}',
-    'empty.noTips': 'No playable tips today (Pâ‰¥{p}% Â· odds â‰¤{odds})',
+    'empty.noTips': 'No playable tips today (P≥{p}%)',
     'empty.noClosedTips': 'No settled tips yet',
-    'empty.loadingAnalysis': 'Loading analysisâ€¦',
+    'empty.loadingAnalysis': 'Loading analysis…',
     'form.win': 'Win',
     'form.draw': 'Draw',
     'form.loss': 'Loss',
@@ -4197,7 +4223,7 @@ const I18N = {
     'consent.acceptAll': 'Accept all',
     'consent.necessary': 'Necessary only',
     'consent.customize': 'Customize',
-    'consent.back': 'â† Back',
+    'consent.back': '← Back',
     'consent.customLead':
       'Choose what to store on this device. You need to confirm you are of legal age to save.',
     'consent.privacy': 'Privacy',
@@ -4207,11 +4233,11 @@ const I18N = {
     'toast.payOpenFail': 'Could not open checkout. Try again in a few seconds.',
     'toast.payStartFail': 'Could not start Premium checkout: {msg}',
     'toast.payOk': 'Payment confirmed: Premium unlocked. It will show in a few seconds.',
-    'toast.payCancel': 'Payment cancelled â€” no charge.',
+    'toast.payCancel': 'Payment cancelled — no charge.',
     'toast.accountDeleted': 'Account deleted',
     'toast.accountDeleteFail': 'Could not delete account',
-    'toast.telegramSoon': 'Telegram Â· Soon',
-    'toast.nextMatchSearch': 'Looking up next matchâ€¦',
+    'toast.telegramSoon': 'Telegram · Soon',
+    'toast.nextMatchSearch': 'Looking up next match…',
     'toast.noNextMatch': 'No upcoming match in the window',
     'toast.googleFail': 'Could not complete Google sign-in.',
     'league.generic': 'League',
@@ -4230,8 +4256,8 @@ const I18N = {
     'bet.AWAY_WIN': 'Away win',
     'bet.DC_1X': 'Double chance 1X',
     'bet.DC_X2': 'Double chance X2',
-    'bet.DNB_HOME': 'Draw no bet Â· home',
-    'bet.DNB_AWAY': 'Draw no bet Â· away',
+    'bet.DNB_HOME': 'Draw no bet · home',
+    'bet.DNB_AWAY': 'Draw no bet · away',
     'bet.OVER_05': 'Over 0.5 goals',
     'bet.UNDER_05': 'Under 0.5 goals',
     'bet.OVER_15': 'Over 1.5 goals',
@@ -4242,24 +4268,24 @@ const I18N = {
     'bet.UNDER_35': 'Under 3.5 goals',
     'bet.OVER_45': 'Over 4.5 goals',
     'bet.UNDER_45': 'Under 4.5 goals',
-    'bet.BTTS_YES': 'BTTS â€” Yes',
-    'bet.BTTS_NO': 'BTTS â€” No',
-    'bet.HOME_OVER_05': 'Home Â· Over 0.5 goals',
-    'bet.HOME_UNDER_05': 'Home Â· Under 0.5 goals',
-    'bet.HOME_OVER_15': 'Home Â· Over 1.5 goals',
-    'bet.HOME_UNDER_15': 'Home Â· Under 1.5 goals',
-    'bet.HOME_OVER_25': 'Home Â· Over 2.5 goals',
-    'bet.HOME_UNDER_25': 'Home Â· Under 2.5 goals',
-    'bet.HOME_OVER_35': 'Home Â· Over 3.5 goals',
-    'bet.HOME_UNDER_35': 'Home Â· Under 3.5 goals',
-    'bet.AWAY_OVER_05': 'Away Â· Over 0.5 goals',
-    'bet.AWAY_UNDER_05': 'Away Â· Under 0.5 goals',
-    'bet.AWAY_OVER_15': 'Away Â· Over 1.5 goals',
-    'bet.AWAY_UNDER_15': 'Away Â· Under 1.5 goals',
-    'bet.AWAY_OVER_25': 'Away Â· Over 2.5 goals',
-    'bet.AWAY_UNDER_25': 'Away Â· Under 2.5 goals',
-    'bet.AWAY_OVER_35': 'Away Â· Over 3.5 goals',
-    'bet.AWAY_UNDER_35': 'Away Â· Under 3.5 goals',
+    'bet.BTTS_YES': 'BTTS — Yes',
+    'bet.BTTS_NO': 'BTTS — No',
+    'bet.HOME_OVER_05': 'Home · Over 0.5 goals',
+    'bet.HOME_UNDER_05': 'Home · Under 0.5 goals',
+    'bet.HOME_OVER_15': 'Home · Over 1.5 goals',
+    'bet.HOME_UNDER_15': 'Home · Under 1.5 goals',
+    'bet.HOME_OVER_25': 'Home · Over 2.5 goals',
+    'bet.HOME_UNDER_25': 'Home · Under 2.5 goals',
+    'bet.HOME_OVER_35': 'Home · Over 3.5 goals',
+    'bet.HOME_UNDER_35': 'Home · Under 3.5 goals',
+    'bet.AWAY_OVER_05': 'Away · Over 0.5 goals',
+    'bet.AWAY_UNDER_05': 'Away · Under 0.5 goals',
+    'bet.AWAY_OVER_15': 'Away · Over 1.5 goals',
+    'bet.AWAY_UNDER_15': 'Away · Under 1.5 goals',
+    'bet.AWAY_OVER_25': 'Away · Over 2.5 goals',
+    'bet.AWAY_UNDER_25': 'Away · Under 2.5 goals',
+    'bet.AWAY_OVER_35': 'Away · Over 3.5 goals',
+    'bet.AWAY_UNDER_35': 'Away · Under 3.5 goals',
     'bet.CORNERS_OVER_85': 'Over 8.5 corners',
     'bet.CORNERS_UNDER_85': 'Under 8.5 corners',
     'bet.CORNERS_OVER_95': 'Over 9.5 corners',
@@ -4293,7 +4319,7 @@ const I18N = {
     'perfil.metaFree': 'Free plan',
     'perfil.metaActive': 'Premium plan active',
     'perfil.metaUntil': 'Until {date}',
-    'perfil.metaDays': ' Â· {n} days',
+    'perfil.metaDays': ' · {n} days',
     'perfil.upgrade': 'Upgrade to Premium',
     'perfil.settings': 'Settings',
     'perfil.privacy': 'Privacy',
@@ -4308,14 +4334,14 @@ const I18N = {
     'premium.perWeek': '/ week',
     'premium.perMonth': '/ month',
     'premium.popular': 'Most popular',
-    'premium.featLine': 'Goals Â· Shots Â· Corners Â· Cards Â· Top 10',
-    'premium.note': 'Secure checkout. Without Stripe you will see â€œPayment not configuredâ€.',
+    'premium.featLine': 'Goals · Shots · Corners · Cards · Top 10',
+    'premium.note': 'Secure checkout. Without Stripe you will see “Payment not configured”.',
     'premium.bannerBadge': 'SPECIAL OFFER',
     'premium.bannerTitle': 'Houdini Premium',
     'premium.bannerLead': 'Houdini tip and advanced match stats.',
     'premium.bannerCta': 'See plans',
     'premium.bannerFeat1': 'Match tip + 1X2',
-    'premium.bannerFeat2': 'Goals Â· Shots Â· Corners Â· Cards tables',
+    'premium.bannerFeat2': 'Goals · Shots · Corners · Cards tables',
     'premium.bannerFeat3': 'Top 10 and weekly combos',
     'premium.bannerFeat4': 'Live probabilities',
     'premium.upsellText': 'Tips, ROI and advanced stats come with Premium.',
@@ -4332,7 +4358,7 @@ const I18N = {
     'aciertos.hit': 'Hit',
     'aciertos.miss': 'Miss',
     'aciertos.void': 'Void',
-    'aciertos.empty': 'No Top 10 tips for this day (P 78â€“95%).',
+    'aciertos.empty': 'No Top 10 tips for this day (P 78–95%).',
     'aciertos.loadError': 'Could not load the day board',
     'aciertos.summaryEmpty': 'No tips to summarize for this day.',
     'stats.heroTitle': 'Match statistics',
@@ -4348,7 +4374,7 @@ const I18N = {
     'stats.metric.corners': 'Corners',
     'stats.metric.cards': 'Cards',
     'stats.byLeague': 'By league',
-    'stats.backLeagues': 'â† Leagues',
+    'stats.backLeagues': '← Leagues',
     'stats.team': 'Team',
     'stats.allTeams': 'All teams',
     'stats.colLeague': 'League',
@@ -4362,17 +4388,17 @@ const I18N = {
     'stats.label.corners': 'corners',
     'stats.label.cards': 'cards',
     'stats.market.OVER_05': 'Total goals: +0.5',
-    'stats.market.UNDER_05': 'Total goals: âˆ’0.5',
+    'stats.market.UNDER_05': 'Total goals: −0.5',
     'stats.market.OVER_15': 'Total goals: +1.5',
-    'stats.market.UNDER_15': 'Total goals: âˆ’1.5',
+    'stats.market.UNDER_15': 'Total goals: −1.5',
     'stats.market.OVER_25': 'Total goals: +2.5',
-    'stats.market.UNDER_25': 'Total goals: âˆ’2.5',
+    'stats.market.UNDER_25': 'Total goals: −2.5',
     'stats.market.OVER_35': 'Total goals: +3.5',
-    'stats.market.UNDER_35': 'Total goals: âˆ’3.5',
+    'stats.market.UNDER_35': 'Total goals: −3.5',
     'stats.market.OVER_45': 'Total goals: +4.5',
-    'stats.market.UNDER_45': 'Total goals: âˆ’4.5',
+    'stats.market.UNDER_45': 'Total goals: −4.5',
     'stats.market.OVER_55': 'Total goals: +5.5',
-    'stats.market.UNDER_55': 'Total goals: âˆ’5.5',
+    'stats.market.UNDER_55': 'Total goals: −5.5',
     'stats.market.BTTS_YES': 'Both teams to score: YES',
     'stats.market.BTTS_NO': 'Both teams to score: NO',
     'stats.market.HOME_WIN': '1',
@@ -4381,19 +4407,19 @@ const I18N = {
     'stats.market.AVG_YELLOW': 'Avg yellow cards per match',
     'stats.market.AVG_RED': 'Avg red cards per match',
     'stats.market.AVG_CORNERS': 'Avg corners per match',
-    'panel.avgTitle': 'Recent averages Â· {unit}',
+    'panel.avgTitle': 'Recent averages · {unit}',
     'panel.avgLeague': 'League / team average',
     'panel.avgProxy': 'Proxy average (no league sample)',
     'panel.avgCaption': '{unit} per match (recent matches)',
-    'panel.avgCaptionProxy': '{unit} per match Â· no league sample â†’ proxy',
-    'panel.avgCaptionNoTeam': 'No team samples Â· reference proxy average',
+    'panel.avgCaptionProxy': '{unit} per match · no league sample → proxy',
+    'panel.avgCaptionNoTeam': 'No team samples · reference proxy average',
     'panel.avgAria': 'Recent averages for {unit}',
     'chip.liveFull': 'LIVE',
     'round.matchday': 'Matchday {n}',
     'round.jornada': 'Matchday {n}',
     'round.group': 'Group {g}',
-    'ligas.searchPlaceholder': 'Search league or countryâ€¦',
-    'ligas.loadingTable': 'Loading tableâ€¦',
+    'ligas.searchPlaceholder': 'Search league or country…',
+    'ligas.loadingTable': 'Loading table…',
     'ligas.noMatchSearch': 'No leagues match',
     'ligas.unavailable': 'Not available in data',
     'privacy.lead': 'Tips are informational. We use match and odds data to compute predictions. We do not sell personal data for ads. You can withdraw or change optional consent with the toggles below.',
@@ -4417,7 +4443,7 @@ const I18N = {
     'consent.optPrefs': 'Optional preferences',
     'consent.saveCustom': 'Save preferences',
     'consent.docTitle': 'Document',
-    'consent.backDoc': 'â† Back',
+    'consent.backDoc': '← Back',
     'consent.analyticsHintShort': 'Local stub (console).',
     'consent.searchTitle': 'Save search',
     'consent.searchHintShort': 'Last team searched.',
@@ -4427,9 +4453,9 @@ const I18N = {
     'nav.sections': 'Sections',
     'weekly.other': 'Another',
     'weekly.days14': '14 days',
-    'premium.statusFree': 'Free plan â€” unlock tip and advanced stats',
+    'premium.statusFree': 'Free plan — unlock tip and advanced stats',
     'premium.statusOn': 'Premium plan active',
-    'premium.statusUntil': 'Premium plan active Â· until {date}',
+    'premium.statusUntil': 'Premium plan active · until {date}',
     'premium.subscribe': 'Subscribe',
     'premium.already': 'You are Premium',
     'settings.title': 'Settings',
@@ -4478,7 +4504,7 @@ const I18N = {
     'panel.match': 'Match',
     'panel.expected': 'Expected',
     'panel.trendsOf': '{title} trends',
-    'panel.underTrendsOf': 'Under â€” {title}',
+    'panel.underTrendsOf': 'Under — {title}',
     'panel.overLine': 'Over {n}',
     'panel.underLine': 'Under {n}',
     'panel.goalsTitle': 'goals',
@@ -4491,8 +4517,8 @@ const I18N = {
     'panel.cornersExpected': 'Expected corners',
     'panel.cardsTitle': 'cards',
     'panel.cardsExpected': 'Expected cards',
-    'panel.offTarget': 'Est. off target â‰ˆ {h} / {a} / {m}',
-    'censor.aria': 'Subscribers only â€” unlock with Houdini Premium',
+    'panel.offTarget': 'Est. off target ≈ {h} / {a} / {m}',
+    'censor.aria': 'Subscribers only — unlock with Houdini Premium',
     'censor.title': 'Subscribers only',
     'censor.sub': 'Unlock stats with Houdini Premium',
     'censor.cta': 'See plans',
@@ -4500,6 +4526,8 @@ const I18N = {
     'chip.live': 'Live',
     'chip.finished': 'Finished',
     'chip.upcoming': 'Upcoming',
+    'chip.postponed': 'Postponed',
+    'chip.cancelled': 'Cancelled',
     'panel.analysis': 'Analysis',
   },
 };
@@ -4518,7 +4546,7 @@ function loadUiSettings() {
   }
 }
 
-/** Shared Premium / Gratuito badge for menÃº + perfil. */
+/** Shared Premium / Gratuito badge for menú + perfil. */
 function syncPlanBadge(el, isPremium) {
   if (!el) return;
   const on = Boolean(isPremium);
@@ -4794,7 +4822,7 @@ function setModeBadge(status) {
   if (status?.demo) {
     el.textContent = 'DEMO';
     el.classList.add('demo');
-    el.title = status.message || 'Modo demo â€” actualiza el calendario';
+    el.title = status.message || 'Modo demo — actualiza el calendario';
     el.hidden = false;
   } else {
     el.textContent = '';
@@ -4826,7 +4854,7 @@ function renderAdminStatus(status) {
   lines.push(
     status.oddsEnabled
       ? 'API-Football: activa'
-      : 'API-Football: sin key â†’ sin cuotas; stats FotMob activas'
+      : 'API-Football: sin key → sin cuotas; stats FotMob activas'
   );
   const cov =
     status.oddsCoveragePct != null
@@ -4834,19 +4862,19 @@ function renderAdminStatus(status) {
       : `${status.oddsMatchCount ?? 0} filas odds`;
   lines.push(`Cobertura: ${cov}`);
   lines.push(
-    `CÃ³rners ${status.cornersMatchCount ?? 0} Â· amarillas ${status.yellowsMatchCount ?? 0} Â· SOT ${status.shotsOnTargetMatchCount ?? 0}`
+    `Córners ${status.cornersMatchCount ?? 0} · amarillas ${status.yellowsMatchCount ?? 0} · SOT ${status.shotsOnTargetMatchCount ?? 0}`
   );
   const syncAgo = formatAgo(status.lastSyncAt);
   const enrichAgo = formatAgo(status.lastEnrichAt);
-  lines.push(`Sync ${syncAgo || 'â€”'}${enrichAgo ? ` Â· enrich ${enrichAgo}` : ''}`);
+  lines.push(`Sync ${syncAgo || '—'}${enrichAgo ? ` · enrich ${enrichAgo}` : ''}`);
   const es = status.lastEnrichSummary;
   if (es && typeof es === 'object') {
     lines.push(
-      `Ãšltimo enrich: odds ${es.oddsSynced ?? 0}/${es.queued ?? 'â€”'} Â· miss ${es.nameMiss ?? 0} Â· vacÃ­o ${es.emptyOdds ?? 0} Â· direct ${es.directHits ?? 0}`
+      `Último enrich: odds ${es.oddsSynced ?? 0}/${es.queued ?? '—'} · miss ${es.nameMiss ?? 0} · vacío ${es.emptyOdds ?? 0} · direct ${es.directHits ?? 0}`
     );
   }
   if (status.calibrationDecided != null) {
-    lines.push(`CalibraciÃ³n: ${status.calibrationDecided} tips`);
+    lines.push(`Calibración: ${status.calibrationDecided} tips`);
   }
   if (status.message) lines.push(status.message);
   el.innerHTML = lines.map((l) => `<div>${escapeHtml(l)}</div>`).join('');
@@ -4872,7 +4900,7 @@ function setSyncLabel(status) {
   const hours = Math.max(0, Math.round((Date.now() - t) / 36e5));
   const short =
     hours <= 0 ? 'Sync hace un momento' : hours === 1 ? 'Sync hace 1 h' : `Sync hace ${hours} h`;
-  const full = `Ãšltima sincronizaciÃ³n: ${new Date(t).toLocaleString('es-ES')}`;
+  const full = `Última sincronización: ${new Date(t).toLocaleString('es-ES')}`;
   el.hidden = false;
   el.textContent = short;
   el.title = full;
@@ -4924,13 +4952,15 @@ function resolveSelectedDate() {
 
 /** D1 leagueId last requested to matches/today (null = all leagues for the date). */
 let matchesFetchLeagueId = null;
+/** Calendar date of the last successful /matches/today payload in cachedMatches. */
+let matchesFetchDate = null;
 let matchesReloadQueued = false;
 
 function matchListQuery() {
   const d = resolveSelectedDate();
   selectedDate = d;
   let q = `date=${encodeURIComponent(d)}`;
-  // Single D1 league selection â†’ server-side filter (multi stays client-side)
+  // Single D1 league selection → server-side filter (multi stays client-side)
   if (leagueFilterIds.size === 1) {
     const lid = [...leagueFilterIds][0];
     if (Number.isFinite(Number(lid))) q += `&leagueId=${encodeURIComponent(String(lid))}`;
@@ -4944,7 +4974,7 @@ function desiredMatchesFetchLeagueId() {
   return Number.isFinite(lid) ? lid : null;
 }
 
-/** Aciertos / tip summary: always full tip history (ignore PronÃ³sticos window). */
+/** Aciertos / tip summary: always full tip history (ignore Pronósticos window). */
 const TIPS_PERF_GLOBAL_Q = 'all=1';
 
 function syncWindowChips() {
@@ -5009,7 +5039,7 @@ function setDayPreset(kind) {
 function matchBrowseBucket(m) {
   const st = String(m.status || '');
   if (st === 'live') return 'live';
-  if (st === 'finished') return 'finished';
+  if (st === 'finished' || st === 'postponed' || st === 'cancelled') return 'finished';
   if (st === 'scheduled') return 'upcoming';
   return null;
 }
@@ -5148,25 +5178,30 @@ function renderPartidosList() {
   bindAnalyze(el);
 }
 
-/** Top 10 probability band (inclusive): very-likely only â€” no low-P backfill. */
+/** Top 10 probability band (inclusive): very-likely only — no low-P backfill. */
 const TOP10_MIN_PROB = 78;
 const TOP10_MAX_PROB = 95;
-/** Preferred playable floor (lane/value). Top 10 does not hard-reject below this. */
-const TOP10_MIN_ODDS = 1.3;
-const TOP10_MAX_ODDS = 3.5;
+/** Allowlisted tip markets (must stay in sync with tipMarkets.js). */
+const TIP_MARKET_SET = new Set([
+  'OVER_15',
+  'HOME_OVER_15',
+  'AWAY_OVER_15',
+  'OVER_25',
+  'HOME_OVER_25',
+  'AWAY_OVER_25',
+  'BTTS_YES',
+  'DC_1X',
+  'DC_X2',
+  'CARDS_OVER_35',
+  'CORNERS_OVER_75',
+  'SOT_OVER_75',
+]);
 const TOP10_TRIVIAL_LABELS = new Set(['OVER_05', 'UNDER_45']);
 const TOP10_MAX_PER_FAMILY = 3;
 const TOP10_LIMIT = 10;
 
-function tipValueScore(m) {
-  const edge = m.valueEdge != null ? Number(m.valueEdge) : null;
-  const hasBook =
-    m.oddsSource === 'book' ||
-    (m.tipOdds != null && Number(m.tipOdds) > 1 && edge != null);
-  if (hasBook && edge != null && Number.isFinite(edge)) return { score: edge, kind: 'value' };
-  const conf = Number(m.confidenceScore);
-  if (Number.isFinite(conf)) return { score: conf / 100, kind: 'conf' };
-  return { score: -Infinity, kind: 'none' };
+function isTipMarket(code) {
+  return TIP_MARKET_SET.has(String(code || '').toUpperCase());
 }
 
 function isTrivialTop10Label(label) {
@@ -5175,32 +5210,12 @@ function isTrivialTop10Label(label) {
 }
 
 /**
- * Odds used for Top 10 band check: in-band tipOdds â†’ model-implied 1/p.
- * Never reject solely because tipOdds is null (common without API_FOOTBALL_KEY).
- * Long book cuota falls back to 1/p so high-P tips still fill the day board.
- */
-function tipOddsForTop10Band(m, probPct) {
-  const raw = m?.tipOdds != null ? Number(m.tipOdds) : null;
-  const p = Number(probPct) / 100;
-  const implied =
-    Number.isFinite(p) && p > 0.01 && p < 0.99 ? 1 / p : null;
-  if (raw != null && Number.isFinite(raw) && raw > 1 && raw <= TOP10_MAX_ODDS) {
-    return raw;
-  }
-  if (implied != null && implied <= TOP10_MAX_ODDS) return implied;
-  if (raw != null && Number.isFinite(raw) && raw > 1) return raw;
-  return null;
-}
-
-/**
- * Top 10 eligibility score: non-trivial, P in [minProb, TOP10_MAX_PROB], cuota â‰¤3.50.
- * Min cuota 1.30 is playable-value guidance only â€” do NOT reject high-P tips
- * whose model 1/p (or short book) falls below 1.30; that starved quiet/high-P days.
- * tipTier none / display tips OK (Top 10 is UI ranking, not tip_results).
+ * Top 10 eligibility: allowlisted + P in [minProb, TOP10_MAX_PROB].
+ * Rank by model P only — no cuota/odds gates.
  */
 function tipPlayableScore(m, minProb = TOP10_MIN_PROB) {
   const tip = m?.suggestedBet || m?.tip || m?.suggested_bet || '';
-  if (!tip || isTrivialTop10Label(tip)) return null;
+  if (!tip || !isTipMarket(tip) || isTrivialTop10Label(tip)) return null;
   const prob = tipProbPct(m);
   if (
     prob == null ||
@@ -5210,41 +5225,29 @@ function tipPlayableScore(m, minProb = TOP10_MIN_PROB) {
   ) {
     return null;
   }
-  const odds = tipOddsForTop10Band(m, prob);
-  // Reject missing / invalid / longshot (>max). Allow shorts below TOP10_MIN_ODDS.
-  if (odds == null || !Number.isFinite(odds) || odds <= 1 || odds > TOP10_MAX_ODDS) {
-    return null;
-  }
-  const isBook = m.oddsSource === 'book' && m.tipOdds != null && Number(m.tipOdds) > 1;
-  let score = (Number(prob) / 100) * Math.log(Math.max(odds, 1.01));
-  const edge = m.valueEdge != null ? Number(m.valueEdge) : null;
-  if (edge != null && Number.isFinite(edge)) score += Math.max(0, edge) * 0.15;
-  if (!isBook) score -= 0.05;
   return {
-    score,
-    kind: isBook ? 'book' : 'est',
+    score: Number(prob) / 100,
+    kind: 'est',
     prob: Number(prob),
   };
 }
 
 function tipFamilyUi(code) {
   const b = String(code || '').toUpperCase();
-  if (b === 'HOME_WIN' || b === 'DRAW' || b === 'AWAY_WIN') return '1x2';
-  if (b.startsWith('DC_') || b.startsWith('DNB_')) return 'dc';
-  if (b === 'BTTS_YES' || b === 'BTTS_NO') return 'btts';
+  if (b === 'DC_1X' || b === 'DC_X2') return 'dc';
+  if (b === 'BTTS_YES') return 'btts';
   if (
-    b.startsWith('OVER_') ||
-    b.startsWith('UNDER_') ||
-    b.startsWith('HOME_OVER') ||
-    b.startsWith('HOME_UNDER') ||
-    b.startsWith('AWAY_OVER') ||
-    b.startsWith('AWAY_UNDER')
+    b === 'OVER_15' ||
+    b === 'OVER_25' ||
+    b === 'HOME_OVER_15' ||
+    b === 'HOME_OVER_25' ||
+    b === 'AWAY_OVER_15' ||
+    b === 'AWAY_OVER_25'
   ) {
     return 'ou';
   }
   if (b.startsWith('CORNERS_')) return 'corners';
   if (b.startsWith('CARDS_')) return 'cards';
-  if (b.startsWith('SHOTS_')) return 'shots';
   if (b.startsWith('SOT_')) return 'shots_on_target';
   return 'other';
 }
@@ -5315,47 +5318,97 @@ function isTop10MatchStatus(status) {
   return s === 'scheduled' || s === 'live' || s === '';
 }
 
+/** Best allowlisted tip in P 78–95% from flat market probs (matches/today). */
+function pickPlayablePrimaryFromMatch(raw) {
+  const unit = (v) => {
+    const n = Number(v);
+    if (!Number.isFinite(n) || n <= 0) return null;
+    return n > 1 ? n / 100 : n;
+  };
+  const probFor = (label) => {
+    if (label === 'DC_1X') {
+      const hw = unit(raw?.homeWinProb);
+      const dr = unit(raw?.drawProb);
+      return hw != null && dr != null ? hw + dr : null;
+    }
+    if (label === 'DC_X2') {
+      const aw = unit(raw?.awayWinProb);
+      const dr = unit(raw?.drawProb);
+      return aw != null && dr != null ? aw + dr : null;
+    }
+    const map = {
+      OVER_15: raw?.over15Prob,
+      HOME_OVER_15: raw?.homeOver15Prob,
+      AWAY_OVER_15: raw?.awayOver15Prob,
+      OVER_25: raw?.over25Prob,
+      HOME_OVER_25: raw?.homeOver25Prob,
+      AWAY_OVER_25: raw?.awayOver25Prob,
+      BTTS_YES: raw?.bttsYesProb,
+      CARDS_OVER_35: raw?.cardsOver35Prob,
+      CORNERS_OVER_75: raw?.cornersOver75Prob,
+      SOT_OVER_75: raw?.sotOver75Prob,
+    };
+    return unit(map[label]);
+  };
+  let best = null;
+  for (const code of TIP_MARKET_SET) {
+    if (isTrivialTop10Label(code)) continue;
+    const p = probFor(code);
+    if (p == null) continue;
+    const probPct = Math.trunc(p * 100);
+    if (probPct < TOP10_MIN_PROB || probPct > TOP10_MAX_PROB) continue;
+    if (!best || probPct > best.probPct || (probPct === best.probPct && p > best.prob)) {
+      best = { label: code, prob: p, probPct };
+    }
+  }
+  return best;
+}
+
 /**
- * Primary tip candidates only (P 78â€“95%). Never promote secondary into Top 10 chrome â€”
- * Top 10 card-tip uses match primary (suggestedBet) â€” same label as former panel tip.
- * tipTier none / display tips included when tipProbPct is in band (Top 10 â‰  Stats ledger).
+ * Primary tip candidates only (P 78–95%). Re-picks from allowlisted market probs
+ * so stale suggestedBet (HOME_WIN / DNB / SOT_UNDER_*) cannot starve Top 10.
  * Only scheduled/live (skip finished) so Top 10 stays actionable.
  */
 function buildTop10Pool(matches) {
   const pool = [];
   for (const raw of matches || []) {
-    if (!raw?.suggestedBet || isTrivialTop10Label(raw.suggestedBet)) continue;
     if (!isTop10MatchStatus(raw.status)) continue;
+    const picked = pickPlayablePrimaryFromMatch(raw);
+    let tipLabel = picked?.label || null;
+    let tipMarketProb = picked?.probPct ?? null;
+    if (!tipLabel) {
+      const stored = raw?.suggestedBet || raw?.tip || '';
+      if (!stored || isTrivialTop10Label(stored) || !isTipMarket(stored)) continue;
+      tipLabel = stored;
+      tipMarketProb = tipProbPct(raw);
+    }
+    if (!tipLabel) continue;
     const matchId = raw.id ?? raw.matchId;
     const primaryView = {
       ...raw,
       id: matchId,
-      suggestedBet: raw.suggestedBet,
-      tipOdds: raw.tipOdds,
-      oddsSource: raw.oddsSource,
-      confidenceScore: raw.confidenceScore,
+      suggestedBet: tipLabel,
+      confidenceScore: tipMarketProb ?? raw.confidenceScore,
+      tipMarketProb: tipMarketProb ?? raw.tipMarketProb,
     };
     const primaryMeta = tipPlayableScore(primaryView, TOP10_MIN_PROB);
     if (primaryMeta) {
       pool.push({
         m: primaryView,
-        tipLabel: raw.suggestedBet,
+        tipLabel,
         matchId,
         isSecondary: false,
         meta: primaryMeta,
       });
     }
   }
-  // Highest model P first; book over est, then score as tie-breakers.
   return pool.sort((a, b) => {
     if (b.meta.prob !== a.meta.prob) return b.meta.prob - a.meta.prob;
-    if (a.meta.kind === 'book' && b.meta.kind !== 'book') return -1;
-    if (b.meta.kind === 'book' && a.meta.kind !== 'book') return 1;
     return b.meta.score - a.meta.score;
   });
 }
 
-/** Fill up to 10: diversity caps, P 78â€“95% only (no low-P backfill). */
+/** Fill up to 10: diversity caps, P 78–95% only (no low-P backfill). */
 function pickTop10Tips(matches, limit = TOP10_LIMIT) {
   const pool = buildTop10Pool(matches);
   return selectDiverseTips(pool, limit, 1, TOP10_MAX_PER_FAMILY);
@@ -5363,59 +5416,44 @@ function pickTop10Tips(matches, limit = TOP10_LIMIT) {
 
 let top3LoadSeq = 0;
 
-/**
- * Top 10: tips of the selected calendar day only (same date as Partidos).
- * Fill min(10, N). P 78â€“95% desc + tip/%/cuota. Not best-bets/playable-only. Stats tip_results unchanged.
- */
-async function renderTop3() {
-  const el = document.getElementById('top3-list');
-  if (!el) return;
-  const seq = ++top3LoadSeq;
-  el.innerHTML = Array.from({ length: 4 }, () => `<div class="skeleton" aria-hidden="true"></div>`).join('');
-  try {
-    const date = resolveSelectedDate();
-    const data = await api(`/api/v1/matches/today?date=${encodeURIComponent(date)}`);
-    if (seq !== top3LoadSeq) return;
-    const matches = data.matches || [];
-    const picked = pickTop10Tips(matches, TOP10_LIMIT);
-    if (!picked.length) {
-      el.innerHTML = `<div class="empty-board">${escapeHtml(
-        t('empty.noTips', { p: TOP10_MIN_PROB, odds: TOP10_MAX_ODDS.toFixed(2) })
-      )}</div>`;
-      return;
-    }
-    el.innerHTML = picked
-      .map((item, i) => {
-        const bet = item.m;
-        const home = bet.homeTeam?.name || bet.home || '';
-        const away = bet.awayTeam?.name || bet.away || '';
-        const tip = item.tipLabel || bet.suggestedBet;
-        const tipLabel = tip ? labelBet(tip, home, away) : 'Sin tip';
-        const m = {
-          ...bet,
-          id: item.matchId ?? bet.id ?? bet.matchId,
-          leagueName: bet.leagueName || bet.league,
-          suggestedBet: tip,
-        };
-        const prob = tipProbPct(m);
-        const oddsTxt = tipOddsDisplay(bet.tipOdds);
-        const rank = i + 1;
-        const matchId = Number(item.matchId ?? bet.id ?? bet.matchId);
-        const liveStrip = bet.status === 'live' ? liveStripHtml(m) : '';
-        const round = formatRoundLabel(m);
-        const tipPrimary = hbCensorWrap(
-          `<div class="card-tip__primary">
+function paintTop10List(el, matches) {
+  const picked = pickTop10Tips(matches, TOP10_LIMIT);
+  if (!picked.length) {
+    el.innerHTML = `<div class="empty-board">${escapeHtml(
+      t('empty.noTips', { p: TOP10_MIN_PROB })
+    )}</div>`;
+    return;
+  }
+  el.innerHTML = picked
+    .map((item, i) => {
+      const bet = item.m;
+      const home = bet.homeTeam?.name || bet.home || '';
+      const away = bet.awayTeam?.name || bet.away || '';
+      const tip = item.tipLabel || bet.suggestedBet;
+      const tipLabel = tip ? labelBet(tip, home, away) : 'Sin tip';
+      const m = {
+        ...bet,
+        id: item.matchId ?? bet.id ?? bet.matchId,
+        leagueName: bet.leagueName || bet.league,
+        suggestedBet: tip,
+      };
+      const prob = tipProbPct(m);
+      const rank = i + 1;
+      const matchId = Number(item.matchId ?? bet.id ?? bet.matchId);
+      const liveStrip = bet.status === 'live' ? liveStripHtml(m) : '';
+      const round = formatRoundLabel(m);
+      const tipPrimary = hbCensorWrap(
+        `<div class="card-tip__primary">
             <span class="card-tip__bet tip-accent">${escapeHtml(tipLabel)}</span>
             ${
               prob != null
                 ? `<span class="${confClass(prob)} card-tip__conf">${formatTipPct(prob)}%</span>`
                 : ''
             }
-            ${oddsTxt ? `<span class="tip-odds card-tip__odds">${escapeHtml(oddsTxt)}</span>` : ''}
           </div>`
-        );
-        const delay = Math.min(8, i) * 40;
-        return `
+      );
+      const delay = Math.min(8, i) * 40;
+      return `
       <article class="card card--tip card--row card--top3" data-analyze="${matchId}" style="animation-delay:${delay}ms">
         <div class="card-tip__body">
           <div class="top3-rank">#${rank}</div>
@@ -5427,14 +5465,47 @@ async function renderTop3() {
             bet.leagueLogo || m.leagueLogo,
             'card-tip__league-logo'
           )}<span>${escapeHtml(leagueKey(m))}${
-            round ? ` Â· ${escapeHtml(round)}` : ''
+            round ? ` · ${escapeHtml(round)}` : ''
           }</span></p>
         </div>
         <button class="primary card-tip__action" data-analyze="${matchId}" type="button">Analizar</button>
       </article>`;
-      })
-      .join('');
-    bindAnalyze(el);
+    })
+    .join('');
+  bindAnalyze(el);
+}
+
+/**
+ * Top 10: tips of the selected calendar day only (same date as Partidos).
+ * Fill min(10, N). P 78–95% desc + tip/% (no cuota). Stats tip_results unchanged.
+ * Reuses Partidos cachedMatches for the same date (instant tab) when available.
+ */
+async function renderTop3() {
+  const el = document.getElementById('top3-list');
+  if (!el) return;
+  const seq = ++top3LoadSeq;
+  const date = resolveSelectedDate();
+  const canReuse =
+    matchesFetchDate === date &&
+    matchesFetchLeagueId == null &&
+    Array.isArray(cachedMatches) &&
+    cachedMatches.length > 0;
+  if (canReuse) {
+    paintTop10List(el, cachedMatches);
+    return;
+  }
+  el.innerHTML = Array.from({ length: 4 }, () => `<div class="skeleton" aria-hidden="true"></div>`).join('');
+  try {
+    const data = await api(`/api/v1/matches/today?date=${encodeURIComponent(date)}`);
+    if (seq !== top3LoadSeq) return;
+    const matches = data.matches || [];
+    if (matchesFetchLeagueId == null) {
+      cachedMatches = matches;
+      cachedBets = cachedMatches.filter((m) => m.suggestedBet);
+      cachedMode = data.mode || cachedMode;
+      matchesFetchDate = date;
+    }
+    paintTop10List(el, matches);
   } catch (err) {
     if (seq !== top3LoadSeq) return;
     el.innerHTML = `<div class="empty-board">No se pudo cargar el Top 10: ${escapeHtml(
@@ -5447,16 +5518,21 @@ let aciertosLoadSeq = 0;
 let aciertosBound = false;
 
 function formatAciertosHitRate(rate) {
-  if (rate == null || !Number.isFinite(Number(rate))) return 'â€”';
+  if (rate == null || !Number.isFinite(Number(rate))) return '—';
   return `${Math.round(Number(rate) * 100)}%`;
 }
 
-function aciertosOutcomeMeta(outcome) {
+function aciertosOutcomeTone(outcome) {
   const o = String(outcome || 'pending').toLowerCase();
-  if (o === 'hit') return { mark: 'âœ“', chip: t('aciertos.hit'), tone: 'hit' };
-  if (o === 'miss') return { mark: 'âœ—', chip: t('aciertos.miss'), tone: 'miss' };
-  if (o === 'void') return { mark: 'Â·', chip: t('aciertos.void'), tone: 'void' };
-  return { mark: 'Â·', chip: t('aciertos.pending'), tone: 'pending' };
+  if (o === 'hit' || o === 'miss' || o === 'void') return o;
+  return 'pending';
+}
+
+function aciertosOutcomeLabel(tone) {
+  if (tone === 'hit') return t('aciertos.hit');
+  if (tone === 'miss') return t('aciertos.miss');
+  if (tone === 'void') return t('aciertos.void');
+  return t('aciertos.pending');
 }
 
 function syncAciertosDateControls() {
@@ -5558,12 +5634,13 @@ function aciertosRowHtml(item, rankFallback) {
   const home = item.homeName || '';
   const away = item.awayName || '';
   const tip = item.suggestedBet || '';
-  const tipLabel = tip ? labelBet(tip, home, away) : 'â€”';
+  const tipLabel = tip ? labelBet(tip, home, away) : '-';
   const prob = item.tipMarketProb != null ? formatTipPct(item.tipMarketProb) : null;
-  const meta = aciertosOutcomeMeta(item.outcome);
+  const tone = aciertosOutcomeTone(item.outcome);
+  const statusLabel = aciertosOutcomeLabel(tone);
   const score =
     item.homeGoals != null && item.awayGoals != null
-      ? `${item.homeGoals}â€“${item.awayGoals}`
+      ? item.homeGoals + '-' + item.awayGoals
       : '';
   const tipMeta = `
     <div class="aciertos-row__tip">
@@ -5576,9 +5653,13 @@ function aciertosRowHtml(item, rankFallback) {
     </div>`;
   const tipBlock = contentUnlocked() ? tipMeta : hbCensorWrap(tipMeta);
   const delay = Math.min(8, Math.max(0, Number(rankFallback) || 0)) * 40;
+  const side = score
+    ? `<div class="aciertos-row__side"><span class="aciertos-row__score">${escapeHtml(score)}</span></div>`
+    : '';
   return `
-    <button type="button" class="card card--aciertos" data-analyze="${matchId}" style="animation-delay:${delay}ms">
-      <span class="aciertos-mark aciertos-mark--${meta.tone}" aria-hidden="true">${meta.mark}</span>
+    <button type="button" class="card card--aciertos card--aciertos-${tone}" data-analyze="${matchId}" style="animation-delay:${delay}ms" aria-label="${escapeHtml(
+      home + ' vs ' + away + ', ' + statusLabel + (score ? ', ' + score : '')
+    )}">
       <div class="aciertos-row__body">
         ${crestsRowHtml(home, item.homeLogo, away, item.awayLogo)}
         <p class="aciertos-row__match">${escapeHtml(home)} vs ${escapeHtml(away)}</p>
@@ -5590,15 +5671,12 @@ function aciertosRowHtml(item, rankFallback) {
           leagueKey({ leagueName: item.leagueName, leagueCountry: item.leagueCountry })
         )}</span></p>
       </div>
-      <div class="aciertos-row__side">
-        ${score ? `<span class="aciertos-row__score">${escapeHtml(score)}</span>` : ''}
-        <span class="aciertos-chip aciertos-chip--${meta.tone}">${escapeHtml(meta.chip)}</span>
-      </div>
+      ${side}
     </button>`;
 }
 
 /**
- * Aciertos = Top del dÃ­a (resultado). Same day + Top 10 universe as `#top3`.
+ * Aciertos = Top del día (resultado). Same day + Top 10 universe as `#top3`.
  * One API call; free sees summary tease + first 3 tips, rest censored.
  */
 async function renderAciertos() {
@@ -5684,11 +5762,11 @@ function tipOddsFromBundle(suggestedBet, oddsRow) {
   return formatOdds(map[suggestedBet]);
 }
 
-/** Book tip odds for UI: `1.85 â‚¬` or empty (no @ / â€” / lone â‚¬). */
+/** Book tip odds for UI: `1.85 €` or empty (no @ / — / lone €). */
 function tipOddsDisplay(tipOdds) {
   if (tipOdds == null || Number.isNaN(Number(tipOdds))) return '';
   const n = formatOdds(tipOdds);
-  return n ? `${n} â‚¬` : '';
+  return n ? `${n} €` : '';
 }
 
 function tipMetaHtml({
@@ -5717,16 +5795,16 @@ function tipMetaHtml({
   if (valueEdge != null && valueEdge >= MIN_VALUE_EDGE && oddsSource === 'book') {
     bits.push(
       `<span class="value">Valor +${(Number(valueEdge) * 100).toFixed(0)}%${
-        valueMarket ? ` Â· ${escapeHtml(labelBet(valueMarket, home, away))}` : ''
+        valueMarket ? ` · ${escapeHtml(labelBet(valueMarket, home, away))}` : ''
       }</span>`
     );
   }
   if (tipTier === 'none' || tipTier === 'fallback') {
-    bits.push('<span class="muted">sin tip â‰¥78%</span>');
+    bits.push('<span class="muted">sin tip ≥78%</span>');
   } else if (tipTier === 'playable' && conf != null && Number(conf) >= 80) {
     bits.push('<span class="muted">tip seguro</span>');
   }
-  return bits.length ? `<div class="tip-meta">${bits.join(' Â· ')}</div>` : '';
+  return bits.length ? `<div class="tip-meta">${bits.join(' · ')}</div>` : '';
 }
 
 function tipCardHtml({
@@ -5797,11 +5875,11 @@ function tipCardHtml({
         })}
         ${crestsRowHtml(home, homeLogo, away, awayLogo)}
         <p class="card-tip__match">${escapeHtml(home)} vs ${escapeHtml(away)}</p>
-        <p class="card-tip__league muted">${escapeHtml(league)}${liveHtml ? ` Â· ${liveHtml}` : ''}</p>
+        <p class="card-tip__league muted">${escapeHtml(league)}${liveHtml ? ` · ${liveHtml}` : ''}</p>
         <p class="card-tip__when match-date">${escapeHtml(when)}</p>
         ${
           secondary
-            ? `<p class="card-tip__sec muted">Secundaria Â· ${escapeHtml(
+            ? `<p class="card-tip__sec muted">Secundaria · ${escapeHtml(
                 labelBet(secondary, home, away)
               )}</p>`
             : ''
@@ -5825,7 +5903,7 @@ function bindAnalyze(root) {
       document.querySelectorAll('.league-match.is-selected').forEach((el) => el.classList.remove('is-selected'));
       if (node.classList.contains('league-match')) node.classList.add('is-selected');
       const view = document.getElementById('views')?.dataset.view;
-      // Views without a desktop analysis split â†’ Partidos so its panel is available.
+      // Views without a desktop analysis split → Partidos so its panel is available.
       if (
         (view === 'top3' && window.matchMedia('(min-width: 900px)').matches) ||
         view === 'aciertos' ||
@@ -5861,13 +5939,13 @@ function updateFilterChip() {
   const el = document.getElementById('filter-chip');
   if (!el) return;
   const parts = [];
-  if (windowMode === '5d') parts.push('5 dÃ­as');
-  else if (windowMode === 'manana') parts.push('MaÃ±ana');
+  if (windowMode === '5d') parts.push('5 días');
+  else if (windowMode === 'manana') parts.push('Mañana');
   else if (windowMode === 'date') parts.push(selectedDate);
   else parts.push('Hoy');
   if (leagueFilterIds.size === 1) parts.push('1 liga');
   else if (leagueFilterIds.size > 1) parts.push(`${leagueFilterIds.size} ligas`);
-  el.textContent = parts.join(' Â· ');
+  el.textContent = parts.join(' · ');
 }
 
 function resolveMarkets(m) {
@@ -5889,7 +5967,7 @@ function resolveMarkets(m) {
   };
 }
 
-/** Normalize a 0â€“1 or 0â€“100 model prob to display percentage (0â€“100), truncated. */
+/** Normalize a 0–1 or 0–100 model prob to display percentage (0–100), truncated. */
 function toDisplayPct(v) {
   if (v == null || v === '') return null;
   const n = Number(v);
@@ -5898,15 +5976,15 @@ function toDisplayPct(v) {
   return Math.trunc(pct);
 }
 
-/** Tip % for badges â€” always truncated, never rounded up. */
+/** Tip % for badges — always truncated, never rounded up. */
 function formatTipPct(v) {
   if (v == null || !Number.isFinite(Number(v))) return null;
   return Math.trunc(Number(v));
 }
 
 /**
- * Model market probability (0â€“100) for a tip label from a prediction / markets payload.
- * Shared by panel / list / Top10 so tip meta never falls back to bare "â€” modelo".
+ * Model market probability (0–100) for a tip label from a prediction / markets payload.
+ * Shared by panel / list / Top10 so tip meta never falls back to bare "— modelo".
  */
 function probForLabel(prediction, label) {
   if (!prediction || !label) return null;
@@ -5982,6 +6060,7 @@ function probForLabel(prediction, label) {
     AWAY_UNDER_25: ['away_under25_prob', 'awayUnder25Prob'],
     AWAY_OVER_35: ['away_over35_prob', 'awayOver35Prob'],
     AWAY_UNDER_35: ['away_under35_prob', 'awayUnder35Prob'],
+    CORNERS_OVER_75: ['corners_over75_prob', 'cornersOver75Prob'],
     CORNERS_OVER_85: ['corners_over85_prob', 'cornersOver85Prob'],
     CORNERS_UNDER_85: ['corners_under85_prob', 'cornersUnder85Prob'],
     CORNERS_OVER_95: ['corners_over95_prob', 'cornersOver95Prob'],
@@ -6005,7 +6084,7 @@ function probForLabel(prediction, label) {
 }
 
 /**
- * Tip display % (0â€“100): tipMarketProb (server raw) â†’ probForLabel â†’ conf fallback.
+ * Tip display % (0–100): tipMarketProb (server raw) → probForLabel → conf fallback.
  * Never returns null when a suggested bet has a resolvable market probability.
  */
 function tipProbPct(raw) {
@@ -6026,11 +6105,11 @@ function tipProbPct(raw) {
   return conf != null && conf > 0 ? formatTipPct(conf) : null;
 }
 
-/** Format tip meta % + optional odds-source hint. Never bare "â€” modelo". */
+/** Format tip meta % + optional odds-source hint. Never bare "— modelo". */
 function tipConfMetaHtml(tipProb, oddsSource = null) {
   const src =
     oddsSource && oddsSource !== 'book'
-      ? ` Â· ${escapeHtml(oddsSourceLabel(oddsSource))}`
+      ? ` · ${escapeHtml(oddsSourceLabel(oddsSource))}`
       : '';
   if (tipProb != null && Number.isFinite(Number(tipProb))) {
     const n = formatTipPct(tipProb);
@@ -6073,7 +6152,7 @@ function matchBoardRowHtml(raw) {
       ? `<span class="match-minute">${Number(raw.elapsedMinute)}'</span>`
       : '';
   const liveBits = [liveBadge, score, minute].filter(Boolean).join(' ');
-  const tipLabel = tip ? escapeHtml(labelBet(tip, home, away)) : 'â€”';
+  const tipLabel = tip ? escapeHtml(labelBet(tip, home, away)) : '—';
   const oddsTxt = tipOddsDisplay(tipOdds);
   const tipTier =
     raw.tipTier ||
@@ -6090,7 +6169,7 @@ function matchBoardRowHtml(raw) {
       : '';
   const tierBit =
     tipTier === 'none' || tipTier === 'fallback'
-      ? '<span class="muted sheet__odd-src">sin tip â‰¥78%</span>'
+      ? '<span class="muted sheet__odd-src">sin tip ≥78%</span>'
       : tipTier === 'playable' && prob != null && Number(prob) >= 80
         ? '<span class="muted sheet__odd-src">tip seguro</span>'
         : '';
@@ -6105,14 +6184,14 @@ function matchBoardRowHtml(raw) {
           ${crestHtml(away, awayLogo, 'sm')}
         </span>
         <span class="sheet__names">
-          <span class="sheet__vs">${escapeHtml(home)} â€“ ${escapeHtml(away)}</span>
-          <span class="sheet__meta">${escapeHtml(league)} Â· ${escapeHtml(
+          <span class="sheet__vs">${escapeHtml(home)} – ${escapeHtml(away)}</span>
+          <span class="sheet__meta">${escapeHtml(league)} · ${escapeHtml(
             formatMatchDate(raw.matchDate)
-          )}${liveBits ? ` Â· ${liveBits}` : ''}</span>
+          )}${liveBits ? ` · ${liveBits}` : ''}</span>
         </span>
       </span>
       <span class="sheet__prob ${confClass(showProb)}">${
-        showProb != null ? `${Math.round(Number(showProb))}%` : tip ? 'â€¦' : 'â€”'
+        showProb != null ? `${Math.round(Number(showProb))}%` : tip ? '…' : '—'
       }</span>
       <span class="sheet__tip">
         <span class="sheet__tip-bet">${tipLabel}</span>
@@ -6120,7 +6199,7 @@ function matchBoardRowHtml(raw) {
         ${tierBit}
       </span>
       <span class="sheet__odd">
-        <span class="sheet__odd-v">${oddsTxt || 'â€”'}</span>
+        <span class="sheet__odd-v">${oddsTxt || '—'}</span>
         ${oddsSrcBit}
       </span>
     </button>`;
@@ -6130,14 +6209,14 @@ function premiumLockHtml(extraCount, kind) {
   if (PREMIUM_UNLOCKED) return '';
   const label =
     kind === 'valor'
-      ? `+${extraCount} valor Â· Premium`
-      : `+${extraCount} tips Â· Premium`;
+      ? `+${extraCount} valor · Premium`
+      : `+${extraCount} tips · Premium`;
   return `<button type="button" class="sheet__lock" data-goto-premium="1">
     <span>
       <span class="sheet__lock-title">${escapeHtml(label)}</span>
       <span class="sheet__lock-meta">Desbloquea en Premium</span>
     </span>
-    <span class="muted">Premium â†’</span>
+    <span class="muted">Premium →</span>
   </button>`;
 }
 
@@ -6223,7 +6302,7 @@ function applyFilters() {
   renderLeagueCategories(cachedMatches);
   renderHoyBoard();
   // Semanal has its own selects; do not touch it here.
-  // Refetch Partidos when the server league param should change (0â†”1 liga).
+  // Refetch Partidos when the server league param should change (0↔1 liga).
   const want = desiredMatchesFetchLeagueId();
   if (want !== matchesFetchLeagueId && !matchesReloadQueued) {
     matchesReloadQueued = true;
@@ -6236,9 +6315,9 @@ function applyFilters() {
 }
 
 function outcomeBadge(outcome) {
-  if (outcome === 'hit') return '<span class="outcome outcome--hit">AcertÃ³</span>';
-  if (outcome === 'miss') return '<span class="outcome outcome--miss">FallÃ³</span>';
-  return `<span class="outcome">${escapeHtml(outcome || 'â€”')}</span>`;
+  if (outcome === 'hit') return '<span class="outcome outcome--hit">Acertó</span>';
+  if (outcome === 'miss') return '<span class="outcome outcome--miss">Falló</span>';
+  return `<span class="outcome">${escapeHtml(outcome || '—')}</span>`;
 }
 
 function perfStatCell(label, value) {
@@ -6278,7 +6357,7 @@ function perfRoiHtml(perf) {
     return `<div class="perf-roi perf-roi--empty">
       <span class="perf-roi__label">Rentabilidad</span>
       <span class="perf-roi__value muted">Sin cuota de casa${
-        modelPriced ? ` Â· ${modelPriced} tips con precio del modelo` : ''
+        modelPriced ? ` · ${modelPriced} tips con precio del modelo` : ''
       }</span>
     </div>`;
   }
@@ -6286,9 +6365,9 @@ function perfRoiHtml(perf) {
   const profit = Number(roi.profit || 0);
   return `<div class="perf-roi ${roiTone(roi.yield)}">
     <span class="perf-roi__label">Rentabilidad</span>
-    <span class="perf-roi__value">${escapeHtml(value ?? 'â€”')}</span>
-    <span class="perf-roi__meta">${staked} apostadas Â· ${roi.hits}âœ” ${roi.misses}âœ˜ Â· ${profit >= 0 ? '+' : ''}${profit.toFixed(2)} uds${
-      roi.avgOdds ? ` Â· cuota media ${Number(roi.avgOdds).toFixed(2)}` : ''
+    <span class="perf-roi__value">${escapeHtml(value ?? '—')}</span>
+    <span class="perf-roi__meta">${staked} apostadas · ${roi.hits}✔ ${roi.misses}✘ · ${profit >= 0 ? '+' : ''}${profit.toFixed(2)} uds${
+      roi.avgOdds ? ` · cuota media ${Number(roi.avgOdds).toFixed(2)}` : ''
     }</span>
   </div>`;
 }
@@ -6301,7 +6380,7 @@ function perfTipDisplayHtml(tip) {
   )}">
     <span class="perf-row__tip-blur" aria-hidden="true">${tip}</span>
     <span class="perf-row__tip-premium" aria-hidden="true">
-      <img src="/icons/ui/premium-crown.png?v=hb159" width="13" height="13" alt="" />
+      <img src="/icons/ui/premium-crown.png?v=hb168" width="13" height="13" alt="" />
       Premium
     </span>
   </span>`;
@@ -6318,10 +6397,10 @@ function recentTipRowHtml(r) {
   const score =
     r.homeGoals != null && r.awayGoals != null
       ? `${Number(r.homeGoals)}-${Number(r.awayGoals)}`
-      : 'â€”';
-  const liveLabel = r.matchStatus === 'live' ? ' â€” En vivo' : '';
+      : '—';
+  const liveLabel = r.matchStatus === 'live' ? ' — En vivo' : '';
   const odds = contentUnlocked() ? tipOddsDisplay(r.tipOdds) : '';
-  // Single role attr (listitem vs button) â€” duplicate roles break keyboard a11y.
+  // Single role attr (listitem vs button) — duplicate roles break keyboard a11y.
   const attrs = clickable
     ? ` data-analyze="${matchId}" role="button" tabindex="0"`
     : ' role="listitem"';
@@ -6332,11 +6411,11 @@ function recentTipRowHtml(r) {
         ${crestHtml(r.awayName, r.awayLogo, 'sm')}
       </span>
       <span class="perf-row__main">
-        <span class="perf-row__match">${escapeHtml(r.homeName || '')} â€“ ${escapeHtml(r.awayName || '')}</span>
+        <span class="perf-row__match">${escapeHtml(r.homeName || '')} – ${escapeHtml(r.awayName || '')}</span>
         <span class="perf-row__tip">${perfTipDisplayHtml(tip)}</span>
-        <span class="perf-row__meta muted">${escapeHtml(leagueLabelEs(r.leagueName || r.league || 'â€”'))} Â· ${escapeHtml(
+        <span class="perf-row__meta muted">${escapeHtml(leagueLabelEs(r.leagueName || r.league || '—'))} · ${escapeHtml(
           formatMatchDate(r.matchDate)
-        )} â€” ${score}${escapeHtml(liveLabel)}${odds ? ` Â· ${odds}` : ''}</span>
+        )} — ${score}${escapeHtml(liveLabel)}${odds ? ` · ${odds}` : ''}</span>
       </span>
       <span class="perf-row__out">${outcomeBadge(r.outcome)}</span>
     </article>`;
@@ -6362,7 +6441,7 @@ function renderPerformance(perf, { append = false } = {}) {
         ? `${(Number(perf.hitRate) * 100).toFixed(0)}%`
         : decided > 0
           ? `${Math.round((hits / decided) * 100)}%`
-          : 'â€”';
+          : '—';
 
     summary.innerHTML = `
     <div class="perf-board">
@@ -6416,7 +6495,7 @@ function renderPerfLoadMore() {
   }
   wrap.innerHTML = `<button type="button" class="btn btn--ghost perf-more" id="perf-load-more"${
     perfRecentLoadingMore ? ' disabled' : ''
-  }>Cargar mÃ¡s</button>`;
+  }>Cargar más</button>`;
   document.getElementById('perf-load-more')?.addEventListener('click', () => {
     loadMorePerformance().catch(() => {});
   });
@@ -6505,7 +6584,7 @@ function formatStatsDate(ymd) {
 }
 
 function matchStatsValue(value) {
-  if (value == null || !Number.isFinite(Number(value))) return 'â€”';
+  if (value == null || !Number.isFinite(Number(value))) return '—';
   return new Intl.NumberFormat(getUiLocale(), {
     minimumFractionDigits: 1,
     maximumFractionDigits: 2,
@@ -6527,7 +6606,7 @@ function renderMatchStatsRows(rows) {
       const leagueLogo = leagueLogoHtml(row.leagueLogo, 'match-stats-row__league-logo');
       const delay = Math.min(8, index) * 40;
       return `<button type="button" class="match-stats-row" data-analyze="${Number(row.id)}" role="listitem" style="animation-delay:${delay}ms">
-        <span class="match-stats-row__rank" aria-label="PosiciÃ³n ${index + 1}">${index + 1}</span>
+        <span class="match-stats-row__rank" aria-label="Posición ${index + 1}">${index + 1}</span>
         <span class="match-stats-row__crests" aria-hidden="true">
           ${crestHtml(home.name, home.logo, 'sm')}
           ${crestHtml(away.name, away.logo, 'sm')}
@@ -6537,7 +6616,7 @@ function renderMatchStatsRows(rows) {
             away.name || 'Visitante'
           )}</span>
           <span class="match-stats-row__league">
-            <span aria-hidden="true">${countryFlag(row.leagueCountry)}</span>${leagueLogo}<span>${escapeHtml(
+            ${countryIsoBadge(row.leagueCountry, 'match-stats-row__iso hb-iso')}${leagueLogo}<span>${escapeHtml(
               league
             )}</span>
           </span>
@@ -6608,7 +6687,7 @@ async function loadMatchStatsView() {
   const date = resolveSelectedDate();
   const list = document.getElementById('match-stats-list');
   const meta = document.getElementById('match-stats-meta');
-  if (list) list.innerHTML = `<div class="empty-board muted">Cargando estadÃ­sticasâ€¦</div>`;
+  if (list) list.innerHTML = `<div class="empty-board muted">Cargando estadísticas…</div>`;
   if (meta) meta.textContent = '';
   const query = new URLSearchParams({
     date,
@@ -6622,14 +6701,14 @@ async function loadMatchStatsView() {
     if (meta) {
       meta.textContent = `${Number(data.meta?.withData) || 0} de ${
         Number(data.meta?.total) || 0
-      } partidos con datos Â· ${formatStatsDate(date)}`;
+      } partidos con datos · ${formatStatsDate(date)}`;
     }
     renderMatchStatsRows(data.matches || []);
   } catch (err) {
     if (seq !== matchStatsLoadSeq) return;
     if (list) {
       list.innerHTML = `<div class="empty-board conf-lo">${escapeHtml(
-        err.message || 'No se pudieron cargar las estadÃ­sticas.'
+        err.message || 'No se pudieron cargar las estadísticas.'
       )}</div>`;
     }
   }
@@ -6744,7 +6823,7 @@ function bindLeagueStatsControls() {
 }
 
 function formatLeagueStatsScore(row) {
-  if (row?.score == null || !Number.isFinite(Number(row.score))) return 'â€”';
+  if (row?.score == null || !Number.isFinite(Number(row.score))) return '—';
   if (row.scoreKind === 'avg') return Number(row.score).toFixed(2);
   return `${Math.trunc(Number(row.score) * 100)}%`;
 }
@@ -6759,9 +6838,7 @@ function renderLeagueStatsList(rows) {
   el.innerHTML = rows
     .map((row) => {
       const logo = leagueLogoHtml(row.leagueLogo, 'league-stats__logo');
-      const flag = row.country
-        ? `<span class="league-stats__flag" aria-hidden="true">${countryFlag(row.country)}</span>`
-        : '';
+      const flag = countryIsoBadge(row.country, 'league-stats__flag hb-iso');
       const countryBit = row.country
         ? `<span class="league-stats__country">${escapeHtml(countryLabel(row.country))}</span>`
         : '';
@@ -6978,8 +7055,8 @@ function syncNavIndicator({ instant = false } = {}) {
   }
 }
 
-/** Subtle enter motion for Partidos / Top 10 / Stats (tap tabs only â€” no swipe). */
-const VIEW_ENTER_IDS = new Set(['partidos', 'top3', 'stats']);
+/** Subtle enter motion for all main tabs (nav / tabbar taps only — no swipe). */
+const VIEW_ENTER_IDS = new Set(['partidos', 'top3', 'aciertos', 'stats', 'ligas']);
 let lastViewEnterId = null;
 
 function triggerViewEnter(view) {
@@ -7053,7 +7130,7 @@ function pricingLabel(pricing) {
   if (pricing === 'book') return 'Cuotas de casa';
   if (pricing === 'mixed') return 'Mixto (casa + estimado)';
   if (pricing === 'model') return 'Estimado (sin cuota de casa)';
-  return pricing ? String(pricing) : 'â€”';
+  return pricing ? String(pricing) : '—';
 }
 
 function oddsSourceLabel(src) {
@@ -7063,13 +7140,13 @@ function oddsSourceLabel(src) {
     derived_1x2: 'deriv. 1X2',
     stale: 'cuota antigua',
   };
-  return map[src] || (src ? String(src) : 'â€”');
+  return map[src] || (src ? String(src) : '—');
 }
 
 function formatValorEdge(leg) {
-  if (leg?.oddsSource !== 'book' || leg.valueEdge == null) return 'â€”';
+  if (leg?.oddsSource !== 'book' || leg.valueEdge == null) return '—';
   const edge = Number(leg.valueEdge);
-  if (!Number.isFinite(edge) || Math.abs(edge) < 0.005) return 'â€”';
+  if (!Number.isFinite(edge) || Math.abs(edge) < 0.005) return '—';
   const pct = edge * 100;
   const rounded = Math.abs(pct) >= 0.5 ? pct.toFixed(0) : pct.toFixed(1);
   return `${edge >= 0 ? '+' : ''}${rounded}%`;
@@ -7094,7 +7171,7 @@ function comboCardHtml(combo) {
   const legs = combo.legs || [];
   const nLegs = combo.nLegs != null ? Number(combo.nLegs) : legs.length;
   const total =
-    combo.combinedOdds != null ? Number(combo.combinedOdds).toFixed(2) : 'â€”';
+    combo.combinedOdds != null ? Number(combo.combinedOdds).toFixed(2) : '—';
   const jointPct =
     combo.jointProb != null && Number.isFinite(Number(combo.jointProb))
       ? Number(combo.jointProb) * 100
@@ -7118,16 +7195,16 @@ function comboCardHtml(combo) {
           ${crestHtml(away, leg.awayTeam?.logo, 'sm')}
         </span>
         <span class="combo-leg__body">
-          <span class="combo-leg__match">${escapeHtml(home)} Â· ${escapeHtml(away)}</span>
-          <span class="combo-leg__meta muted">${escapeHtml(leg.league || '')} Â· ${escapeHtml(
+          <span class="combo-leg__match">${escapeHtml(home)} · ${escapeHtml(away)}</span>
+          <span class="combo-leg__meta muted">${escapeHtml(leg.league || '')} · ${escapeHtml(
             formatMatchDate(leg.matchDate)
           )}</span>
           <span class="combo-leg__tip tip-accent">${escapeHtml(
             labelBet(leg.suggestedBet, home, away)
           )}</span>
         </span>
-        <span class="combo-leg__odds">${legP ? `${legP} Â· ` : ''}${
-          leg.tipOdds != null ? Number(leg.tipOdds).toFixed(2) : 'â€”'
+        <span class="combo-leg__odds">${legP ? `${legP} · ` : ''}${
+          leg.tipOdds != null ? Number(leg.tipOdds).toFixed(2) : '—'
         }</span>
       </button>`;
     })
@@ -7137,7 +7214,7 @@ function comboCardHtml(combo) {
     <article class="combo-card" role="listitem">
       <div class="combo-card__head">
         <div>
-          <div class="combo-card__label">${nLegs} partidos Â· cuota ${total}</div>
+          <div class="combo-card__label">${nLegs} partidos · cuota ${total}</div>
           ${comboPricingBadge(combo.pricing || combo.oddsSource)}
         </div>
         <div class="combo-card__side">
@@ -7168,18 +7245,18 @@ function weeklyLegRowHtml(leg, idx) {
   const home = leg.homeTeam?.name || '';
   const away = leg.awayTeam?.name || '';
   const pModel =
-    leg.prob != null ? `${(Number(leg.prob) * 100).toFixed(0)}%` : 'â€”';
+    leg.prob != null ? `${(Number(leg.prob) * 100).toFixed(0)}%` : '—';
   const pCasa =
     leg.oddsSource === 'book'
       ? leg.impliedProb != null
         ? `${(Number(leg.impliedProb) * 100).toFixed(0)}%`
         : leg.tipOdds
           ? `${((1 / Number(leg.tipOdds)) * 100).toFixed(0)}%`
-          : 'â€”'
-      : 'â€”';
+          : '—'
+      : '—';
   const valor = formatValorEdge(leg);
   const src = escapeHtml(oddsSourceLabel(leg.oddsSource));
-  const fam = escapeHtml(leg.marketFamily || 'â€”');
+  const fam = escapeHtml(leg.marketFamily || '—');
   const homeLogo = leg.homeTeam?.logo || null;
   const awayLogo = leg.awayTeam?.logo || null;
   const marketCell = hbCensorWrap(
@@ -7187,7 +7264,7 @@ function weeklyLegRowHtml(leg, idx) {
       <div class="muted weekly-table__when">${fam}</div>`
   );
   const oddsCell = hbCensorWrap(
-    leg.tipOdds != null ? Number(leg.tipOdds).toFixed(2) : 'â€”'
+    leg.tipOdds != null ? Number(leg.tipOdds).toFixed(2) : '—'
   );
   const pCasaCell = hbCensorWrap(pCasa);
   const pModelCell = hbCensorWrap(
@@ -7198,13 +7275,13 @@ function weeklyLegRowHtml(leg, idx) {
     leg.leagueApiId || 0
   )}" data-family="${escapeHtml(leg.marketFamily || '')}">
     <td>${idx + 1}</td>
-    <td>${escapeHtml(leg.league || 'â€”')}</td>
+    <td>${escapeHtml(leg.league || '—')}</td>
     <td>
       <div class="weekly-table__teams">
         ${crestHtml(home, homeLogo, 'sm')}
         ${crestHtml(away, awayLogo, 'sm')}
         <button type="button" class="weekly-table__match" data-analyze="${Number(leg.matchId)}">
-          ${escapeHtml(home)} â€“ ${escapeHtml(away)}
+          ${escapeHtml(home)} – ${escapeHtml(away)}
         </button>
       </div>
       <div class="muted weekly-table__when">${escapeHtml(formatMatchDate(leg.matchDate))}</div>
@@ -7222,7 +7299,7 @@ function weeklyPricingShort(pricing) {
   if (pricing === 'book') return 'Casa';
   if (pricing === 'mixed') return 'Mixto';
   if (pricing === 'model') return 'Estimado';
-  return pricing ? String(pricing) : 'â€”';
+  return pricing ? String(pricing) : '—';
 }
 
 function weeklyMetricCell(label, valueHtml) {
@@ -7255,7 +7332,7 @@ function renderWeeklySummary(primary, meta = {}, why = null) {
       ? `${(Number(primary.jointProbAdj) * 100).toFixed(1).replace('.', ',')}%`
       : primary.jointProb != null
         ? `${(Number(primary.jointProb) * 100).toFixed(1).replace('.', ',')}%`
-        : 'â€”';
+        : '—';
   const pricing = primary.pricing || meta.pricing;
   const noBook =
     pricing === 'model' ||
@@ -7277,10 +7354,10 @@ function renderWeeklySummary(primary, meta = {}, why = null) {
     <div class="weekly-summary__stats weekly-summary__stats--secondary">
       ${weeklyMetricCell(
         'Ligas',
-        primary.leagueCount != null ? escapeHtml(String(primary.leagueCount)) : 'â€”'
+        primary.leagueCount != null ? escapeHtml(String(primary.leagueCount)) : '—'
       )}
       ${weeklyMetricCell('Origen', escapeHtml(weeklyPricingShort(pricing)))}
-      ${weeklyMetricCell('Book', escapeHtml(noBook ? 'Sin' : 'SÃ­'))}
+      ${weeklyMetricCell('Book', escapeHtml(noBook ? 'Sin' : 'Sí'))}
     </div>`;
 }
 
@@ -7304,7 +7381,7 @@ const WEEKLY_LEAGUE_LABELS = {
 const WEEKLY_FAMILY_LABELS = {
   result: 'resultado',
   goals: 'goles',
-  corners: 'cÃ³rners',
+  corners: 'córners',
   cards: 'tarjetas',
   shots: 'tiros / SOT',
 };
@@ -7355,10 +7432,10 @@ function syncWeeklyOtraButton(data) {
     data?.emptyReason === 'no_more_after_exclude' && !picks.length;
   btn.disabled = Boolean(emptyAfter);
   btn.title = emptyAfter
-    ? 'No hay mÃ¡s combinaciones con estos filtros'
+    ? 'No hay más combinaciones con estos filtros'
     : hasLocal || canExclude
-      ? 'Otra combinaciÃ³n cuota 10'
-      : 'Otra combinaciÃ³n';
+      ? 'Otra combinación cuota 10'
+      : 'Otra combinación';
 }
 
 function readWeeklyFilterParams() {
@@ -7393,23 +7470,23 @@ function weeklyEmptyMessage(data) {
   const fam = family ? WEEKLY_FAMILY_LABELS[family] || family : null;
   const jornada = win ? weeklyWindowLabel(win) : null;
   if (data?.emptyReason === 'no_legs_filtered') {
-    const scope = [jornada, liga, fam].filter(Boolean).join(' Â· ');
-    return `No hay selecciones vÃ¡lidas (${scope}) con cuota â‰¥1,20. Sin inventar mercados.`;
+    const scope = [jornada, liga, fam].filter(Boolean).join(' · ');
+    return `No hay selecciones válidas (${scope}) con cuota ≥1,20. Sin inventar mercados.`;
   }
   if (data?.emptyReason === 'no_legs') {
-    return 'No hay suficientes selecciones con cuota verificada o modelo etiquetado (â‰¥1,20) en las cinco grandes. Sin inventar cuotas de casa.';
+    return 'No hay suficientes selecciones con cuota verificada o modelo etiquetado (≥1,20) en las cinco grandes. Sin inventar cuotas de casa.';
   }
   if (data?.emptyReason === 'no_more_after_exclude') {
-    return 'No hay mÃ¡s combinadas distintas con estos filtros. Cambia jornada/liga/mercado o vuelve mÃ¡s tarde.';
+    return 'No hay más combinadas distintas con estos filtros. Cambia jornada/liga/mercado o vuelve más tarde.';
   }
-  return 'No se encontrÃ³ una combinada cerca de cuota 10 con criterios de calidad. Prueba mÃ¡s tarde tras el enrich de odds.';
+  return 'No se encontró una combinada cerca de cuota 10 con criterios de calidad. Prueba más tarde tras el enrich de odds.';
 }
 
 function conservativeBlockHtml(combo, meta = {}) {
   if (!combo) {
     return `<div class="weekly-profile">
       <div class="weekly-profile__head">
-        <h3 class="weekly-profile__title">Conservadora Â· cuota 5</h3>
+        <h3 class="weekly-profile__title">Conservadora · cuota 5</h3>
       </div>
       <p class="muted">Sin combinada conservadora con los filtros actuales.</p>
     </div>`;
@@ -7417,18 +7494,18 @@ function conservativeBlockHtml(combo, meta = {}) {
   const pAdj =
     combo.jointProbAdj != null
       ? `${(Number(combo.jointProbAdj) * 100).toFixed(1).replace('.', ',')}%`
-      : 'â€”';
+      : '—';
   const warn =
     combo.belowTarget || meta.conservative?.belowTarget
       ? `<p class="weekly-profile__warn muted">${escapeHtml(
           meta.conservative?.belowReason ||
-            'No alcanza P conjunta ajustada â‰¥78%; mejor estimaciÃ³n del modelo.'
+            'No alcanza P conjunta ajustada ≥78%; mejor estimación del modelo.'
         )}</p>`
       : '';
   return `<div class="weekly-profile">
     <div class="weekly-profile__head">
-      <h3 class="weekly-profile__title">Conservadora Â· cuota 5</h3>
-      <span class="muted">estimaciÃ³n del modelo Â· mÃ­n. 1,20 por selecciÃ³n</span>
+      <h3 class="weekly-profile__title">Conservadora · cuota 5</h3>
+      <span class="muted">estimación del modelo · mín. 1,20 por selección</span>
     </div>
     <div class="weekly-summary__stats weekly-summary__stats--quad">
       ${weeklyMetricCell(
@@ -7460,14 +7537,14 @@ function conservativeBlockHtml(combo, meta = {}) {
             const src = escapeHtml(oddsSourceLabel(leg.oddsSource));
             return `<tr class="weekly-table__row" data-analyze="${Number(leg.matchId)}">
               <td>${idx + 1}</td>
-              <td>${escapeHtml(leg.league || 'â€”')}</td>
+              <td>${escapeHtml(leg.league || '—')}</td>
               <td>
                 <div class="weekly-table__teams">
                   ${crestHtml(home, leg.homeTeam?.logo, 'sm')}
                   ${crestHtml(away, leg.awayTeam?.logo, 'sm')}
                   <button type="button" class="weekly-table__match" data-analyze="${Number(
                     leg.matchId
-                  )}">${escapeHtml(home)} â€“ ${escapeHtml(away)}</button>
+                  )}">${escapeHtml(home)} – ${escapeHtml(away)}</button>
                 </div>
               </td>
               <td>${hbCensorWrap(
@@ -7476,10 +7553,10 @@ function conservativeBlockHtml(combo, meta = {}) {
                 )}</span>`
               )}</td>
               <td>${hbCensorWrap(
-                leg.tipOdds != null ? Number(leg.tipOdds).toFixed(2) : 'â€”'
+                leg.tipOdds != null ? Number(leg.tipOdds).toFixed(2) : '—'
               )}</td>
               <td>${hbCensorWrap(
-                leg.prob != null ? `${(Number(leg.prob) * 100).toFixed(0)}%` : 'â€”'
+                leg.prob != null ? `${(Number(leg.prob) * 100).toFixed(0)}%` : '—'
               )}</td>
               <td class="muted">${src}</td>
             </tr>`;
@@ -7520,19 +7597,19 @@ async function loadCrestAuditPanel() {
         );
         return `<div class="crest-audit__league"><strong>${escapeHtml(
           rep.name || String(rep.leagueApiId)
-        )}</strong> Â· ${JSON.stringify(counts)}
+        )}</strong> · ${JSON.stringify(counts)}
           ${
             issues.length
               ? `<ul>${issues
                   .slice(0, 8)
                   .map(
                     (r) =>
-                      `<li>${escapeHtml(r.team)} Â· ${escapeHtml(r.status)}${
-                        r.problem ? ` Â· ${escapeHtml(r.problem)}` : ''
+                      `<li>${escapeHtml(r.team)} · ${escapeHtml(r.status)}${
+                        r.problem ? ` · ${escapeHtml(r.problem)}` : ''
                       }</li>`
                   )
                   .join('')}</ul>`
-              : '<p class="muted">Sin incidencias en mapa estÃ¡tico.</p>'
+              : '<p class="muted">Sin incidencias en mapa estático.</p>'
           }
         </div>`;
       })
@@ -7564,24 +7641,24 @@ function renderWeeklyCombos(data) {
         Number(primary.combinedOdds) >= 9 && Number(primary.combinedOdds) <= 11;
       const divMeta =
         primary.familyCount != null
-          ? ` Â· ${primary.familyCount} familias`
+          ? ` · ${primary.familyCount} familias`
           : '';
       hint.innerHTML = `<span class="odds-board__top-title">${
-        inRange ? 'Semanal Â· cuota 10' : 'Mejor alternativa Â· cuota 10'
+        inRange ? 'Semanal · cuota 10' : 'Mejor alternativa · cuota 10'
       }</span><span class="odds-board__top-meta">${
         inRange
-          ? `objetivo 9â€“11${divMeta}`
-          : `no hay cuota 10 limpia Â· mejor cuota ${Number(primary.combinedOdds).toFixed(2)}${divMeta}`
+          ? `objetivo 9–11${divMeta}`
+          : `no hay cuota 10 limpia · mejor cuota ${Number(primary.combinedOdds).toFixed(2)}${divMeta}`
       }</span>`;
     } else {
       const why =
         data?.emptyReason === 'no_legs_filtered'
           ? 'Sin selecciones con los filtros activos'
           : data?.emptyReason === 'no_legs'
-            ? 'Faltan selecciones vÃ¡lidas en top 5 (revisa enrich AF / predicciones)'
+            ? 'Faltan selecciones válidas en top 5 (revisa enrich AF / predicciones)'
             : data?.emptyReason === 'no_more_after_exclude'
-              ? 'Sin mÃ¡s alternativas distintas'
-              : 'Sin combinada en rango 9â€“11';
+              ? 'Sin más alternativas distintas'
+              : 'Sin combinada en rango 9–11';
       hint.innerHTML = `<span class="odds-board__top-title">Sin combinada cuota 10</span><span class="odds-board__top-meta">${escapeHtml(
         why
       )}</span>`;
@@ -7609,13 +7686,13 @@ function renderWeeklyCombos(data) {
     af.family ? WEEKLY_FAMILY_LABELS[af.family] || af.family : null,
   ]
     .filter(Boolean)
-    .join(' Â· ');
+    .join(' · ');
 
   const table = `
     <div class="weekly-block">
-      <h3 class="weekly-block__title">Semanal Â· cuota 10${
+      <h3 class="weekly-block__title">Semanal · cuota 10${
         filterBadge
-          ? ` <span class="muted">Â· ${escapeHtml(filterBadge)}</span>`
+          ? ` <span class="muted">· ${escapeHtml(filterBadge)}</span>`
           : ''
       }</h3>
       <div class="weekly-table-wrap">
@@ -7672,15 +7749,15 @@ async function loadCuotasTarget({ excludeIds = null, resetCycle = true } = {}) {
     family ? WEEKLY_FAMILY_LABELS[family] || family : null,
   ]
     .filter(Boolean)
-    .join(' Â· ');
+    .join(' · ');
   if (el) {
     el.className = 'combo-board';
     el.innerHTML = `<div class="muted odds-board__loading">Calculando Semanal cuota 10 + Conservadora cuota 5 (${escapeHtml(
       scopeHint
-    )})â€¦</div>`;
+    )})…</div>`;
   }
   if (hint) {
-    hint.innerHTML = `<span class="odds-board__top-title">Calculandoâ€¦</span><span class="odds-board__top-meta">${escapeHtml(
+    hint.innerHTML = `<span class="odds-board__top-title">Calculando…</span><span class="odds-board__top-meta">${escapeHtml(
       scopeHint
     )}</span>`;
   }
@@ -7794,7 +7871,7 @@ async function openPrediction(id) {
     const cardsAvg =
       bundle.expected?.cards?.match ?? sumRecentAvg(bundle.recentAvgs, 'yellows');
     const la = bundle.leagueAvgs || {};
-    // Always 6 fixed General cards (placeholders â€”) â€” never filter empties.
+    // Always 6 fixed General cards (placeholders —) — never filter empties.
     const keyCards = [
       pctStatCard(t('panel.over25'), p.over25_prob, la.over25Rate, MP_STAT_ICONS.o25),
       pctStatCard(t('panel.over15'), p.over15_prob, la.over15Rate, MP_STAT_ICONS.o15),
@@ -8024,7 +8101,7 @@ async function openPrediction(id) {
       <div class="mp" id="mp-root">
         <div class="mp-league">${leagueLogo}<span>${escapeHtml(leagueLine || 'Liga')}</span></div>
         <div class="mp-meta muted">${escapeHtml(formatMatchDate(m.matchDate))}${
-          roundLabel ? ` Â· ${escapeHtml(roundLabel)}` : ''
+          roundLabel ? ` · ${escapeHtml(roundLabel)}` : ''
         }</div>
         <div class="mp-teams${liveEvents ? ' mp-teams--events' : ''}">
           ${mpTeamCol(homeName, m.homeTeam?.logo, 'home', bundle.form?.home)}
@@ -8061,7 +8138,7 @@ async function openPrediction(id) {
     runPanelEntrance(root);
     loadPanelLineups(id, homeName, awayName, root).catch(() => {});
   } catch (err) {
-    openPanel(`<div class="conf-lo">${escapeHtml(err.message)}. Cierra e intÃ©ntalo de nuevo.</div>`);
+    openPanel(`<div class="conf-lo">${escapeHtml(err.message)}. Cierra e inténtalo de nuevo.</div>`);
   }
 }
 
@@ -8119,7 +8196,7 @@ async function searchTeam(q) {
           if (insight.nextMatch?.id) openPrediction(insight.nextMatch.id);
           else
             openPanel(
-              `<div class="muted">Sin prÃ³ximo partido para ${escapeHtml(insight.team?.name)}.</div>`
+              `<div class="muted">Sin próximo partido para ${escapeHtml(insight.team?.name)}.</div>`
             );
         } catch (err) {
           openPanel(`<div class="conf-lo">${escapeHtml(err.message)}</div>`);
@@ -8182,7 +8259,7 @@ async function load() {
 
   setLoading('matches', 4);
   const countEl = document.getElementById('match-count');
-  if (countEl) countEl.textContent = 'Cargandoâ€¦';
+  if (countEl) countEl.textContent = 'Cargando…';
 
   const q = matchListQuery();
   const errors = [];
@@ -8214,11 +8291,13 @@ async function load() {
     cachedBets = cachedMatches.filter((m) => m.suggestedBet);
     cachedMode = today.mode || 'live';
     matchesFetchLeagueId = desiredMatchesFetchLeagueId();
+    matchesFetchDate = resolveSelectedDate();
     renderLeagueCategories(cachedMatches);
     renderHoyBoard();
   } catch (err) {
     cachedMatches = [];
     cachedBets = [];
+    matchesFetchDate = null;
     renderLeagueCategories([]);
     const el = document.getElementById('matches');
     if (el) {
@@ -8347,6 +8426,8 @@ async function refreshLiveAndReload() {
     cachedMatches = fresh;
     cachedBets = cachedMatches.filter((m) => m.suggestedBet);
     cachedMode = today.mode || cachedMode;
+    matchesFetchLeagueId = desiredMatchesFetchLeagueId();
+    matchesFetchDate = resolveSelectedDate();
     if (changed) {
       renderLeagueCategories(cachedMatches);
       renderHoyBoard();
@@ -8375,7 +8456,7 @@ function startLivePoll() {
 document.getElementById('close-panel').addEventListener('click', closePanel);
 document.getElementById('panel-backdrop').addEventListener('click', closePanel);
 
-/** â€”â€” Auth modal (UI placeholder until real login/register) â€”â€” */
+/** —— Auth modal (UI placeholder until real login/register) —— */
 const AUTH_FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 let authLastFocus = null;
@@ -8400,7 +8481,7 @@ function setAuthModalNote(msg, isError = false) {
 function setAuthTab(tab) {
   authTab = tab === 'register' ? 'register' : 'login';
   const title = document.getElementById('auth-modal-title');
-  if (title) title.textContent = authTab === 'register' ? 'Registrarse' : 'Inicio de sesiÃ³n';
+  if (title) title.textContent = authTab === 'register' ? 'Registrarse' : 'Inicio de sesión';
   setAuthModalNote('');
 
   document.querySelectorAll('[data-auth-tab]').forEach((el) => {
@@ -8640,7 +8721,7 @@ async function handleAuthLogin(e) {
       loadPremiumState().then(() => refreshTipsLockedViews()).catch(() => {});
     }
   } catch (err) {
-    setAuthModalNote(err.message || 'No se pudo iniciar sesiÃ³n', true);
+    setAuthModalNote(err.message || 'No se pudo iniciar sesión', true);
   } finally {
     if (submit) submit.disabled = false;
   }
@@ -8743,7 +8824,7 @@ async function handleAuthRegister(e) {
   };
   setAuthModalNote('');
   if (payload.password !== payload.password2) {
-    setAuthModalNote('Las contraseÃ±as no coinciden', true);
+    setAuthModalNote('Las contraseñas no coinciden', true);
     return;
   }
   if (submit) submit.disabled = true;
@@ -8797,9 +8878,9 @@ function handleAuthQueryFlags() {
   const next = `${location.pathname}${params.toString() ? `?${params}` : ''}${location.hash || ''}`;
   history.replaceState(null, '', next || '/');
   if (flag === 'ok') {
-    /* Google return â€” session cookie set; boot continues via refreshAuthMe */
+    /* Google return — session cookie set; boot continues via refreshAuthMe */
   } else if (flag === 'google_unconfigured') {
-    showBanner('Google no estÃ¡ configurado en el servidor todavÃ­a.', 'error');
+    showBanner('Google no está configurado en el servidor todavía.', 'error');
   } else if (flag === 'google_state' || flag === 'google_error') {
     showBanner(t('toast.googleFail'), 'error');
   }
@@ -9080,7 +9161,7 @@ document.querySelectorAll('[data-consent-doc]').forEach((btn) => {
     openConsentDoc(btn.getAttribute('data-consent-doc') || 'privacidad');
   });
 });
-/* Backdrop must never dismiss the gate â€” refusal leaves the app locked. */
+/* Backdrop must never dismiss the gate — refusal leaves the app locked. */
 document.querySelector('#consent-gate .consent-gate__backdrop')?.addEventListener('click', (e) => {
   e.preventDefault();
   e.stopPropagation();
@@ -9097,7 +9178,7 @@ document.getElementById('btn-manage-cookies')?.addEventListener('click', () => {
 });
 document.getElementById('btn-clear-device-data')?.addEventListener('click', () => {
   const ok = window.confirm(
-    'Â¿Borrar consentimiento, preferencias, bÃºsqueda y filtros de este dispositivo? TendrÃ¡s que aceptar de nuevo.'
+    '¿Borrar consentimiento, preferencias, búsqueda y filtros de este dispositivo? Tendrás que aceptar de nuevo.'
   );
   if (!ok) return;
   clearDevicePrivacyData();
@@ -9151,7 +9232,7 @@ function isDaySwipeExcludedTarget(target, zone) {
   return false;
 }
 
-/* Horizontal swipe on list â†’ change day; this gesture belongs to the list. */
+/* Horizontal swipe on list → change day; this gesture belongs to the list. */
 (function initDaySwipe() {
   const zone = document.getElementById('listScreen') || document.getElementById('matches');
   if (!zone) return;
@@ -9210,7 +9291,7 @@ function isDaySwipeExcludedTarget(target, zone) {
   );
 })();
 
-/* Tab changes: nav / tabbar taps only â€” no finger swipe between main views. */
+/* Tab changes: nav / tabbar taps only — no finger swipe between main views. */
 
 window.addEventListener('hashchange', () => {
   const h = location.hash || '#hoy';
@@ -9300,7 +9381,7 @@ function setStoredAdminSecret(secret) {
 
 function askSyncSecret() {
   const cached = getStoredAdminSecret();
-  const entered = prompt('Clave de actualizaciÃ³n (SYNC_SECRET):', cached || '');
+  const entered = prompt('Clave de actualización (SYNC_SECRET):', cached || '');
   if (entered == null) return null;
   const secret = String(entered).trim();
   if (secret) setStoredAdminSecret(secret);
@@ -9316,7 +9397,7 @@ function escapeAdminHtml(s) {
 }
 
 function formatAdminDate(iso) {
-  if (!iso) return 'â€”';
+  if (!iso) return '—';
   const d = String(iso);
   return d.length >= 16 ? d.slice(0, 16).replace('T', ' ') : d;
 }
@@ -9340,15 +9421,15 @@ function renderAdminUsage(data) {
   if (!el) return;
   if (!data || data.configured === false) {
     el.innerHTML =
-      '<p><strong>MÃ©tricas CF no configuradas</strong></p><p class="muted">AÃ±ade secrets <code>CF_ACCOUNT_ID</code> y <code>CF_API_TOKEN</code> en Wrangler.</p>';
+      '<p><strong>Métricas CF no configuradas</strong></p><p class="muted">Añade secrets <code>CF_ACCOUNT_ID</code> y <code>CF_API_TOKEN</code> en Wrangler.</p>';
     return;
   }
   if (data.error) {
-    el.innerHTML = `<p><strong>Error de mÃ©tricas</strong></p><p class="muted">${escapeAdminHtml(data.error)}</p>`;
+    el.innerHTML = `<p><strong>Error de métricas</strong></p><p class="muted">${escapeAdminHtml(data.error)}</p>`;
     return;
   }
   el.innerHTML = `
-    <p class="muted">Worker <code>${escapeAdminHtml(data.scriptName || 'houdini-bet')}</code> Â· hoy UTC ${escapeAdminHtml(data.day || '')}</p>
+    <p class="muted">Worker <code>${escapeAdminHtml(data.scriptName || 'houdini-bet')}</code> · hoy UTC ${escapeAdminHtml(data.day || '')}</p>
     <p><strong>${Number(data.requests) || 0}</strong> consultas</p>
     <p class="muted">Errores: ${Number(data.errors) || 0}</p>`;
 }
@@ -9364,7 +9445,7 @@ function renderAdminUsers(users) {
   body.innerHTML = list
     .map((u) => {
       const id = escapeAdminHtml(u.id);
-      const handle = escapeAdminHtml(u.username || 'â€”');
+      const handle = escapeAdminHtml(u.username || '—');
       const disabled = Boolean(u.disabled);
       const status = disabled
         ? '<span class="admin-badge admin-badge--off">Deshabilitado</span>'
@@ -9376,8 +9457,8 @@ function renderAdminUsers(users) {
         <td>${handle}</td>
         <td>${escapeAdminHtml(u.name)}</td>
         <td>${escapeAdminHtml(u.email)}</td>
-        <td>${escapeAdminHtml(u.phone || 'â€”')}</td>
-        <td>${escapeAdminHtml(u.provider || 'â€”')}</td>
+        <td>${escapeAdminHtml(u.phone || '—')}</td>
+        <td>${escapeAdminHtml(u.provider || '—')}</td>
         <td>${escapeAdminHtml(formatAdminDate(u.created_at))}</td>
         <td>N/A</td>
         <td>${status}</td>
@@ -9393,8 +9474,8 @@ async function loadAdminPanel() {
   if (!isAdminQueryEnabled()) return;
   const usageEl = document.getElementById('admin-usage');
   const body = document.getElementById('admin-users-body');
-  if (usageEl) usageEl.innerHTML = '<p class="muted">Cargando mÃ©tricasâ€¦</p>';
-  if (body) body.innerHTML = '<tr><td colspan="9" class="muted">Cargandoâ€¦</td></tr>';
+  if (usageEl) usageEl.innerHTML = '<p class="muted">Cargando métricas…</p>';
+  if (body) body.innerHTML = '<tr><td colspan="9" class="muted">Cargando…</td></tr>';
   const secret = askSyncSecret();
   if (secret == null || !secret) {
     if (usageEl) usageEl.innerHTML = '<p class="muted">Clave cancelada</p>';
@@ -9420,14 +9501,14 @@ async function loadAdminPanel() {
 }
 
 async function adminRevokeUser(id) {
-  if (!confirm('Â¿Cerrar acceso a esta cuenta? Se invalidarÃ¡n sus sesiones.')) return;
+  if (!confirm('¿Cerrar acceso a esta cuenta? Se invalidarán sus sesiones.')) return;
   await adminApi(`/api/v1/admin/users/${encodeURIComponent(id)}/revoke`, { method: 'POST' });
   showBanner('Acceso cerrado', 'ok');
   await loadAdminPanel();
 }
 
 async function adminEnableUser(id) {
-  if (!confirm('Â¿Reactivar esta cuenta?')) return;
+  if (!confirm('¿Reactivar esta cuenta?')) return;
   await adminApi(`/api/v1/admin/users/${encodeURIComponent(id)}/enable`, { method: 'POST' });
   showBanner('Cuenta reactivada', 'ok');
   await loadAdminPanel();
@@ -9437,20 +9518,20 @@ async function adminDeleteUser(id, confirmToken) {
   const token = String(confirmToken || id);
   if (
     !confirm(
-      `Â¿Eliminar permanentemente la cuenta Â«${token}Â»?\n\nNo se puede deshacer. En el siguiente paso deberÃ¡s escribir el usuario (o el id).`
+      `¿Eliminar permanentemente la cuenta «${token}»?\n\nNo se puede deshacer. En el siguiente paso deberás escribir el usuario (o el id).`
     )
   ) {
     return;
   }
-  const typed = prompt(`Escribe exactamente el usuario Â«${token}Â» (o el id) para confirmar el borrado:`);
+  const typed = prompt(`Escribe exactamente el usuario «${token}» (o el id) para confirmar el borrado:`);
   if (typed == null) {
-    showBanner('EliminaciÃ³n cancelada', 'error');
+    showBanner('Eliminación cancelada', 'error');
     return;
   }
   const raw = String(typed).trim();
   const norm = (s) => String(s || '').trim().toLowerCase();
   if (norm(raw) !== norm(token) && raw !== String(id).trim()) {
-    showBanner('ConfirmaciÃ³n incorrecta; no se eliminÃ³', 'error');
+    showBanner('Confirmación incorrecta; no se eliminó', 'error');
     return;
   }
   await adminApi(`/api/v1/admin/users/${encodeURIComponent(id)}`, { method: 'DELETE' });
@@ -9621,17 +9702,17 @@ document.getElementById('btn-sync').addEventListener('click', async () => {
   const enrichBtn = document.getElementById('btn-enrich');
   btn.disabled = true;
   if (enrichBtn) enrichBtn.disabled = true;
-  btn.innerHTML = '<span>Actualizandoâ€¦</span>';
-  showBanner('Actualizando calendarioâ€¦ puede tardar unos segundos.', 'info');
+  btn.innerHTML = '<span>Actualizando…</span>';
+  showBanner('Actualizando calendario… puede tardar unos segundos.', 'info');
   try {
     const res = await api('/api/v1/sync/manual', {
       method: 'POST',
       headers: { 'x-sync-secret': secret },
     });
-    const intl = res.internationalsSynced != null ? ` Â· Selecciones ${res.internationalsSynced}` : '';
-    const seg = res.segundaSynced != null ? ` Â· Segunda ${res.segundaSynced}` : '';
+    const intl = res.internationalsSynced != null ? ` · Selecciones ${res.internationalsSynced}` : '';
+    const seg = res.segundaSynced != null ? ` · Segunda ${res.segundaSynced}` : '';
     showBanner(
-      `Calendario al dÃ­a: ${res.savedFixtures ?? 'â€”'} partidos Â· historial ${res.savedHistory ?? 0} Â· tips ${res.predicted ?? 0}${intl}${seg}`,
+      `Calendario al día: ${res.savedFixtures ?? '—'} partidos · historial ${res.savedHistory ?? 0} · tips ${res.predicted ?? 0}${intl}${seg}`,
       'ok'
     );
     await load();
@@ -9653,8 +9734,8 @@ document.getElementById('btn-enrich')?.addEventListener('click', async () => {
   btn.disabled = true;
   if (syncBtn) syncBtn.disabled = true;
   if (btBtn) btBtn.disabled = true;
-  btn.innerHTML = '<span>Enrichâ€¦</span>';
-  showBanner('Actualizando cuotas y stats (API-Football)â€¦', 'info');
+  btn.innerHTML = '<span>Enrich…</span>';
+  showBanner('Actualizando cuotas y stats (API-Football)…', 'info');
   try {
     const res = await api('/api/v1/sync/enrich', {
       method: 'POST',
@@ -9664,8 +9745,8 @@ document.getElementById('btn-enrich')?.addEventListener('click', async () => {
       showBanner(res.error, 'error');
     } else {
       showBanner(
-        `Enrich: ${res.oddsSynced ?? 0} cuotas Â· ${res.statsSynced ?? 0} stats Â· tips ${res.tipsRefreshed ?? 0}${
-          res.afError ? ` Â· aviso: ${res.afError}` : ''
+        `Enrich: ${res.oddsSynced ?? 0} cuotas · ${res.statsSynced ?? 0} stats · tips ${res.tipsRefreshed ?? 0}${
+          res.afError ? ` · aviso: ${res.afError}` : ''
         }`,
         res.ok === false ? 'error' : 'ok'
       );
@@ -9692,8 +9773,8 @@ document.getElementById('btn-backtest')?.addEventListener('click', async () => {
   btn.disabled = true;
   if (syncBtn) syncBtn.disabled = true;
   if (enrichBtn) enrichBtn.disabled = true;
-  btn.innerHTML = '<span>Backtestâ€¦</span>';
-  showBanner('Ejecutando backtest holdout (puede tardar)â€¦', 'info');
+  btn.innerHTML = '<span>Backtest…</span>';
+  showBanner('Ejecutando backtest holdout (puede tardar)…', 'info');
   try {
     const res = await api('/api/v1/admin/backtest', {
       method: 'POST',
@@ -9702,16 +9783,16 @@ document.getElementById('btn-backtest')?.addEventListener('click', async () => {
     });
     const a = res.results?.shrinkage?.holdout?.['1x2'];
     const k = res.results?.ratings?.holdout?.['1x2'];
-    const aB = a?.brier != null ? a.brier.toFixed(4) : 'â€”';
-    const kB = k?.brier != null ? k.brier.toFixed(4) : 'â€”';
+    const aB = a?.brier != null ? a.brier.toFixed(4) : '—';
+    const kB = k?.brier != null ? k.brier.toFixed(4) : '—';
     showBanner(
-      `Backtest holdout 1X2 Brier: shrinkage ${aB} Â· Kalman ${kB}. ${res.reason || res.recommendation || ''}`,
+      `Backtest holdout 1X2 Brier: shrinkage ${aB} · Kalman ${kB}. ${res.reason || res.recommendation || ''}`,
       res.recommendation === 'enable_ratings' ? 'ok' : 'info'
     );
     const el = document.getElementById('admin-status');
     if (el && res.results) {
       const lines = [
-        `Backtest: ${res.recommendation || 'â€”'}`,
+        `Backtest: ${res.recommendation || '—'}`,
         res.reason || '',
         `shrinkage 1X2 Brier ${aB} (n=${a?.n ?? 0})`,
         `Kalman 1X2 Brier ${kB} (n=${k?.n ?? 0})`,
@@ -9719,7 +9800,7 @@ document.getElementById('btn-backtest')?.addEventListener('click', async () => {
       el.innerHTML = lines.map((l) => `<div>${escapeHtml(l)}</div>`).join('');
     }
   } catch (err) {
-    showBanner(`Backtest fallÃ³: ${err.message}`, 'error');
+    showBanner(`Backtest falló: ${err.message}`, 'error');
   } finally {
     btn.disabled = false;
     if (syncBtn) syncBtn.disabled = false;
@@ -9745,12 +9826,12 @@ function registerServiceWorker() {
 function updateConnectionBanner() {
   if (navigator.onLine) {
     const el = document.getElementById('global-banner');
-    if (el && el.classList.contains('banner-info') && /conexiÃ³n/i.test(el.textContent || '')) {
+    if (el && el.classList.contains('banner-info') && /conexión/i.test(el.textContent || '')) {
       showBanner('');
     }
     return;
   }
-  showBanner('Sin conexiÃ³n: se muestran los Ãºltimos datos guardados.', 'info');
+  showBanner('Sin conexión: se muestran los últimos datos guardados.', 'info');
 }
 
 window.addEventListener('offline', updateConnectionBanner);
@@ -9843,7 +9924,7 @@ applyUiSettings();
 
 async function bootApp() {
   const splashLabel = document.querySelector('.boot-splash__label');
-  if (splashLabel) splashLabel.textContent = 'Cargando partidos y datosâ€¦';
+  if (splashLabel) splashLabel.textContent = 'Cargando partidos y datos…';
   try {
     await waitForBootAssets();
     applyUiSettings();
@@ -9861,7 +9942,7 @@ async function bootApp() {
     showBanner(err.message || 'Error al cargar', 'error');
     const el = document.getElementById('matches');
     if (el) {
-      el.innerHTML = `<div class="empty-board conf-lo">No se pudo iniciar la pÃ¡gina. Recarga e intÃ©ntalo de nuevo.</div>`;
+      el.innerHTML = `<div class="empty-board conf-lo">No se pudo iniciar la página. Recarga e inténtalo de nuevo.</div>`;
     }
     dismissBootSplash();
   }

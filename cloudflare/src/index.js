@@ -8,6 +8,7 @@ import {
   ensureMatchEventsFresh,
   runLiveCron,
   runLiveCronSafe,
+  repairFotmobExtrasEnrichment,
 } from './services/syncService.js';
 import { WINDOW_DAYS } from './services/fixtureDownload.js';
 import { resolveTeamLogoUrl } from './services/teamLogos.js';
@@ -33,7 +34,8 @@ import { loadTipCalibration, fitTipCalibration } from './services/calibration.js
 import { runBacktestSuite } from './services/backtestService.js';
 import { backfillRatings } from './services/ratingsService.js';
 import { buildLiveBlock } from './services/liveModel.js';
-import { getDayResults } from './services/dayResultsService.js';
+import { getDayResults, invalidateDayResultsCache } from './services/dayResultsService.js';
+import { isTipMarket, pickPlayablePrimaryFromProbs } from './services/tipMarkets.js';
 import * as premiumService from './services/premiumService.js';
 import * as authService from './services/authService.js';
 import * as cfUsageService from './services/cfUsageService.js';
@@ -76,22 +78,65 @@ const STALE_TRIVIAL_TIPS = new Set(['OVER_05', 'UNDER_45']);
 
 function isStaleTipLabel(label) {
   const lab = String(label || '');
-  return STALE_TRIVIAL_TIPS.has(lab) || lab.startsWith('SHOTS_');
+  if (!lab) return false;
+  // Trivial / banned, or outside current tip allowlist (HOME_WIN, DNB_*, SOT_UNDER_*, …).
+  return (
+    STALE_TRIVIAL_TIPS.has(lab) ||
+    lab.startsWith('SHOTS_') ||
+    !isTipMarket(lab)
+  );
 }
 
-/** Missing preds + stale trivial/SHOTS tips on list GETs — cap 5. Full recompute in sync/cron. */
+/** Prefer allowlisted playable tip from probs over stale suggested_bet on list GETs. */
+function applyFreshPrimaryTip(match, prediction, { tipLocked = false } = {}) {
+  const storedBet = prediction?.suggested_bet ?? null;
+  if (tipLocked && storedBet) {
+    return {
+      suggestedBet: storedBet,
+      tipMarketProb: tipMarketProbFromPrediction(prediction, storedBet),
+      confidenceScore:
+        prediction?.confidence_score != null ? Number(prediction.confidence_score) : null,
+    };
+  }
+  const picked = pickPlayablePrimaryFromProbs(prediction || match);
+  if (picked?.label) {
+    return {
+      suggestedBet: picked.label,
+      tipMarketProb: picked.probPct,
+      confidenceScore: picked.probPct,
+    };
+  }
+  return {
+    suggestedBet: storedBet,
+    tipMarketProb: tipMarketProbFromPrediction(prediction, storedBet),
+    confidenceScore:
+      prediction?.confidence_score != null ? Number(prediction.confidence_score) : null,
+  };
+}
+
+/**
+ * Missing preds + truly stale tip labels / schema gaps on list GETs.
+ * Do NOT repredict when stored primary ≠ allowlisted best — list/Top10/Aciertos
+ * already re-pick from probs on read (applyFreshPrimaryTip / pickTop10Tips).
+ */
 function missingPredictionIds(allIds, existingMap, cap = 5) {
   const missing = [];
   const stale = [];
   for (const id of allIds) {
     const pred = existingMap.get(id);
-    if (!pred) missing.push(id);
-    else if (
-      isStaleTipLabel(pred.suggested_bet) ||
-      isStaleTipLabel(pred.secondary_bet)
-    ) {
-      stale.push(id);
+    if (!pred) {
+      missing.push(id);
+      continue;
     }
+    const primary = pred.suggested_bet;
+    const secondary = pred.secondary_bet;
+    let needsRefresh =
+      isStaleTipLabel(primary) || isStaleTipLabel(secondary);
+    // New corners O7.5 column — recompute when null so CORNERS_OVER_75 can tip.
+    if (!needsRefresh && pred.corners_over75_prob == null && pred.corners_over85_prob != null) {
+      needsRefresh = true;
+    }
+    if (needsRefresh) stale.push(id);
   }
   const out = [];
   for (const id of missing) {
@@ -105,16 +150,49 @@ function missingPredictionIds(allIds, existingMap, cap = 5) {
   return out;
 }
 
+/** Short isolate cache for heavy list GETs (live refresh clears). */
+const TODAY_LIST_TTL_MS = 25 * 1000;
+const TODAY_LIST_CACHE_MAX = 32;
+const todayListCache = new Map();
+const LEAGUE_TABLE_TTL_MS = 120 * 1000;
+const LEAGUE_TABLE_CACHE_MAX = 40;
+const leagueTableCache = new Map();
+const PRED_BUNDLE_TTL_MS = 45 * 1000;
+const PRED_BUNDLE_CACHE_MAX = 48;
+const predBundleCache = new Map();
+
+function cacheMapGet(map, key, ttlMs) {
+  const hit = map.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.at > ttlMs) {
+    map.delete(key);
+    return null;
+  }
+  return hit.payload;
+}
+
+function cacheMapSet(map, key, payload, max) {
+  map.set(key, { at: Date.now(), payload });
+  if (map.size > max) {
+    const oldest = map.keys().next().value;
+    if (oldest != null) map.delete(oldest);
+  }
+}
+
+function invalidateListCaches() {
+  todayListCache.clear();
+  predBundleCache.clear();
+}
+
 function tipTierFromStored(suggestedBet, confidenceScore, tipOdds, storedTier = null) {
   if (!suggestedBet) return null;
+  void tipOdds; // tip selection is P-only; cuota no longer demotes tier
   const tier = storedTier != null ? String(storedTier).trim() : '';
   if (tier === 'playable') return 'playable';
   if (tier === 'none') return 'none';
   if (tier === 'fallback') return 'fallback';
   if (STALE_TRIVIAL_TIPS.has(String(suggestedBet))) return 'fallback';
   const conf = confidenceScore != null ? Number(confidenceScore) : null;
-  const odds = tipOdds != null ? Number(tipOdds) : null;
-  if (odds != null && Number.isFinite(odds) && odds < 1.25) return 'fallback';
   // Legacy rows (pre tip_tier): conf 0 = display-only; conf ≥67 ≈ playable.
   if (conf != null && conf > 0 && conf >= 67) return 'playable';
   if (conf != null && conf === 0) return 'none';
@@ -322,6 +400,8 @@ function flatMarketProbsFromPrediction(p) {
     awayUnder15Prob: n(p.away_under15_prob ?? p.awayUnder15Prob),
     awayOver25Prob: n(p.away_over25_prob ?? p.awayOver25Prob),
     awayUnder25Prob: n(p.away_under25_prob ?? p.awayUnder25Prob),
+    cornersOver75Prob: n(p.corners_over75_prob ?? p.cornersOver75Prob),
+    cornersUnder75Prob: n(p.corners_under75_prob ?? p.cornersUnder75Prob),
     cornersOver85Prob: n(p.corners_over85_prob ?? p.cornersOver85Prob),
     cornersUnder85Prob: n(p.corners_under85_prob ?? p.cornersUnder85Prob),
     cornersOver95Prob: n(p.corners_over95_prob ?? p.cornersOver95Prob),
@@ -510,25 +590,43 @@ async function handleApi(request, env, ctx) {
     const leagueId = url.searchParams.get('leagueId');
     const win = parseMatchWindow(url);
     const lid = leagueId ? Number(leagueId) : null;
+    const cacheKey = [
+      win.mode || 'date',
+      win.date || '',
+      win.days || 0,
+      lid != null && Number.isFinite(lid) ? lid : 'all',
+    ].join('|');
+    const cachedToday = cacheMapGet(todayListCache, cacheKey, TODAY_LIST_TTL_MS);
+    if (cachedToday) {
+      return json(cachedToday, 200, { 'Cache-Control': 'public, max-age=20' });
+    }
     const matches =
       win.mode === 'date'
         ? await store.getByDate(db, win.date, lid)
         : await store.getUpcoming(db, win.days, lid);
     const allIds = matches.map((m) => m.id);
-    const existing = await store.getPredictionsByMatchIds(db, allIds);
+    // Predictions + odds in parallel; re-fetch preds only if we had to predict.
+    let [existing, oddsMap] = await Promise.all([
+      store.getPredictionsByMatchIds(db, allIds),
+      store.getOddsByMatchIds(db, allIds),
+    ]);
     // Date boards (Top 10 / Partidos day) need the full day predicted so fill
     // can return all P 78–95% tips (up to 10). Broader windows keep a smaller cap.
     const predictCap = win.mode === 'date' ? Math.max(allIds.length, 40) : 8;
     const missing = missingPredictionIds(allIds, existing, predictCap);
-    if (missing.length) await predictMany(db, missing);
-    const predMap = await store.getPredictionsByMatchIds(db, allIds);
-    const oddsMap = await store.getOddsByMatchIds(db, allIds);
+    let predMap = existing;
+    if (missing.length) {
+      await predictMany(db, missing);
+      predMap = await store.getPredictionsByMatchIds(db, allIds);
+    }
     const enriched = matches.map((m) => {
       const p = predMap.get(m.id);
       const odds = oddsMap.get(m.id);
-      const oddsMeta = tipOddsMeta(p?.suggested_bet, p, odds);
-      const conf =
-        p?.confidence_score != null ? Number(p.confidence_score) : null;
+      // tip_results lock only for live/finished — scheduled always re-picks from probs.
+      const tipLocked = false;
+      const fresh = applyFreshPrimaryTip(m, p, { tipLocked });
+      const oddsMeta = tipOddsMeta(fresh.suggestedBet, p, odds);
+      const conf = fresh.confidenceScore;
       const secBet = p?.secondary_bet ?? null;
       const secMeta = secBet
         ? tipOddsMeta(secBet, p, odds)
@@ -538,18 +636,21 @@ async function handleApi(request, env, ctx) {
         secProb != null && Number.isFinite(secProb)
           ? Number((secProb * 100).toFixed(2))
           : null;
+      const tipTier = fresh.suggestedBet && isTipMarket(fresh.suggestedBet)
+        ? tipTierFromStored(fresh.suggestedBet, conf, oddsMeta.tipOdds, 'playable')
+        : tipTierFromStored(p?.suggested_bet, conf, oddsMeta.tipOdds, p?.tip_tier);
       return {
         ...m,
-        suggestedBet: p?.suggested_bet ?? null,
+        suggestedBet: fresh.suggestedBet,
         secondaryBet: secBet,
         confidenceScore: conf,
-        tipMarketProb: tipMarketProbFromPrediction(p, p?.suggested_bet),
+        tipMarketProb: fresh.tipMarketProb,
         valueEdge: p?.value_edge != null ? Number(p.value_edge) : null,
         valueMarket: p?.value_market ?? null,
         tipOdds: oddsMeta.tipOdds,
         oddsBand: oddsMeta.oddsBand,
         oddsSource: oddsMeta.oddsSource,
-        tipTier: tipTierFromStored(p?.suggested_bet, conf, oddsMeta.tipOdds, p?.tip_tier),
+        tipTier,
         secondaryTipOdds: secMeta.tipOdds,
         secondaryOddsSource: secMeta.oddsSource,
         secondaryConfidence: secConf,
@@ -561,14 +662,16 @@ async function handleApi(request, env, ctx) {
     const hasKey = Boolean(env.API_FOOTBALL_KEY && String(env.API_FOOTBALL_KEY).trim());
     const fdCount = await store.countFixtureDownloadMatches(db, WINDOW_DAYS);
     const mode = hasKey || fdCount > 0 ? 'live' : 'demo';
-    return json({
+    const payload = {
       date: win.date || new Date().toISOString().slice(0, 10),
       windowMode: win.mode,
       windowDays: win.mode === 'all' || win.mode === 'days' ? win.days : 0,
       mode,
       count: enriched.length,
       matches: enriched,
-    });
+    };
+    cacheMapSet(todayListCache, cacheKey, payload, TODAY_LIST_CACHE_MAX);
+    return json(payload, 200, { 'Cache-Control': 'public, max-age=20' });
   }
 
   if (method === 'GET' && path === '/api/v1/combos/weekly') {
@@ -1551,6 +1654,8 @@ async function handleApi(request, env, ctx) {
     const force = url.searchParams.get('force') === '1';
     const wait = url.searchParams.get('wait') === '1';
     const result = await handleLiveRefreshRequest(env, db, ctx, { force, wait });
+    invalidateListCaches();
+    invalidateDayResultsCache();
     return json(result);
   }
 
@@ -1563,6 +1668,8 @@ async function handleApi(request, env, ctx) {
     const wait = url.searchParams.get('wait') === '1';
     // Shares the cooldown of the global refresh: it stays cheap on repeated calls.
     await handleLiveRefreshRequest(env, db, ctx, { force, wait });
+    invalidateListCaches();
+    invalidateDayResultsCache();
     let fresh = (await store.findMatchById(db, matchId)) || match;
     fresh = (await ensureMatchEventsFresh(env, db, matchId)) || fresh;
     const prediction = await store.getPredictionByMatchId(db, matchId);
@@ -1576,8 +1683,14 @@ async function handleApi(request, env, ctx) {
   const predMatch = path.match(/^\/api\/v1\/matches\/(\d+)\/prediction$/);
   if (method === 'GET' && predMatch) {
     try {
-      const bundle = await getPredictionBundle(db, Number(predMatch[1]));
-      return json(bundle);
+      const matchId = Number(predMatch[1]);
+      const cachedBundle = cacheMapGet(predBundleCache, matchId, PRED_BUNDLE_TTL_MS);
+      if (cachedBundle) {
+        return json(cachedBundle, 200, { 'Cache-Control': 'private, max-age=30' });
+      }
+      const bundle = await getPredictionBundle(db, matchId);
+      cacheMapSet(predBundleCache, matchId, bundle, PRED_BUNDLE_CACHE_MAX);
+      return json(bundle, 200, { 'Cache-Control': 'private, max-age=30' });
     } catch (err) {
       return json({ error: err.message }, 404);
     }
@@ -1667,6 +1780,10 @@ async function handleApi(request, env, ctx) {
   const leagueTableMatch = path.match(/^\/api\/v1\/leagues\/(\d+)\/table$/);
   if (method === 'GET' && leagueTableMatch) {
     const apiId = Number(leagueTableMatch[1]);
+    const cachedTable = cacheMapGet(leagueTableCache, apiId, LEAGUE_TABLE_TTL_MS);
+    if (cachedTable) {
+      return json(cachedTable, 200, { 'Cache-Control': 'public, max-age=120' });
+    }
     const league = await store.findLeagueByApiId(db, apiId);
     if (!league) return json({ error: 'Liga no encontrada' }, 404);
     const raw = await store.getLeagueTable(db, league.id, 40);
@@ -1674,7 +1791,7 @@ async function handleApi(request, env, ctx) {
       ...row,
       logoUrl: resolveTeamLogoUrl(row.team, row.logoUrl),
     }));
-    return json({
+    const payload = {
       league: {
         id: Number(league.id),
         apiId: Number(league.api_id),
@@ -1683,7 +1800,9 @@ async function handleApi(request, env, ctx) {
       },
       table,
       emptyReason: table.length ? null : 'Sin clasificatorio aún',
-    });
+    };
+    cacheMapSet(leagueTableCache, apiId, payload, LEAGUE_TABLE_CACHE_MAX);
+    return json(payload, 200, { 'Cache-Control': 'public, max-age=120' });
   }
 
   if (method === 'GET' && path === '/api/v1/teams/search') {
@@ -1861,7 +1980,28 @@ async function handleApi(request, env, ctx) {
       stuckRepaired: refresh?.stuckRepaired ?? null,
       remainingIds: after.map((r) => r.id).slice(0, 30),
       note:
-        'Force live refresh + FD name-match onto scheduled stuck (kickoff >3h, sin goles). No void tips.',
+        'Force live refresh + FD/FotMob name-match onto scheduled stuck (FT or postponed/cancelled). Tips void on postponed/cancelled; no invented scores.',
+    });
+  }
+
+  // Re-enrich finished matches missing corners/SOT via FotMob matchDetails (fotmob_match_id / includeAll).
+  if (method === 'POST' && path === '/api/v1/admin/matches/repair-fotmob-extras') {
+    const secret = env.SYNC_SECRET || 'change-me-houdini';
+    const header = request.headers.get('x-sync-secret');
+    if (!header || header !== secret) {
+      return json({ error: 'No autorizado. Header x-sync-secret requerido.' }, 401);
+    }
+    const limit = Math.min(30, Math.max(1, Number(url.searchParams.get('limit') || 20)));
+    const lookbackDays = Math.min(60, Math.max(1, Number(url.searchParams.get('days') || 14)));
+    const enrich = await repairFotmobExtrasEnrichment(db, limit, lookbackDays);
+    const tipsSettled = await store.settlePendingTips(db, 80);
+    return json({
+      ok: true,
+      updated: enrich.updated,
+      errors: (enrich.errors || []).slice(0, 10),
+      tipsSettled,
+      note:
+        'FotMob extras → team_stats for finished missing SOT/corners; then settle pending tips. No invented scores.',
     });
   }
 
@@ -1877,6 +2017,57 @@ async function handleApi(request, env, ctx) {
       repaired,
       note:
         'predictions.suggested_bet alineado con tip_results (live/finished). Stats no cambia; el panel muestra el tip asentado.',
+    });
+  }
+
+  // Force re-pick tips for a date window (writes predictions + tip_results for scheduled).
+  if (method === 'POST' && path === '/api/v1/admin/tips/repredict') {
+    const secret = env.SYNC_SECRET || 'change-me-houdini';
+    const header = request.headers.get('x-sync-secret');
+    if (!header || header !== secret) {
+      return json({ error: 'No autorizado. Header x-sync-secret requerido.' }, 401);
+    }
+    const from = String(url.searchParams.get('from') || '').slice(0, 10);
+    const to = String(url.searchParams.get('to') || from).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+      return json({ error: 'from/to deben usar YYYY-MM-DD' }, 400);
+    }
+    const dates = [];
+    {
+      const start = new Date(`${from}T12:00:00Z`);
+      const end = new Date(`${to}T12:00:00Z`);
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) {
+        return json({ error: 'rango de fechas inválido' }, 400);
+      }
+      const cur = new Date(start);
+      let guard = 0;
+      while (cur <= end && guard < 21) {
+        dates.push(cur.toISOString().slice(0, 10));
+        cur.setUTCDate(cur.getUTCDate() + 1);
+        guard += 1;
+      }
+    }
+    const idSet = new Set();
+    for (const d of dates) {
+      const rows = await store.getByDate(db, d, null);
+      for (const m of rows) {
+        const st = String(m.status || '').toLowerCase();
+        if (st === 'scheduled' || st === 'live' || st === '') idSet.add(Number(m.id));
+      }
+    }
+    const ids = [...idSet].filter((id) => Number.isFinite(id) && id > 0);
+    const results = await predictMany(db, ids);
+    const ok = results.filter((r) => r && !r.error).length;
+    const errors = results.filter((r) => r?.error).length;
+    return json({
+      ok: true,
+      from,
+      to,
+      dates,
+      matchIds: ids.length,
+      predicted: ok,
+      errors,
+      note: 'Force predictMatch for scheduled/live in range; tip allowlist + P-only pick rewritten.',
     });
   }
 

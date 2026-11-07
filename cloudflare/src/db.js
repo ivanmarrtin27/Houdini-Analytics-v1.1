@@ -163,7 +163,7 @@ export async function getUpcoming(db, days = 14, leagueId = null) {
 export async function getByDate(db, dateYmd, leagueId = null) {
   let sql = `${MATCH_SELECT}
     WHERE date(m.match_date) = date(?)
-      AND m.status IN ('scheduled', 'live', 'finished')
+      AND m.status IN ('scheduled', 'live', 'finished', 'postponed', 'cancelled')
       ${EXCLUDE_DEMO_SCHEDULED_M}
       ${ALLOWED_LEAGUE_SQL}`;
   const params = [dateYmd];
@@ -1433,12 +1433,14 @@ export async function upsertFixture(db, f) {
 }
 
 /**
- * Status write that never downgrades finished→live/scheduled or live→scheduled.
+ * Status write that never downgrades finished→live/scheduled or live→scheduled,
+ * and keeps postponed/cancelled sticky against lagging scheduled feeds (FD).
  * Goals still use COALESCE so null payloads cannot wipe real scores.
  */
 const LIVE_STATUS_SET_SQL = `status = CASE
          WHEN ? IS NULL THEN status
          WHEN status = 'finished' THEN 'finished'
+         WHEN status IN ('postponed','cancelled') AND ? = 'scheduled' THEN status
          WHEN status = 'live' AND ? = 'scheduled' THEN 'live'
          ELSE ?
        END`;
@@ -1453,6 +1455,7 @@ export async function updateMatchLiveByApiId(db, apiId, { status, home_goals, aw
        away_goals = COALESCE(?, away_goals),
        elapsed_minute = ?
      WHERE api_id = ?`,
+    st,
     st,
     st,
     st,
@@ -1481,6 +1484,7 @@ export async function updateMatchLiveById(
     st,
     st,
     st,
+    st,
     home_goals ?? null,
     away_goals ?? null,
     elapsed_minute ?? null,
@@ -1504,6 +1508,7 @@ export async function updateMatchLiveBatch(db, rows) {
          fotmob_match_id = COALESCE(?, fotmob_match_id)
        WHERE id = ?`,
         params: [
+          st,
           st,
           st,
           st,
@@ -1595,6 +1600,7 @@ export async function upsertPrediction(db, p) {
       home_over25_prob, home_under25_prob, home_over35_prob, home_under35_prob,
       away_over05_prob, away_under05_prob, away_over15_prob, away_under15_prob,
       away_over25_prob, away_under25_prob, away_over35_prob, away_under35_prob,
+      corners_over75_prob, corners_under75_prob,
       corners_over85_prob, corners_under85_prob,
       corners_over95_prob, corners_under95_prob,
       corners_over105_prob, corners_under105_prob,
@@ -1604,7 +1610,7 @@ export async function upsertPrediction(db, p) {
       sot_over95_prob, sot_under95_prob,
       suggested_bet, secondary_bet, confidence_score, tip_tier, value_edge, value_market,
       home_xg, away_xg
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(match_id) DO UPDATE SET
       home_win_prob = excluded.home_win_prob,
       draw_prob = excluded.draw_prob,
@@ -1637,6 +1643,8 @@ export async function upsertPrediction(db, p) {
       away_under25_prob = excluded.away_under25_prob,
       away_over35_prob = excluded.away_over35_prob,
       away_under35_prob = excluded.away_under35_prob,
+      corners_over75_prob = excluded.corners_over75_prob,
+      corners_under75_prob = excluded.corners_under75_prob,
       corners_over85_prob = excluded.corners_over85_prob,
       corners_under85_prob = excluded.corners_under85_prob,
       corners_over95_prob = excluded.corners_over95_prob,
@@ -1698,6 +1706,8 @@ export async function upsertPrediction(db, p) {
     p.away_under25_prob,
     p.away_over35_prob,
     p.away_under35_prob,
+    p.corners_over75_prob ?? null,
+    p.corners_under75_prob ?? null,
     p.corners_over85_prob,
     p.corners_under85_prob,
     p.corners_over95_prob,
@@ -1844,7 +1854,7 @@ export async function getTodayMatchesForLiveRefresh(db, lookbackDays = 2) {
      JOIN teams at ON at.id = m.away_team_id
      WHERE date(m.match_date) >= date('now', ?)
        AND date(m.match_date) <= date('now')
-       AND m.status IN ('scheduled', 'live', 'finished')
+       AND m.status IN ('scheduled', 'live', 'finished', 'postponed', 'cancelled')
        ${EXCLUDE_DEMO_SCHEDULED_M}
      ORDER BY m.match_date ASC`,
     startModifier
@@ -2436,6 +2446,40 @@ export async function repairPredictionsToLockedTips(db, limit = 200) {
 }
 
 /** Snapshot tip for hit tracking. Only updates pending rows (keeps settled history). */
+/**
+ * Persist Aciertos grade (hit/miss/void) for the board tip label.
+ * Aligns tip_results with re-picked allowlist tip once extras/scores settle it.
+ */
+export async function writeSettledTipOutcome(db, tip) {
+  const matchId = Number(tip.matchId ?? tip.match_id);
+  const bet = tip.suggestedBet ?? tip.suggested_bet;
+  const outcome = String(tip.outcome || '').toLowerCase();
+  if (!Number.isFinite(matchId) || matchId <= 0 || !bet) return 0;
+  if (outcome !== 'hit' && outcome !== 'miss' && outcome !== 'void') return 0;
+  const res = await db.run(
+    `UPDATE tip_results
+     SET suggested_bet = ?,
+         home_goals = ?,
+         away_goals = ?,
+         outcome = ?,
+         settled_at = datetime('now')
+     WHERE match_id = ?
+       AND (
+         outcome = 'pending'
+         OR suggested_bet != ?
+         OR outcome != ?
+       )`,
+    String(bet),
+    tip.homeGoals ?? tip.home_goals ?? null,
+    tip.awayGoals ?? tip.away_goals ?? null,
+    outcome,
+    matchId,
+    String(bet),
+    outcome
+  );
+  return Number(res?.meta?.changes || 0);
+}
+
 export async function upsertTipResult(db, tip) {
   const modelProb =
     tip.model_prob != null && Number(tip.model_prob) > 0
@@ -2549,6 +2593,10 @@ export function evaluateSuggestedBet(bet, homeGoals, awayGoals, extras = {}) {
       return a > 3;
     case 'AWAY_UNDER_35':
       return a <= 3;
+    case 'CORNERS_OVER_75':
+      return extras.cornersTotal != null ? extras.cornersTotal > 7 : null;
+    case 'CORNERS_UNDER_75':
+      return extras.cornersTotal != null ? extras.cornersTotal <= 7 : null;
     case 'CORNERS_OVER_85':
       return extras.cornersTotal != null ? extras.cornersTotal > 8 : null;
     case 'CORNERS_UNDER_85':
@@ -2675,6 +2723,7 @@ export async function backfillTipOddsBands(db, limit = 80) {
             p.home_over25_prob, p.home_under25_prob, p.home_over35_prob, p.home_under35_prob,
             p.away_over05_prob, p.away_under05_prob, p.away_over15_prob, p.away_under15_prob,
             p.away_over25_prob, p.away_under25_prob, p.away_over35_prob, p.away_under35_prob,
+            p.corners_over75_prob, p.corners_under75_prob,
             p.corners_over85_prob, p.corners_under85_prob,
             p.corners_over95_prob, p.corners_under95_prob,
             p.corners_over105_prob, p.corners_under105_prob,
@@ -2859,6 +2908,28 @@ export async function listStuckScheduledMatches(db, olderThanHours = 3, lookback
 }
 
 export async function settlePendingTips(db, limit = 80) {
+  const lim = Math.max(1, Number(limit) || 80);
+  // Postponed/cancelled never played → void (no invented scores).
+  const voidedRows = await db.all(
+    `SELECT tr.id
+     FROM tip_results tr
+     JOIN matches m ON m.id = tr.match_id
+     WHERE tr.outcome = 'pending'
+       AND m.status IN ('postponed', 'cancelled')
+     LIMIT ?`,
+    lim
+  );
+  let settled = 0;
+  for (const row of voidedRows) {
+    const res = await db.run(
+      `UPDATE tip_results
+       SET home_goals = NULL, away_goals = NULL, outcome = 'void', settled_at = datetime('now')
+       WHERE id = ? AND outcome = 'pending'`,
+      row.id
+    );
+    settled += Number(res?.meta?.changes || 0);
+  }
+
   const pending = await db.all(
     `SELECT tr.id, tr.match_id, tr.suggested_bet, m.home_goals, m.away_goals, m.status
      FROM tip_results tr
@@ -2868,9 +2939,8 @@ export async function settlePendingTips(db, limit = 80) {
        AND m.home_goals IS NOT NULL
        AND m.away_goals IS NOT NULL
      LIMIT ?`,
-    Math.max(1, Number(limit) || 80)
+    lim
   );
-  let settled = 0;
   for (const row of pending) {
     const homeStat = await db.first(
       `SELECT corners_for, yellows_for, shots_for, shots_on_target_for FROM team_stats WHERE match_id = ? AND is_home = 1`,
@@ -3902,25 +3972,42 @@ export async function getFinishedForStatsEnrichment(db, limit = 120, lookbackDay
 /** Finished matches eligible for no-key FotMob extra-stat enrichment. */
 export async function getFinishedForFotmobStatsEnrichment(db, limit = 20, lookbackDays = 3) {
   const startModifier = `-${Math.max(1, Number(lookbackDays) || 3)} days`;
+  // Prefer rows with pending prop tips (SOT/corners/cards) so Aciertos can settle.
   return db.all(
-    `SELECT m.id, m.api_id, m.match_date, m.home_goals, m.away_goals,
+    `SELECT m.id, m.api_id, m.fotmob_match_id, m.match_date, m.home_goals, m.away_goals,
             ht.name AS home_name, at.name AS away_name,
-            ht.id AS home_team_id, at.id AS away_team_id
+            ht.id AS home_team_id, at.id AS away_team_id,
+            CASE
+              WHEN EXISTS (
+                SELECT 1 FROM tip_results tr
+                WHERE tr.match_id = m.id AND tr.outcome = 'pending'
+                  AND (
+                    tr.suggested_bet LIKE 'CORNERS_%'
+                    OR tr.suggested_bet LIKE 'SOT_%'
+                    OR tr.suggested_bet LIKE 'CARDS_%'
+                    OR tr.suggested_bet LIKE 'SHOTS_%'
+                  )
+              ) THEN 1 ELSE 0
+            END AS tip_prop_pending
      FROM matches m
      JOIN leagues l ON l.id = m.league_id
      JOIN teams ht ON ht.id = m.home_team_id
      JOIN teams at ON at.id = m.away_team_id
      LEFT JOIN team_stats hs ON hs.match_id = m.id AND hs.team_id = ht.id
+     LEFT JOIN team_stats aw ON aw.match_id = m.id AND aw.team_id = at.id
      WHERE m.status = 'finished'
        AND m.home_goals IS NOT NULL AND m.away_goals IS NOT NULL
        AND date(m.match_date) >= date('now', ?)
-       AND date(m.match_date) < date('now')
+       AND date(m.match_date) <= date('now')
        AND (
          hs.corners_for IS NULL OR hs.yellows_for IS NULL OR hs.shots_for IS NULL
          OR hs.shots_on_target_for IS NULL
+         OR aw.corners_for IS NULL OR aw.yellows_for IS NULL OR aw.shots_for IS NULL
+         OR aw.shots_on_target_for IS NULL
+         OR hs.match_id IS NULL OR aw.match_id IS NULL
        )
        ${ALLOWED_LEAGUE_SQL}
-     ORDER BY m.match_date DESC
+     ORDER BY tip_prop_pending DESC, m.match_date DESC
      LIMIT ?`,
     startModifier,
     Math.max(1, Math.min(30, Number(limit) || 20))

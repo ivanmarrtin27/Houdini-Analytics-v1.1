@@ -1,44 +1,24 @@
 /**
- * Top 10 tip selection (same rules as public `#top3` client).
- * P 78–95% desc, cuota max 3.50, primary only, anti-trivial, family diversity.
- * Never SHOTS_*. Day-results may include finished matches; live Top 10 skips them.
+ * Top 10 tip selection (same rules as public `#top3` client + day-results).
+ * Allowlisted markets only; P 78–95% desc; no cuota/odds gates; primary only;
+ * anti-trivial; family diversity. Never SHOTS_*.
  */
 
-export const TOP10_MIN_PROB = 78;
-export const TOP10_MAX_PROB = 95;
-export const TOP10_MAX_ODDS = 3.5;
+import {
+  TIP_MIN_PROB_PCT,
+  TIP_MAX_PROB_PCT,
+  isTipMarket,
+  isTrivialTipLabel,
+  tipFamilyUi,
+  pickPlayablePrimaryFromProbs,
+} from './tipMarkets.js';
+
+export const TOP10_MIN_PROB = TIP_MIN_PROB_PCT;
+export const TOP10_MAX_PROB = TIP_MAX_PROB_PCT;
 export const TOP10_MAX_PER_FAMILY = 3;
 export const TOP10_LIMIT = 10;
-export const TOP10_TRIVIAL_LABELS = new Set(['OVER_05', 'UNDER_45']);
+export { tipFamilyUi, isTrivialTipLabel as isTrivialTop10Label };
 
-export function isTrivialTop10Label(label) {
-  const lab = String(label || '').toUpperCase();
-  return TOP10_TRIVIAL_LABELS.has(lab) || lab.startsWith('SHOTS_');
-}
-
-export function tipFamilyUi(code) {
-  const b = String(code || '').toUpperCase();
-  if (b === 'HOME_WIN' || b === 'DRAW' || b === 'AWAY_WIN') return '1x2';
-  if (b.startsWith('DC_') || b.startsWith('DNB_')) return 'dc';
-  if (b === 'BTTS_YES' || b === 'BTTS_NO') return 'btts';
-  if (
-    b.startsWith('OVER_') ||
-    b.startsWith('UNDER_') ||
-    b.startsWith('HOME_OVER') ||
-    b.startsWith('HOME_UNDER') ||
-    b.startsWith('AWAY_OVER') ||
-    b.startsWith('AWAY_UNDER')
-  ) {
-    return 'ou';
-  }
-  if (b.startsWith('CORNERS_')) return 'corners';
-  if (b.startsWith('CARDS_')) return 'cards';
-  if (b.startsWith('SHOTS_')) return 'shots';
-  if (b.startsWith('SOT_')) return 'shots_on_target';
-  return 'other';
-}
-
-/** Truncate display % the same way as client formatTipPct. */
 export function formatTipPct(v) {
   const n = Number(v);
   if (!Number.isFinite(n) || n <= 0) return null;
@@ -61,24 +41,13 @@ export function tipProbPct(raw) {
   return conf != null && conf > 0 ? formatTipPct(conf) : null;
 }
 
-export function tipOddsForTop10Band(m, probPct) {
-  const raw = m?.tipOdds != null ? Number(m.tipOdds) : null;
-  const p = Number(probPct) / 100;
-  const implied =
-    Number.isFinite(p) && p > 0.01 && p < 0.99 ? 1 / p : null;
-  // Prefer in-band book/model cuota; if raw is a longshot, fall back to 1/p so
-  // high-P tips still fill quiet days (P band is the product gate, not cuota alone).
-  if (raw != null && Number.isFinite(raw) && raw > 1 && raw <= TOP10_MAX_ODDS) {
-    return raw;
-  }
-  if (implied != null && implied <= TOP10_MAX_ODDS) return implied;
-  if (raw != null && Number.isFinite(raw) && raw > 1) return raw;
-  return null;
-}
-
+/**
+ * Top 10 eligibility: allowlisted + non-trivial + P in [minProb, TOP10_MAX_PROB].
+ * Rank score = model P only (no book odds / edge).
+ */
 export function tipPlayableScore(m, minProb = TOP10_MIN_PROB) {
   const tip = m?.suggestedBet || m?.tip || m?.suggested_bet || '';
-  if (!tip || isTrivialTop10Label(tip)) return null;
+  if (!tip || !isTipMarket(tip) || isTrivialTipLabel(tip)) return null;
   const prob = tipProbPct(m);
   if (
     prob == null ||
@@ -88,18 +57,9 @@ export function tipPlayableScore(m, minProb = TOP10_MIN_PROB) {
   ) {
     return null;
   }
-  const odds = tipOddsForTop10Band(m, prob);
-  if (odds == null || !Number.isFinite(odds) || odds <= 1 || odds > TOP10_MAX_ODDS) {
-    return null;
-  }
-  const isBook = m.oddsSource === 'book' && m.tipOdds != null && Number(m.tipOdds) > 1;
-  let score = (Number(prob) / 100) * Math.log(Math.max(odds, 1.01));
-  const edge = m.valueEdge != null ? Number(m.valueEdge) : null;
-  if (edge != null && Number.isFinite(edge)) score += Math.max(0, edge) * 0.15;
-  if (!isBook) score -= 0.05;
   return {
-    score,
-    kind: isBook ? 'book' : 'est',
+    score: Number(prob) / 100,
+    kind: 'est',
     prob: Number(prob),
   };
 }
@@ -107,7 +67,8 @@ export function tipPlayableScore(m, minProb = TOP10_MIN_PROB) {
 export function isTop10MatchStatus(status, { includeFinished = false } = {}) {
   const s = String(status || '').toLowerCase();
   if (s === 'scheduled' || s === 'live' || s === '') return true;
-  if (includeFinished && s === 'finished') return true;
+  // Day board grades FT + voids postponed/cancelled; live Top 10 skips both.
+  if (includeFinished && (s === 'finished' || s === 'postponed' || s === 'cancelled')) return true;
   return false;
 }
 
@@ -177,30 +138,61 @@ export function selectDiverseTips(
 }
 
 /**
- * @param {object[]} matches enriched match rows (suggestedBet, tipMarketProb, tipOdds, …)
+ * Resolve Top 10 primary tip for a match: re-pick from allowlisted probs when
+ * possible (ignores stale predictions.suggested_bet outside / below band).
+ */
+export function resolveTop10Primary(raw) {
+  const picked = pickPlayablePrimaryFromProbs(raw);
+  if (picked?.label) {
+    return {
+      tipLabel: picked.label,
+      tipMarketProb: picked.probPct,
+      confidenceScore: picked.probPct,
+    };
+  }
+  const stored = raw?.suggestedBet || raw?.tip || raw?.suggested_bet || '';
+  if (!stored || !isTipMarket(stored) || isTrivialTipLabel(stored)) {
+    return null;
+  }
+  const prob = tipProbPct(raw);
+  if (
+    prob == null ||
+    !Number.isFinite(Number(prob)) ||
+    Number(prob) < TOP10_MIN_PROB ||
+    Number(prob) > TOP10_MAX_PROB
+  ) {
+    return null;
+  }
+  return {
+    tipLabel: String(stored),
+    tipMarketProb: Number(prob),
+    confidenceScore: raw?.confidenceScore ?? raw?.confidence_score ?? Number(prob),
+  };
+}
+
+/**
+ * @param {object[]} matches enriched match rows (suggestedBet, tipMarketProb, …)
  * @param {{ includeFinished?: boolean }} [opts]
  */
 export function buildTop10Pool(matches, { includeFinished = false } = {}) {
   const pool = [];
   for (const raw of matches || []) {
-    if (!raw?.suggestedBet || isTrivialTop10Label(raw.suggestedBet)) continue;
     if (!isTop10MatchStatus(raw.status, { includeFinished })) continue;
+    const resolved = resolveTop10Primary(raw);
+    if (!resolved) continue;
     const matchId = raw.id ?? raw.matchId;
     const primaryView = {
       ...raw,
       id: matchId,
-      suggestedBet: raw.suggestedBet,
-      tipOdds: raw.tipOdds,
-      oddsSource: raw.oddsSource,
-      confidenceScore: raw.confidenceScore,
-      tipMarketProb: raw.tipMarketProb,
-      valueEdge: raw.valueEdge,
+      suggestedBet: resolved.tipLabel,
+      confidenceScore: resolved.confidenceScore,
+      tipMarketProb: resolved.tipMarketProb,
     };
     const primaryMeta = tipPlayableScore(primaryView, TOP10_MIN_PROB);
     if (primaryMeta) {
       pool.push({
         m: primaryView,
-        tipLabel: raw.suggestedBet,
+        tipLabel: resolved.tipLabel,
         matchId,
         isSecondary: false,
         meta: primaryMeta,
@@ -209,8 +201,6 @@ export function buildTop10Pool(matches, { includeFinished = false } = {}) {
   }
   return pool.sort((a, b) => {
     if (b.meta.prob !== a.meta.prob) return b.meta.prob - a.meta.prob;
-    if (a.meta.kind === 'book' && b.meta.kind !== 'book') return -1;
-    if (b.meta.kind === 'book' && a.meta.kind !== 'book') return 1;
     return b.meta.score - a.meta.score;
   });
 }

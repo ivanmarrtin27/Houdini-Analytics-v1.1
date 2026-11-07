@@ -4,6 +4,7 @@
  */
 
 import { teamApiId, WINDOW_DAYS, HISTORY_DAYS } from './fixtureDownload.js';
+import { mapFotmobStatus } from './fotmobInternationals.js';
 
 /** FotMob match ids → our api_id namespace (avoid FD 820M / friendlies 830M). */
 export const FOTMOB_DOMESTIC_MATCH_BASE = 850000000;
@@ -33,13 +34,6 @@ function dayStartUtc(offsetDays) {
   d.setUTCHours(0, 0, 0, 0);
   d.setUTCDate(d.getUTCDate() + offsetDays);
   return d;
-}
-
-function mapStatus(st) {
-  if (!st || st.cancelled) return null;
-  if (st.finished) return 'finished';
-  if (st.started) return 'live';
-  return 'scheduled';
 }
 
 function parseScore(match) {
@@ -79,7 +73,7 @@ export function parseFotmobRoundNumber(match) {
 }
 
 function mapMatch(match) {
-  const status = mapStatus(match.status);
+  const status = mapFotmobStatus(match.status);
   if (!status) return null;
   const homeName = String(match.home?.name || '').trim();
   const awayName = String(match.away?.name || '').trim();
@@ -90,6 +84,7 @@ function mapMatch(match) {
   if (status === 'finished' && (homeGoals == null || awayGoals == null)) return null;
   const fmId = Number(match.id);
   if (!Number.isFinite(fmId) || fmId <= 0) return null;
+  const voided = status === 'postponed' || status === 'cancelled';
 
   return {
     leagueApiId: SEGUNDA.leagueApiId,
@@ -99,8 +94,8 @@ function mapMatch(match) {
     status,
     homeName,
     awayName,
-    homeGoals: status === 'finished' || status === 'live' ? homeGoals : null,
-    awayGoals: status === 'finished' || status === 'live' ? awayGoals : null,
+    homeGoals: voided ? null : status === 'finished' || status === 'live' ? homeGoals : null,
+    awayGoals: voided ? null : status === 'finished' || status === 'live' ? awayGoals : null,
     elapsed_minute: status === 'live' ? parseElapsed(match.status) : null,
     roundNumber: parseFotmobRoundNumber(match),
     roundGroup: null,

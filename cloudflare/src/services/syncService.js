@@ -146,8 +146,11 @@ function leagueLogoFallback(apiId) {
 
 function mapStatus(short) {
   if (!short) return 'scheduled';
-  if (['FT', 'AET', 'PEN'].includes(short)) return 'finished';
-  if (['1H', '2H', 'ET', 'BT', 'P', 'LIVE', 'HT'].includes(short)) return 'live';
+  const s = String(short).toUpperCase();
+  if (['FT', 'AET', 'PEN'].includes(s)) return 'finished';
+  if (['1H', '2H', 'ET', 'BT', 'P', 'LIVE', 'HT'].includes(s)) return 'live';
+  if (['PST', 'POSTP', 'SUSP'].includes(s)) return 'postponed';
+  if (['CANC', 'ABD', 'AWD', 'WO'].includes(s)) return 'cancelled';
   return 'scheduled';
 }
 
@@ -1032,7 +1035,7 @@ async function persistMappedFixtures(db, fixtures, logoMode = 'flag') {
     }
   }
 
-  // FD/FotMob calendar rows never emit "live"; do not wipe live/finished scores with empty scheduled.
+  // FD/FotMob calendar rows never emit "live"; do not wipe live/finished/voided with empty scheduled.
   const MATCH_UPSERT = `INSERT INTO matches
     (league_id, home_team_id, away_team_id, match_date, status, home_goals, away_goals, elapsed_minute, round_number, round_group, api_id)
    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -1042,28 +1045,28 @@ async function persistMappedFixtures(db, fixtures, logoMode = 'flag') {
      away_team_id=excluded.away_team_id,
      match_date=excluded.match_date,
      status=CASE
-       WHEN matches.status IN ('live','finished')
+       WHEN matches.status IN ('live','finished','postponed','cancelled')
             AND excluded.status='scheduled'
             AND excluded.home_goals IS NULL
        THEN matches.status
        ELSE excluded.status
      END,
      home_goals=CASE
-       WHEN matches.status IN ('live','finished')
+       WHEN matches.status IN ('live','finished','postponed','cancelled')
             AND excluded.status='scheduled'
             AND excluded.home_goals IS NULL
        THEN matches.home_goals
        ELSE excluded.home_goals
      END,
      away_goals=CASE
-       WHEN matches.status IN ('live','finished')
+       WHEN matches.status IN ('live','finished','postponed','cancelled')
             AND excluded.status='scheduled'
             AND excluded.home_goals IS NULL
        THEN matches.away_goals
        ELSE excluded.away_goals
      END,
      elapsed_minute=CASE
-       WHEN matches.status IN ('live','finished')
+       WHEN matches.status IN ('live','finished','postponed','cancelled')
             AND excluded.status='scheduled'
             AND excluded.home_goals IS NULL
        THEN matches.elapsed_minute
@@ -1252,7 +1255,7 @@ async function enrichStatsFromApiFootball(env, db, limit = STATS_ENRICH_LIMIT, r
   return updated;
 }
 
-async function persistFotmobStats(db, match, details) {
+export async function persistFotmobStats(db, match, details) {
   const stats = normalizeFotmobStats(details);
   const values = [
     stats.home.corners,
@@ -1334,10 +1337,14 @@ async function enrichStatsFromFotmob(db, limit = 8, lookbackDays = 60) {
       priorityTeamIds.has(Number(b.home_team_id)) || priorityTeamIds.has(Number(b.away_team_id))
         ? 1
         : 0;
+    // Prefer rows that already have a FotMob id (direct matchDetails, no name search).
+    const aId = a.fotmob_match_id != null || fotmobMatchIdFromApiId(a.api_id) ? 1 : 0;
+    const bId = b.fotmob_match_id != null || fotmobMatchIdFromApiId(b.api_id) ? 1 : 0;
+    if (bId !== aId) return bId - aId;
     return bPri - aPri;
   });
   const errors = [];
-  const fixtures = [];
+  const nameIndex = [];
   const todayMs = Date.parse(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`);
   const offsets = [
     ...new Set(
@@ -1346,28 +1353,141 @@ async function enrichStatsFromFotmob(db, limit = 8, lookbackDays = 60) {
         return Math.round((rowMs - todayMs) / 86400000);
       })
     ),
-  ].filter((offset) => Number.isFinite(offset) && offset < 0);
-  for (const offset of offsets) {
-    const snapshot = await fetchFotmobLiveSnapshot(offset, offset);
-    fixtures.push(...(snapshot.fixtures || []));
-    errors.push(...(snapshot.errors || []));
+  ].filter((offset) => Number.isFinite(offset) && offset <= 0);
+  const needNameMatch = rankedRows.some(
+    (row) =>
+      !(row.fotmob_match_id != null && Number(row.fotmob_match_id) > 0) &&
+      !fotmobMatchIdFromApiId(row.api_id)
+  );
+  if (needNameMatch) {
+    for (const offset of offsets) {
+      // includeAll: domestic PL/BL/etc. — fixtures-only list is intl/friendlies.
+      const snapshot = await fetchFotmobLiveSnapshot(offset, offset, { includeAll: true });
+      for (const fx of snapshot.all || []) {
+        nameIndex.push({
+          ...fx,
+          teams: { home: { name: fx.homeName }, away: { name: fx.awayName } },
+        });
+      }
+      errors.push(...(snapshot.errors || []));
+    }
   }
   let updated = 0;
   for (const match of rankedRows) {
     if (updated >= limit) break;
-    const best = findBestFixtureMatch(
-      fixtures.map((fx) => ({
-        ...fx,
-        teams: { home: { name: fx.homeName }, away: { name: fx.awayName } },
-      })),
-      match.home_name,
-      match.away_name
-    );
-    const fotmobId = best ? fotmobMatchIdFromApiId(best.api_id) : null;
+    let fotmobId =
+      match.fotmob_match_id != null && Number(match.fotmob_match_id) > 0
+        ? Number(match.fotmob_match_id)
+        : null;
+    if (!fotmobId) fotmobId = fotmobMatchIdFromApiId(match.api_id);
+    if (!fotmobId && nameIndex.length) {
+      const best = findBestFixtureMatch(nameIndex, match.home_name, match.away_name);
+      fotmobId = best?.fotmobId != null ? Number(best.fotmobId) : null;
+    }
     if (!fotmobId) continue;
     try {
       const details = await fetchFotmobMatchDetails(fotmobId);
-      if (await persistFotmobStats(db, match, details)) updated += 1;
+      if (await persistFotmobStats(db, match, details)) {
+        updated += 1;
+        if (match.fotmob_match_id == null) {
+          await store.updateMatchLiveById(db, match.id, { fotmob_match_id: fotmobId });
+        }
+      }
+    } catch (err) {
+      errors.push({ source: 'fotmob-stats', matchId: match.id, error: err.message || String(err) });
+    }
+  }
+  return { updated, errors };
+}
+
+/** Admin/repair: re-enrich finished matches missing SOT/corners (no invented scores). */
+export async function repairFotmobExtrasEnrichment(db, limit = 20, lookbackDays = 14) {
+  return enrichStatsFromFotmob(db, limit, lookbackDays);
+}
+
+/**
+ * Targeted FotMob extras enrich for specific finished matches (Aciertos on-read).
+ * `matches` need: id, api_id/apiId, fotmob_match_id/fotmobMatchId, home/away team ids+names,
+ * match_date/matchDate, home_goals/homeGoals, away_goals/awayGoals.
+ * No invented scores — only persist what FotMob returns.
+ */
+export async function enrichMatchesMissingExtras(db, matches) {
+  const list = (matches || []).filter((m) => m && Number(m.id) > 0);
+  if (!list.length) return { updated: 0, errors: [] };
+
+  const errors = [];
+  const needName = [];
+  const rows = list.map((m) => ({
+    id: Number(m.id),
+    api_id: m.api_id ?? m.apiId ?? null,
+    fotmob_match_id: m.fotmob_match_id ?? m.fotmobMatchId ?? null,
+    match_date: m.match_date || m.matchDate,
+    home_goals: m.home_goals ?? m.homeGoals,
+    away_goals: m.away_goals ?? m.awayGoals,
+    home_team_id: m.home_team_id ?? m.homeTeam?.id,
+    away_team_id: m.away_team_id ?? m.awayTeam?.id,
+    home_name: m.home_name || m.homeTeam?.name || m.homeName || '',
+    away_name: m.away_name || m.awayTeam?.name || m.awayName || '',
+  }));
+
+  for (const row of rows) {
+    const hasId =
+      (row.fotmob_match_id != null && Number(row.fotmob_match_id) > 0) ||
+      fotmobMatchIdFromApiId(row.api_id);
+    if (!hasId) needName.push(row);
+  }
+
+  const nameIndex = [];
+  if (needName.length) {
+    const todayMs = Date.parse(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`);
+    const offsets = [
+      ...new Set(
+        needName.map((row) => {
+          const rowMs = Date.parse(`${String(row.match_date).slice(0, 10)}T00:00:00Z`);
+          return Math.round((rowMs - todayMs) / 86400000);
+        })
+      ),
+    ].filter((offset) => Number.isFinite(offset) && offset <= 0);
+    for (const offset of offsets) {
+      try {
+        const snapshot = await fetchFotmobLiveSnapshot(offset, offset, { includeAll: true });
+        for (const fx of snapshot.all || []) {
+          nameIndex.push({
+            ...fx,
+            teams: { home: { name: fx.homeName }, away: { name: fx.awayName } },
+          });
+        }
+        errors.push(...(snapshot.errors || []));
+      } catch (err) {
+        errors.push({ source: 'fotmob-snapshot', error: err.message || String(err) });
+      }
+    }
+  }
+
+  let updated = 0;
+  for (const match of rows) {
+    if (match.home_team_id == null || match.away_team_id == null) continue;
+    let fotmobId =
+      match.fotmob_match_id != null && Number(match.fotmob_match_id) > 0
+        ? Number(match.fotmob_match_id)
+        : null;
+    if (!fotmobId) fotmobId = fotmobMatchIdFromApiId(match.api_id);
+    if (!fotmobId && nameIndex.length) {
+      const best = findBestFixtureMatch(nameIndex, match.home_name, match.away_name);
+      fotmobId = best?.fotmobId != null ? Number(best.fotmobId) : null;
+    }
+    if (!fotmobId) {
+      errors.push({ source: 'fotmob-stats', matchId: match.id, error: 'no fotmob id' });
+      continue;
+    }
+    try {
+      const details = await fetchFotmobMatchDetails(fotmobId);
+      if (await persistFotmobStats(db, match, details)) {
+        updated += 1;
+        if (match.fotmob_match_id == null) {
+          await store.updateMatchLiveById(db, match.id, { fotmob_match_id: fotmobId });
+        }
+      }
     } catch (err) {
       errors.push({ source: 'fotmob-stats', matchId: match.id, error: err.message || String(err) });
     }
@@ -1480,7 +1600,7 @@ async function runFixtureDownloadSync(db) {
     }
   }
 
-  // FD never emits "live"; keep live/finished + scores when calendar upsert is empty scheduled.
+  // FD never emits "live"; keep live/finished/voided + scores when calendar upsert is empty scheduled.
   const MATCH_UPSERT = `INSERT INTO matches
     (league_id, home_team_id, away_team_id, match_date, status, home_goals, away_goals, round_number, round_group, api_id)
    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -1490,21 +1610,21 @@ async function runFixtureDownloadSync(db) {
      away_team_id=excluded.away_team_id,
      match_date=excluded.match_date,
      status=CASE
-       WHEN matches.status IN ('live','finished')
+       WHEN matches.status IN ('live','finished','postponed','cancelled')
             AND excluded.status='scheduled'
             AND excluded.home_goals IS NULL
        THEN matches.status
        ELSE excluded.status
      END,
      home_goals=CASE
-       WHEN matches.status IN ('live','finished')
+       WHEN matches.status IN ('live','finished','postponed','cancelled')
             AND excluded.status='scheduled'
             AND excluded.home_goals IS NULL
        THEN matches.home_goals
        ELSE excluded.home_goals
      END,
      away_goals=CASE
-       WHEN matches.status IN ('live','finished')
+       WHEN matches.status IN ('live','finished','postponed','cancelled')
             AND excluded.status='scheduled'
             AND excluded.home_goals IS NULL
        THEN matches.away_goals
@@ -2049,13 +2169,15 @@ export async function runLiveStatusRefresh(env, db, { force = false } = {}) {
       );
       const fmId = fotmobMatchIdFromApiId(fx.api_id);
       if (best?._row?.id && !updatedIds.has(best._row.id)) {
+        const voided = fx.status === 'postponed' || fx.status === 'cancelled';
         // Never paint live/finished scores onto a fixture that has not kicked off yet.
-        if (isPreKickoff(best._row.match_date)) continue;
+        // Postponed/cancelled may be known before kickoff — still apply.
+        if (!voided && isPreKickoff(best._row.match_date)) continue;
         liveUpdates.push({
           id: best._row.id,
           status: fx.status,
-          home_goals: fx.homeGoals,
-          away_goals: fx.awayGoals,
+          home_goals: voided ? null : fx.homeGoals,
+          away_goals: voided ? null : fx.awayGoals,
           elapsed_minute: fx.status === 'live' ? fx.elapsed_minute ?? null : null,
           fotmob_match_id: fmId ?? null,
         });
@@ -2073,17 +2195,18 @@ export async function runLiveStatusRefresh(env, db, { force = false } = {}) {
     const liveIndex = buildLiveNameIndex(allLive);
     for (const m of dbMatches) {
       if (updatedIds.has(m.id)) continue;
-      if (isPreKickoff(m.match_date)) continue;
       const candidates = liveCandidatesFor(liveIndex, m.home_name, m.away_name);
       if (!candidates.length) continue;
       const best = findBestFixtureMatch(candidates, m.home_name, m.away_name);
       const fm = best?._fm;
       if (!fm) continue;
+      const voided = fm.status === 'postponed' || fm.status === 'cancelled';
+      if (!voided && isPreKickoff(m.match_date)) continue;
       liveUpdates.push({
         id: m.id,
         status: fm.status,
-        home_goals: fm.homeGoals,
-        away_goals: fm.awayGoals,
+        home_goals: voided ? null : fm.homeGoals,
+        away_goals: voided ? null : fm.awayGoals,
         elapsed_minute: fm.status === 'live' ? fm.elapsed ?? null : null,
         fotmob_match_id: fm.fotmobId,
       });
@@ -2133,11 +2256,12 @@ export async function runLiveStatusRefresh(env, db, { force = false } = {}) {
         const hg = best.goals?.home != null ? Number(best.goals.home) : null;
         const ag = best.goals?.away != null ? Number(best.goals.away) : null;
         if (status === 'scheduled' && hg == null) continue;
+        const voided = status === 'postponed' || status === 'cancelled';
         const afFixId = best.fixture?.id != null ? Number(best.fixture.id) : null;
         await store.updateMatchLiveById(db, m.id, {
           status,
-          home_goals: hg,
-          away_goals: ag,
+          home_goals: voided ? null : hg,
+          away_goals: voided ? null : ag,
           elapsed_minute: status === 'live' ? elapsed : null,
         });
         if (afFixId && !m.af_fixture_id) {
@@ -2223,6 +2347,25 @@ export async function runLiveStatusRefresh(env, db, { force = false } = {}) {
             status: 'finished',
             home_goals: fx.homeGoals,
             away_goals: fx.awayGoals,
+            elapsed_minute: null,
+            fotmob_match_id: fx.fotmobId ?? null,
+          });
+          painted.add(row.id);
+          if (fx.fotmobId) fotmobIdByMatchId.set(Number(row.id), fx.fotmobId);
+        }
+        // Postponed/cancelled stay scheduled forever if we only look for FT scores.
+        const voidedFm = (repairLive || []).filter(
+          (fx) => fx.status === 'postponed' || fx.status === 'cancelled'
+        );
+        for (const fx of voidedFm) {
+          const best = findBestFixtureMatch(stuckCandidates(), fx.homeName, fx.awayName);
+          const row = best?._row;
+          if (!row?.id || painted.has(row.id)) continue;
+          repairUpdates.push({
+            id: row.id,
+            status: fx.status,
+            home_goals: null,
+            away_goals: null,
             elapsed_minute: null,
             fotmob_match_id: fx.fotmobId ?? null,
           });

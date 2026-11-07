@@ -11,7 +11,6 @@ import {
   buildScoreMatrix,
   marketsFromMatrix,
   allGoalCandidatesFromMarkets,
-  CORE_MARKETS,
   poissonP,
   weightedAvg,
 } from './matchModel.js';
@@ -21,13 +20,19 @@ import {
   ratingsReady,
 } from './ratingsService.js';
 import { buildLiveBlock } from './liveModel.js';
+import {
+  TIP_MARKET_SET,
+  TIP_MIN_PROB as PLAYABLE_MIN_PROB,
+  TIP_MAX_PROB as PLAYABLE_MAX_PROB,
+  TIP_TRIVIAL_LABELS,
+  isTipMarket,
+  isTrivialTipLabel as isTrivialTipMarketLabel,
+} from './tipMarkets.js';
 export { TRIVIAL_GOAL_TIPS };
 
 const MIN_TIP_PROB = 0.48;
-/** Upper cap for non-1X2 tipProbabilityAllowed (near-certain markets excluded). */
+/** Upper cap for legacy tipProbabilityAllowed (near-certain markets excluded). */
 const MAX_TIP_PROB = 0.9;
-/** Playable tip lane: model P ≥ this (not max-P absolute). Raised 0.75→0.78 for hit-rate. */
-const PLAYABLE_MIN_PROB = 0.78;
 /**
  * Display tip floor (predictions.suggested_bet when tipTier none).
  * Same as playable — never promote ~50% markets as the recommended tip.
@@ -36,9 +41,7 @@ const PLAYABLE_MIN_PROB = 0.78;
 const DISPLAY_MIN_PROB = PLAYABLE_MIN_PROB;
 /** Optional UI “tip seguro” threshold (subset of playable). */
 const SAFE_TIP_PROB = 0.8;
-/** BTTS stays secondary-only (weak primary hit rate ~43% / 30d). */
-const PRIMARY_BLOCKED_FAMILIES = new Set(['btts']);
-/** Min edge (model − fair book) for a value tip. Aligned with UI badge ≥5%. */
+/** Min edge (model − fair book) for value badge (not tip ranking). */
 const MIN_VALUE = 0.05;
 const MIN_DRAW_PROB = 0.32;
 const MIN_1X2_TIP_PROB = 0.44;
@@ -46,33 +49,19 @@ const MAX_1X2_TIP_PROB = 0.85;
 const MIN_SAMPLE_FOR_TIP = 3;
 /** Count markets need denser enriched history before they can be tips. */
 const EXTRA_MARKET_MIN_N = 4;
-/** Soft floor/ceiling on book odds for tip ranking (avoid 1.05 favorites / trash longshots). */
+/** Soft floor/ceiling on book odds for value-edge maps (not tip selection). */
 const MIN_TIP_BOOK_ODDS = 1.2;
 const MAX_TIP_BOOK_ODDS = 4.5;
-/** Dead odds: not playable as primary tip. */
+/** Kept for value-edge helpers / tests; tip selection ignores cuota. */
 const MIN_PLAYABLE_ODDS = 1.25;
 /** Ultra-safe / boring markets — excluded from tips (SHOTS_* banned via helper). */
-const TRIVIAL_TIP_LABELS = new Set(['OVER_05', 'UNDER_45']);
+const TRIVIAL_TIP_LABELS = TIP_TRIVIAL_LABELS;
 /** Soft cap: same label per day. */
 const MAX_LABEL_PER_DAY = 2;
 /** Soft cap: share of day's tips per family (~35%). */
 const MAX_FAMILY_DAY_SHARE = 0.35;
-/** Expanded tip pool: core + O/U ladder + DC/DNB (extras still via extraCandidates). */
-const TIP_POOL_LABELS = new Set([
-  ...CORE_MARKETS,
-  'DC_1X',
-  'DC_X2',
-  'DNB_HOME',
-  'DNB_AWAY',
-  'OVER_05',
-  'UNDER_05',
-  'OVER_15',
-  'UNDER_15',
-  'OVER_35',
-  'UNDER_35',
-  'OVER_45',
-  'UNDER_45',
-]);
+/** Tip universe = allowlisted markets only (see tipMarkets.js). */
+const TIP_POOL_LABELS = TIP_MARKET_SET;
 
 const BOOK_ODDS_MAP = {
   HOME_WIN: 'home_odds',
@@ -371,26 +360,21 @@ function isBannedShotTotalLabel(label) {
 }
 
 function isTrivialTipLabel(label) {
-  const lab = String(label || '');
-  return TRIVIAL_TIP_LABELS.has(lab) || isBannedShotTotalLabel(lab);
+  return isTrivialTipMarketLabel(label);
 }
 
+/** Playable = allowlisted + P in 78–95% band. No cuota/odds gate. */
 function isPlayableCandidate(c) {
-  if (!c || isTrivialTipLabel(c.label)) return false;
+  if (!c || !isTipMarket(c.label) || isTrivialTipLabel(c.label)) return false;
   const p = Number(c.prob);
-  if (!Number.isFinite(p) || p < PLAYABLE_MIN_PROB) return false;
-  const odds = tipOddsForCandidate(c);
-  if (odds == null || odds < MIN_PLAYABLE_ODDS) return false;
+  if (!Number.isFinite(p) || p < PLAYABLE_MIN_PROB || p > PLAYABLE_MAX_PROB) return false;
   return true;
 }
 
+/** Rank by model P (highest first); soft daily label/family malus only. */
 function playableTipScore(c, dailyTipContext) {
   const p = Number(c.prob);
-  const odds = tipOddsForCandidate(c) || 1 / Math.max(p, 0.05);
-  let score = p * Math.log(Math.max(odds, 1.01));
-  if (c.edge != null && Number.isFinite(Number(c.edge))) {
-    score += Math.max(0, Number(c.edge)) * 0.15;
-  }
+  let score = Number.isFinite(p) ? p : 0;
   if (dailyTipContext?.fixtureCount > 0) {
     const labelCount = Number(dailyTipContext.counts?.[c.label]) || 0;
     score -= Math.min(0.12, Math.max(0, labelCount + 1 - MAX_LABEL_PER_DAY) * 0.04);
@@ -444,10 +428,8 @@ function meetsDisplayFloor(c) {
 
 /**
  * Display-only ranking when no playable primary.
- * Prefer P≥DISPLAY_MIN_PROB (same as playable). Must never feed tip_results / Stats
- * (tipTier stays 'none'; confidence stores real display P×100 for UI).
- * BTTS allowed; SHOTS_* / trivial excluded.
- * If nothing reaches the floor → schema NOT NULL fallback (best non-trivial).
+ * Best allowlisted P (prefer ≥DISPLAY_MIN_PROB). Never feeds tip_results
+ * (tipTier stays 'none'). SHOTS_* / trivial / non-allowlist excluded.
  */
 function pickDisplayPrimary(
   allAnnotated,
@@ -459,111 +441,47 @@ function pickDisplayPrimary(
   dailyTipContext,
   { hasBook = false, sampleSize = 0 } = {}
 ) {
-  const withBookEv = allAnnotated.filter((c) => c.hasBook && c.edge != null);
-  const byRank = (pool) =>
-    [...pool].sort((a, b) => compareTipCandidates(a, b, value, dailyTipContext));
-  const byProb = (pool) => [...pool].sort((a, b) => Number(b.prob) - Number(a.prob));
+  void hasBook;
+  void sampleSize;
+  void value;
+  const byProb = (pool) =>
+    [...pool].sort(
+      (a, b) =>
+        playableTipScore(b, dailyTipContext) - playableTipScore(a, dailyTipContext) ||
+        Number(b.prob) - Number(a.prob)
+    );
 
-  // Phase 1 — strong display tips only (no ~50% recommendations).
+  const allowlisted = (pool) =>
+    (pool || []).filter((c) => isTipMarket(c.label) && !isTrivialTipLabel(c.label));
+
   let pick = null;
-  const strongBook = withBookEv.filter(meetsDisplayFloor);
-  if (hasBook && strongBook.length) {
-    const valuePoolBase = strongBook.filter(
-      (c) =>
-        c.edge != null &&
-        c.edge >= MIN_VALUE &&
-        (c.book == null || Number(c.book) >= MIN_PLAYABLE_ODDS)
-    );
-    const valuePool = dailyQuotaCandidates(valuePoolBase, dailyTipContext);
-    if (valuePool.length) {
-      pick = byRank(valuePool)[0];
-    } else if (valuePoolBase.length) {
-      pick = byRank(valuePoolBase)[0];
-    } else {
-      pick = byRank(strongBook)[0];
-    }
+  const strong = allowlisted(allAnnotated).filter(meetsDisplayFloor);
+  if (strong.length) {
+    const quota = dailyQuotaCandidates(strong, dailyTipContext);
+    pick = byProb(quota.length ? quota : strong)[0];
   }
-
   if (!pick) {
-    const bookBacked = tipPool.filter((c) => value.byLabel?.[c.label] != null);
-    const poolSource = hasBook && bookBacked.length ? bookBacked : tipPool;
-    const strongPool = poolSource.filter(meetsDisplayFloor);
-    if (strongPool.length) {
-      const quota = dailyQuotaCandidates(strongPool, dailyTipContext);
-      pick = byRank(quota.length ? quota : strongPool)[0];
-    }
-  }
-
-  if (!pick) {
-    const strongExtras = (extras || []).filter(meetsDisplayFloor);
-    if (strongExtras.length) pick = byProb(strongExtras)[0];
-  }
-
-  if (!pick) {
-    const strongNonTrivial = nonTrivial.filter(
-      (c) => TIP_POOL_LABELS.has(c.label) && meetsDisplayFloor(c)
-    );
-    if (strongNonTrivial.length) {
-      pick = byProb(dailyQuotaCandidates(strongNonTrivial, dailyTipContext))[0];
-    }
-  }
-
-  // Phase 2 — schema NOT NULL only (caller stores real P×100 + tip_tier none).
-  if (!pick) {
-    if (hasBook && withBookEv.length) {
-      const nonTrivialBook = withBookEv.filter((c) => !isTrivialTipLabel(c.label));
-      pick = byRank(nonTrivialBook.length ? nonTrivialBook : withBookEv)[0];
+    const weak = allowlisted(allAnnotated.length ? allAnnotated : tipPool);
+    if (weak.length) {
+      const quota = dailyQuotaCandidates(weak, dailyTipContext);
+      pick = byProb(quota.length ? quota : weak)[0];
     }
   }
   if (!pick) {
-    const bookBacked = tipPool.filter((c) => value.byLabel?.[c.label] != null);
-    const poolSource = hasBook && bookBacked.length ? bookBacked : tipPool;
-    const usableBase = poolSource.filter(
-      (c) => !isTrivialTipLabel(c.label) && tipProbabilityAllowed(c)
-    );
-    const usable = dailyQuotaCandidates(usableBase, dailyTipContext);
-    const pool = usable.length ? usable : usableBase.length ? usableBase : poolSource;
-    if (pool.length) pick = byRank(pool)[0];
+    const fallback = allowlisted(nonTrivial);
+    if (fallback.length) pick = byProb(dailyQuotaCandidates(fallback, dailyTipContext))[0];
   }
-  if (!pick && nonTrivial.length) {
-    const fallbackBase = nonTrivial.filter(
-      (c) => TIP_POOL_LABELS.has(c.label) && !isTrivialTipLabel(c.label)
-    );
-    pick = byRank(dailyQuotaCandidates(fallbackBase, dailyTipContext))[0];
-  }
-  if (!pick) pick = candidates[0] || extras[0] || null;
-
-  const pickEdge = value.byLabel?.[pick?.label]?.edge;
-  if (
-    sampleSize < MIN_SAMPLE_FOR_TIP &&
-    pick &&
-    meetsDisplayFloor(pick) &&
-    !isExtraFamily(pick.label) &&
-    !(pickEdge != null && pickEdge >= MIN_VALUE)
-  ) {
-    const safePool = hasBook
-      ? tipPool.filter((c) => value.byLabel?.[c.label] != null)
-      : tipPool;
-    const safePoolBase = safePool.filter(
-      (c) =>
-        meetsDisplayFloor(c) &&
-        ['UNDER_25', 'BTTS_NO', 'HOME_WIN', 'AWAY_WIN'].includes(c.label)
-    );
-    const safePoolByQuota = dailyQuotaCandidates(safePoolBase, dailyTipContext);
-    const safe = (safePoolByQuota.length ? safePoolByQuota : safePoolBase).sort(
-      (a, b) => b.prob - a.prob
-    )[0];
-    if (safe && safe.prob >= pick.prob - 0.03) pick = safe;
+  if (!pick) {
+    const fromCand = allowlisted([...(candidates || []), ...(extras || [])]);
+    if (fromCand.length) pick = byProb(fromCand)[0];
   }
   return pick || null;
 }
 
 /**
- * Tip selection: playable lane only for Stats primary (P≥78%, non-trivial, odds≥1.25).
- * When none: tipTier 'none', primary null (no tip_results), displayPrimary for
- * predictions.suggested_bet (NOT NULL) — also prefers P≥78%; weak schema fallback
- * only when nothing reaches DISPLAY_MIN_PROB (stores real P×100, not 0). Never invents book odds.
- * BTTS secondary-only for playable; BTTS OK on displayPrimary.
+ * Tip selection: allowlisted markets only; rank by model P (no cuota).
+ * Playable lane (tip_results): P 78–95%. BTTS_YES allowed as primary.
+ * When none playable: tipTier 'none', displayPrimary for suggested_bet.
  */
 function pickBets(candidates, value, calib = null, opts = {}) {
   const {
@@ -579,8 +497,12 @@ function pickBets(candidates, value, calib = null, opts = {}) {
     return !isFamilyBlocked(calib, tipFamily(c.label));
   };
 
-  const tipPool = nonTrivial.filter((c) => TIP_POOL_LABELS.has(c.label)).filter(familyOk);
-  const extras = (extraCandidates || shotCandidates || []).filter(familyOk);
+  const tipPool = nonTrivial
+    .filter((c) => isTipMarket(c.label))
+    .filter(familyOk);
+  const extras = (extraCandidates || shotCandidates || [])
+    .filter((c) => isTipMarket(c.label))
+    .filter(familyOk);
   const annotate = (c) => {
     const meta = value.byLabel?.[c.label];
     return meta
@@ -594,10 +516,7 @@ function pickBets(candidates, value, calib = null, opts = {}) {
   let tipTier = 'none';
   let displayPrimary = null;
 
-  // Primary: playable only — exclude trivial ultra-safe lines and BTTS (secondary OK).
-  const playablePool = allAnnotated.filter(
-    (c) => isPlayableCandidate(c) && !PRIMARY_BLOCKED_FAMILIES.has(tipFamily(c.label))
-  );
+  const playablePool = allAnnotated.filter(isPlayableCandidate);
   if (playablePool.length) {
     const quotaPool = dailyQuotaCandidates(playablePool, dailyTipContext);
     const ranked = [...(quotaPool.length ? quotaPool : playablePool)].sort(
@@ -619,27 +538,21 @@ function pickBets(candidates, value, calib = null, opts = {}) {
     );
   }
 
-  // Anchor secondary diversity on Stats primary or display fallback (UI pair).
   const anchor = primary || displayPrimary;
-  // tipFamily (not local familyOf): DC/DNB share 1X2 with HOME/AWAY/DRAW so
-  // secondary never repeats the same result side as primary (e.g. HOME + DNB_HOME).
   const secondaryPool = allAnnotated.filter(
     (c) =>
       c.label !== anchor?.label &&
+      isTipMarket(c.label) &&
       !isTrivialTipLabel(c.label) &&
       (!anchor || tipFamily(c.label) !== tipFamily(anchor.label))
   );
   const playableSecondary = secondaryPool.filter(isPlayableCandidate);
-  const valueSecondary = secondaryPool.filter(
-    (c) => c.hasBook && c.edge != null && c.edge >= MIN_VALUE
-  );
   const secRank = (pool) =>
     [...pool].sort(
-      (a, b) => secondaryTipScore(b, dailyTipContext) - secondaryTipScore(a, dailyTipContext)
+      (a, b) => playableTipScore(b, dailyTipContext) - playableTipScore(a, dailyTipContext)
     );
   const secondary =
     (playableSecondary.length ? secRank(playableSecondary)[0] : null) ||
-    (valueSecondary.length ? secRank(valueSecondary)[0] : null) ||
     (secondaryPool.length ? secRank(secondaryPool)[0] : null) ||
     null;
 
@@ -708,6 +621,8 @@ function cornersModel(homeStats, awayStats, league, { degraded = false } = {}) {
   const lambdaHome = homeCornerAtt * awayCornerDef * leagueAvg;
   const lambdaAway = awayCornerAtt * homeCornerDef * leagueAvg;
   const total = lambdaHome + lambdaAway;
+  let under75 = 0;
+  for (let k = 0; k <= 7; k += 1) under75 += poissonP(k, total);
   let under85 = 0;
   for (let k = 0; k <= 8; k += 1) under85 += poissonP(k, total);
   let under95 = 0;
@@ -718,6 +633,8 @@ function cornersModel(homeStats, awayStats, league, { degraded = false } = {}) {
     lambdaHome,
     lambdaAway,
     lambdaMatch: total,
+    cornersOver75: 1 - under75,
+    cornersUnder75: under75,
     cornersOver85: 1 - under85,
     cornersUnder85: under85,
     cornersOver: 1 - under95,
@@ -978,6 +895,8 @@ function sotCandidatesFromModel(sot) {
 function cornerCandidatesFromModel(corners) {
   if (!corners) return [];
   return [
+    { label: 'CORNERS_OVER_75', prob: corners.cornersOver75 },
+    { label: 'CORNERS_UNDER_75', prob: corners.cornersUnder75 },
     { label: 'CORNERS_OVER_85', prob: corners.cornersOver85 },
     { label: 'CORNERS_UNDER_85', prob: corners.cornersUnder85 },
     { label: 'CORNERS_OVER_95', prob: corners.cornersOver },
@@ -1072,15 +991,17 @@ export async function predictMatch(db, matchId) {
   const shotsDisplay =
     shots || totalShotsModel(homeStats, awayStats, league, { degraded: true });
 
-  // Tip pool = core + O/U 1.5/3.5; extras compete on book edge for primary too.
+  // Tip pool = allowlisted markets only (tipMarkets.js); extras filtered to allowlist.
   let candidates = allGoalCandidatesFromMarkets(m);
-  const tipCandidates = candidates.filter((c) => TIP_POOL_LABELS.has(c.label));
+  const tipCandidates = candidates.filter((c) => isTipMarket(c.label));
   const sotCands = sotCandidatesFromModel(shotsOnTarget);
   const cornerCands = cornerCandidatesFromModel(corners);
   const cardCands = cardCandidatesFromModel(cards);
   // SHOTS_* never enter tip extras; kept only for value/ladder book maps.
   const shotCandsForValue = shotCandidatesFromModel(shots);
-  const extraCands = [...sotCands, ...cornerCands, ...cardCands];
+  const extraCands = [...sotCands, ...cornerCands, ...cardCands].filter((c) =>
+    isTipMarket(c.label)
+  );
 
   const oddsRow = oddsRowEarly;
   const hasBook = Boolean(
@@ -1240,6 +1161,10 @@ export async function predictMatch(db, matchId) {
     away_under25_prob: Number(m.awayUnder25.toFixed(4)),
     away_over35_prob: Number(m.awayOver35.toFixed(4)),
     away_under35_prob: Number(m.awayUnder35.toFixed(4)),
+    corners_over75_prob:
+      corners?.cornersOver75 != null ? Number(corners.cornersOver75.toFixed(4)) : null,
+    corners_under75_prob:
+      corners?.cornersUnder75 != null ? Number(corners.cornersUnder75.toFixed(4)) : null,
     corners_over85_prob:
       corners?.cornersOver85 != null ? Number(corners.cornersOver85.toFixed(4)) : null,
     corners_under85_prob:

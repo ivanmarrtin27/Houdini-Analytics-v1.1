@@ -51,12 +51,26 @@ function isNationalLeague(league) {
   return isAllowedCompetition(name, 'World');
 }
 
-function mapStatus(match) {
-  const st = match?.status || {};
-  if (st.cancelled) return null;
+/**
+ * FotMob list/details status → D1 status.
+ * Cancelled flag covers postponed (PP), cancelled, abandoned — use reason text.
+ */
+export function mapFotmobStatus(st) {
+  if (!st) return 'scheduled';
+  if (st.cancelled) {
+    const reason = String(
+      st.reason?.longKey || st.reason?.shortKey || st.reason?.short || st.reason?.long || ''
+    ).toLowerCase();
+    if (/postpon|pp\b/.test(reason) || reason === 'pp') return 'postponed';
+    return 'cancelled';
+  }
   if (st.finished) return 'finished';
   if (st.started) return 'live';
   return 'scheduled';
+}
+
+function mapStatus(match) {
+  return mapFotmobStatus(match?.status || {});
 }
 
 function leagueApiId(league) {
@@ -96,6 +110,7 @@ function mapMatch(league, match) {
 
   const finished = status === 'finished';
   const live = status === 'live';
+  const voided = status === 'postponed' || status === 'cancelled';
   let rawHome = match.home?.score;
   let rawAway = match.away?.score;
   if ((rawHome == null || rawAway == null) && match.status?.scoreStr) {
@@ -122,8 +137,8 @@ function mapMatch(league, match) {
     status,
     homeName,
     awayName,
-    homeGoals: finished || live ? homeGoals : null,
-    awayGoals: finished || live ? awayGoals : null,
+    homeGoals: voided ? null : finished || live ? homeGoals : null,
+    awayGoals: voided ? null : finished || live ? awayGoals : null,
     elapsed_minute: elapsed,
     api_id: FOTMOB_MATCH_API_BASE + Number(match.id),
     homeTeamApiId: teamApiId(lApi, homeName),
@@ -189,16 +204,25 @@ export async function fetchInternationalFixtures(fromOffset = 0, toOffset = WIND
 
 /**
  * League-agnostic view of a FotMob match (no league context needed).
+ * Includes postponed/cancelled so live refresh can void stuck scheduled rows.
  */
 function mapAnyLiveMatch(match) {
   const status = mapStatus(match);
-  if (status !== 'live' && status !== 'finished') return null;
+  if (
+    status !== 'live' &&
+    status !== 'finished' &&
+    status !== 'postponed' &&
+    status !== 'cancelled'
+  ) {
+    return null;
+  }
   const homeName = String(match.home?.name || '').trim();
   const awayName = String(match.away?.name || '').trim();
   if (!homeName || !awayName) return null;
   const fmId = Number(match.id);
   if (!Number.isFinite(fmId) || fmId <= 0) return null;
 
+  const voided = status === 'postponed' || status === 'cancelled';
   let rawHome = match.home?.score;
   let rawAway = match.away?.score;
   if ((rawHome == null || rawAway == null) && match.status?.scoreStr) {
@@ -209,9 +233,17 @@ function mapAnyLiveMatch(match) {
     }
   }
   const homeGoals =
-    rawHome != null && rawHome !== '' && !Number.isNaN(Number(rawHome)) ? Number(rawHome) : null;
+    voided
+      ? null
+      : rawHome != null && rawHome !== '' && !Number.isNaN(Number(rawHome))
+        ? Number(rawHome)
+        : null;
   const awayGoals =
-    rawAway != null && rawAway !== '' && !Number.isNaN(Number(rawAway)) ? Number(rawAway) : null;
+    voided
+      ? null
+      : rawAway != null && rawAway !== '' && !Number.isNaN(Number(rawAway))
+        ? Number(rawAway)
+        : null;
 
   return {
     fotmobId: fmId,

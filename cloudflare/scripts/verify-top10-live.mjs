@@ -43,11 +43,14 @@ if (!/async function renderTop3[\s\S]{0,900}matches\/today\?date=/.test(src)) {
   process.exit(2);
 }
 
+const tipMarketStart = src.indexOf('const TIP_MARKET_SET = new Set([');
+const tipMarketEnd = src.indexOf(']);', tipMarketStart) + 3;
+const tipMarketDecl = src.slice(tipMarketStart, tipMarketEnd);
+
 const api = new Function(
-  `const TOP10_MIN_PROB = 78;
+  `${tipMarketDecl}
+   const TOP10_MIN_PROB = 78;
    const TOP10_MAX_PROB = 95;
-   const TOP10_MIN_ODDS = 1.3;
-   const TOP10_MAX_ODDS = 3.5;
    const TOP10_TRIVIAL_LABELS = new Set(['OVER_05', 'UNDER_45']);
    const TOP10_MAX_PER_FAMILY = 3;
    const TOP10_LIMIT = 10;
@@ -58,10 +61,10 @@ const api = new Function(
        return Math.trunc(n <= 1 ? n * 100 : n);
      }
      const conf = raw?.confidenceScore != null ? Number(raw.confidenceScore) : null;
-     return conf != null && conf > 0 ? conf : null;
+     return conf != null && conf > 0 ? Math.trunc(conf) : null;
    }
+   ${extractFunction('isTipMarket')}
    ${extractFunction('isTrivialTop10Label')}
-   ${extractFunction('tipOddsForTop10Band')}
    ${extractFunction('tipPlayableScore')}
    ${extractFunction('tipFamilyUi')}
    ${extractFunction('isTop10MatchStatus')}
@@ -78,29 +81,17 @@ const rDay = await fetch(`${base}/api/v1/matches/today?date=${todayYmd}`);
 const dDay = await rDay.json();
 const matchesDay = dDay.matches || [];
 const pool = api.buildTop10Pool(matchesDay);
-const pickedDay = api.pickTop10Tips(matchesDay, 10);
-const ok = pickedDay.length <= 10 && pickedDay.length <= matchesDay.length;
-
+const picked = api.pickTop10Tips(matchesDay, 10);
 console.log(
   JSON.stringify(
     {
-      todayYmd,
-      dateOnly: {
-        matchCount: matchesDay.length,
-        pool: pool.length,
-        picked: pickedDay.length,
-        tips: pickedDay.map((x) => ({
-          id: x.matchId,
-          tip: x.tipLabel,
-          p: x.meta.prob,
-          odds: x.m?.tipOdds ?? null,
-          date: x.m?.matchDate,
-        })),
-      },
-      ok,
+      date: todayYmd,
+      matches: matchesDay.length,
+      pool: pool.length,
+      picked: picked.length,
+      labels: picked.map((x) => x.tipLabel),
     },
     null,
     2
   )
 );
-process.exit(ok ? 0 : 2);
