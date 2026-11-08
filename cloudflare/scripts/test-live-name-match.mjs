@@ -185,6 +185,37 @@ check(
 check('N.E.C. vs NEC Nijmegen ≥85', teamNameScore('N.E.C.', 'NEC Nijmegen') >= 85);
 check('Omonia vs Omonia Nicosia ≥85', teamNameScore('Omonia', 'Omonia Nicosia') >= 85);
 check('RC Celta vs Celta Vigo ≥85', teamNameScore('RC Celta', 'Celta Vigo') >= 85);
+check(
+  'R. Racing Club vs Racing Santander ≥85',
+  teamNameScore('R. Racing Club', 'Racing Santander') >= 85
+);
+check(
+  'RC Deportivo vs Deportivo A Coruña ≥85',
+  teamNameScore('RC Deportivo', 'Deportivo A Coruña') >= 85
+);
+check(
+  'RCD Espanyol de Barcelona vs Espanyol ≥85',
+  teamNameScore('RCD Espanyol de Barcelona', 'Espanyol') >= 85
+);
+
+const laLigaFm = [
+  { teams: { home: { name: 'Málaga' }, away: { name: 'Racing Santander' } } },
+  { teams: { home: { name: 'Espanyol' }, away: { name: 'Deportivo A Coruña' } } },
+];
+check(
+  'Málaga CF–R. Racing Club name-matches FotMob Racing Santander',
+  findBestFixtureMatch(laLigaFm, 'Málaga CF', 'R. Racing Club') === laLigaFm[0]
+);
+check(
+  'Espanyol–RC Deportivo name-matches FotMob Deportivo A Coruña',
+  findBestFixtureMatch(laLigaFm, 'RCD Espanyol de Barcelona', 'RC Deportivo') ===
+    laLigaFm[1]
+);
+// Keep Colombian Deportivo Cali below threshold vs RC Deportivo alias
+check(
+  'RC Deportivo vs Deportivo Cali still below 85',
+  teamNameScore('RC Deportivo', 'Deportivo Cali') < 85
+);
 
 const uelFm = [
   { teams: { home: { name: 'Sparta Prague' }, away: { name: 'AFC Bournemouth' } } },

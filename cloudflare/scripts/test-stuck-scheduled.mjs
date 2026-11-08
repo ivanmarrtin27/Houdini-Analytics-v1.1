@@ -74,6 +74,25 @@ check(
   'normalize joins initialisms / strips apostrophes',
   SYNC.includes("Be'er→Beer") && SYNC.includes('n e c')
 );
+check(
+  'Racing / Deportivo La Liga aliases present',
+  SYNC.includes("['r racing club', 'racing santander']") &&
+    SYNC.includes("['rc deportivo', 'deportivo a coruna']")
+);
+check(
+  'finished events re-fetched when scoreboard lags (not only empty json)',
+  SYNC.includes('rowEventsLagScore(m)') &&
+    SYNC.includes('Never regress a richer goal list')
+);
+check(
+  'FD upsert protects FotMob-corrected kickoff',
+  SYNC.includes('matches.fotmob_match_id IS NOT NULL') &&
+    SYNC.includes('THEN matches.match_date')
+);
+check(
+  'live refresh corrects scheduled kickoff drift',
+  SYNC.includes('kickoffDrift') && SYNC.includes('Scheduled↔scheduled')
+);
 
 console.log(failed ? `\n${failed} checks failed` : `\n${passed}/${passed} checks passed`);
 process.exit(failed ? 1 : 0);

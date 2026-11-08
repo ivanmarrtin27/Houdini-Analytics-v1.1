@@ -46,8 +46,8 @@ check('Tap team uses /api/v1/teams/:id nextMatch → openPrediction',
   APP.includes('/api/v1/teams/${teamId}') &&
     APP.includes('insight?.nextMatch?.id') &&
     APP.includes('openPrediction(nextId)'));
-check('CTA Ver partidos de esta liga wires leagueFilterIds',
-  APP.includes('ligas-see-matches') && APP.includes('leagueFilterIds.add(d1Id)'));
+check('CTA Ver partidos de esta liga removed from Ligas detail',
+  !HTML.includes('id="ligas-see-matches"') && !APP.includes('ligas-see-matches'));
 check('API route GET /api/v1/leagues/:id/table exists',
   INDEX.includes('leagueTableMatch') &&
     INDEX.includes('leagues\\/(\\d+)\\/table') &&

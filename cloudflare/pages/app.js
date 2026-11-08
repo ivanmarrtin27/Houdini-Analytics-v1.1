@@ -577,8 +577,8 @@ const LIGAS_FOLDERS = [
     badge: 'ESP',
     flagCountry: 'Spain',
     leagues: [
-      { apiId: 140, name: 'LaLiga', tag: '1Âª' },
-      { apiId: 141, name: 'LaLiga Hypermotion', tag: '2Âª' },
+      { apiId: 140, name: 'LaLiga', tag: '1º División' },
+      { apiId: 141, name: 'LaLiga Hypermotion', tag: '2º División' },
     ],
   },
   {
@@ -643,7 +643,7 @@ function hbCensorWrap(html, { block = false } = {}) {
   )}">
     <div class="hb-censor__veil" aria-hidden="true">${html}</div>
     <div class="hb-censor__lock" aria-hidden="true">
-      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb168" width="22" height="22" alt="" decoding="async" />
+      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb170" width="22" height="22" alt="" decoding="async" />
       <span class="hb-censor__lock-title">${escapeHtml(t('censor.title'))}</span>
       <span class="hb-censor__lock-sub">${escapeHtml(t('censor.sub'))}</span>
     </div>
@@ -1676,7 +1676,7 @@ function mpVsMidLabel(m, live) {
 }
 
 function mpVsBrandMarkHtml() {
-  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb168" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
+  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb170" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
 }
 
 function mpVsMidHtml(m, live) {
@@ -1971,7 +1971,7 @@ function sumRecentAvg(recentAvgs, key) {
   return Number(((Number(h) || 0) + (Number(a) || 0)).toFixed(2));
 }
 
-const UI_ICON_V = 'hb168';
+const UI_ICON_V = 'hb170';
 const MP_STAT_ICON_PX = 20;
 const mpStatImg = (file) =>
   `<img class="mp-stat__icon mp-stat__icon--img" src="/icons/ui/${file}?v=${UI_ICON_V}" width="${MP_STAT_ICON_PX}" height="${MP_STAT_ICON_PX}" alt="" aria-hidden="true" decoding="async" />`;
@@ -3778,7 +3778,6 @@ const I18N = {
     'stats.loading': 'Cargando estadísticas…',
     'panel.emptySelect': 'Selecciona un partido para ver el análisis',
     'ligas.emptySelect': 'Selecciona una liga para ver la clasificación',
-    'ligas.seeMatches': 'Ver partidos de esta liga',
     'ligas.hint':
       'Elige un país y una liga. En escritorio la tabla aparece a la derecha; en móvil se abre desde la derecha.',
     'ligas.noLeagues': 'No hay ligas en la ventana',
@@ -4176,7 +4175,6 @@ const I18N = {
     'stats.loading': 'Loading stats…',
     'panel.emptySelect': 'Select a match to see the analysis',
     'ligas.emptySelect': 'Select a league to see the table',
-    'ligas.seeMatches': 'See matches in this league',
     'ligas.hint':
       'Pick a country and league. On desktop the table appears on the right; on mobile it slides in from the right.',
     'ligas.noLeagues': 'No leagues in the window',
@@ -6380,7 +6378,7 @@ function perfTipDisplayHtml(tip) {
   )}">
     <span class="perf-row__tip-blur" aria-hidden="true">${tip}</span>
     <span class="perf-row__tip-premium" aria-hidden="true">
-      <img src="/icons/ui/premium-crown.png?v=hb168" width="13" height="13" alt="" />
+      <img src="/icons/ui/premium-crown.png?v=hb170" width="13" height="13" alt="" />
       Premium
     </span>
   </span>`;
@@ -9630,21 +9628,6 @@ window.addEventListener('resize', () => {
   }
 });
 
-document.getElementById('ligas-see-matches')?.addEventListener('click', () => {
-  const d1Id = Number(ligasActiveD1Id);
-  if (!Number.isFinite(d1Id) || d1Id <= 0) {
-    showBanner('Liga no disponible', 'info');
-    return;
-  }
-  leagueFilterIds.clear();
-  leagueFilterIds.add(d1Id);
-  scopeFilter = 'all';
-  leaguesPanelOpen = true;
-  persistFiltersIfAllowed();
-  setActiveNav('#partidos');
-  applyFilters();
-});
-
 let searchTimer;
 document.getElementById('team-search').addEventListener('input', (e) => {
   clearTimeout(searchTimer);
@@ -9818,6 +9801,12 @@ function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
   const secure = location.protocol === 'https:' || location.hostname === 'localhost';
   if (!secure) return;
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (refreshing) return;
+    refreshing = true;
+    location.reload();
+  });
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
   });

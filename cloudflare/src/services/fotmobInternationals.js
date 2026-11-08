@@ -203,16 +203,18 @@ export async function fetchInternationalFixtures(fromOffset = 0, toOffset = WIND
 }
 
 /**
- * League-agnostic view of a FotMob match (no league context needed).
- * Includes postponed/cancelled so live refresh can void stuck scheduled rows.
+ * League-agnostic view of a FotMob day-feed match (no league context needed).
+ * Includes scheduled (with utcTime) so live refresh can correct FD kickoff drift,
+ * plus live/finished/postponed/cancelled for scores and voids.
  */
-function mapAnyLiveMatch(match) {
+export function mapAnyLiveMatch(match) {
   const status = mapStatus(match);
   if (
     status !== 'live' &&
     status !== 'finished' &&
     status !== 'postponed' &&
-    status !== 'cancelled'
+    status !== 'cancelled' &&
+    status !== 'scheduled'
   ) {
     return null;
   }
@@ -221,6 +223,9 @@ function mapAnyLiveMatch(match) {
   if (!homeName || !awayName) return null;
   const fmId = Number(match.id);
   if (!Number.isFinite(fmId) || fmId <= 0) return null;
+
+  const matchDate = toSqlDate(match.status?.utcTime || match.utcTime);
+  if (!matchDate) return null;
 
   const voided = status === 'postponed' || status === 'cancelled';
   let rawHome = match.home?.score;
@@ -233,13 +238,13 @@ function mapAnyLiveMatch(match) {
     }
   }
   const homeGoals =
-    voided
+    voided || status === 'scheduled'
       ? null
       : rawHome != null && rawHome !== '' && !Number.isNaN(Number(rawHome))
         ? Number(rawHome)
         : null;
   const awayGoals =
-    voided
+    voided || status === 'scheduled'
       ? null
       : rawAway != null && rawAway !== '' && !Number.isNaN(Number(rawAway))
         ? Number(rawAway)
@@ -250,6 +255,7 @@ function mapAnyLiveMatch(match) {
     homeName,
     awayName,
     status,
+    matchDate,
     homeGoals,
     awayGoals,
     elapsed: status === 'live' ? parseElapsedMinute(match.status || {}) : null,
@@ -260,10 +266,9 @@ function mapAnyLiveMatch(match) {
  * Live/finished snapshots — UNL / UCL / UEL / Friendlies only (status updates on FD rows).
  * Accepts a small date range so yesterday can still be closed after midnight.
  *
- * With `includeAll` the `all` list also carries every live/finished match of the
- * day feed, whatever the league. That is how rows coming from other feeds
- * (FixtureDownload domestic leagues) get a FotMob match id, and with it the
- * live score, the minute and the incident timeline.
+ * With `includeAll` the `all` list also carries every scheduled/live/finished match
+ * of the day feed (with utcTime), whatever the league. That is how FixtureDownload
+ * domestic rows get a FotMob match id, kickoff corrections, live score, and incidents.
  */
 export async function fetchFotmobLiveSnapshot(fromOffset = 0, toOffset = 0, { includeAll = false } = {}) {
   const dates = dateOffsets(fromOffset, toOffset);

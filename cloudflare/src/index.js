@@ -9,6 +9,9 @@ import {
   runLiveCron,
   runLiveCronSafe,
   repairFotmobExtrasEnrichment,
+  apiFootballKey,
+  isApiFootballAuthFailure,
+  shouldSkipApiFootball,
 } from './services/syncService.js';
 import { WINDOW_DAYS } from './services/fixtureDownload.js';
 import { resolveTeamLogoUrl } from './services/teamLogos.js';
@@ -494,7 +497,7 @@ async function handleApi(request, env, ctx) {
 
   if (method === 'GET' && path === '/api/v1/status') {
     const auto = await maybeAutoSync(env, db, ctx);
-    const hasKey = Boolean(env.API_FOOTBALL_KEY && String(env.API_FOOTBALL_KEY).trim());
+    const hasKey = Boolean(apiFootballKey(env));
     const fdCount = await store.countFixtureDownloadMatches(db, WINDOW_DAYS);
     const oddsCount = await store.countOddsRows(db);
     const cornersCount = await store.countStatsWithCorners(db);
@@ -544,11 +547,28 @@ async function handleApi(request, env, ctx) {
       top5Upcoming = 0;
       top5WithOdds = 0;
     }
+    let apiFootballAuth = 'missing';
+    if (hasKey) {
+      const gate = await shouldSkipApiFootball(db, env);
+      if (gate.skip && gate.reason === 'invalid_key_cooldown') apiFootballAuth = 'invalid';
+      else if (lastEnrichSummary?.afAuth === 'invalid') apiFootballAuth = 'invalid';
+      else if (lastEnrichSummary?.afError && isApiFootballAuthFailure(lastEnrichSummary.afError)) {
+        apiFootballAuth = 'invalid';
+      } else if (lastEnrichSummary?.afProbe?.ok || lastEnrichSummary?.afAuth === 'ok') {
+        apiFootballAuth = 'ok';
+      } else {
+        apiFootballAuth = 'unknown';
+      }
+    }
     if (fdCount > 0) {
       mode = 'live';
-      message = hasKey
-        ? `FD + API-Football: ${upcomingWithOdds}/${upcoming} con cuota (${oddsCoveragePct ?? 0}%) · top5 ${top5WithOdds}/${top5Upcoming} (${top5OddsCoveragePct ?? 0}%) · corners=${cornersCount} · amarillas=${yellowsCount}.`
-        : `Calendario FD (${fdCount} partidos). Sin API_FOOTBALL_KEY → sin value ni cuotas book. Corners/amarillas vía FotMob cuando hay muestra.`;
+      if (!hasKey) {
+        message = `Calendario FD (${fdCount} partidos). Sin API_FOOTBALL_KEY → sin value ni cuotas book. Corners/amarillas vía FotMob cuando hay muestra.`;
+      } else if (apiFootballAuth === 'invalid') {
+        message = `FD ok · API_FOOTBALL_KEY presente pero rechazada (403 Invalid API key). Rotar: cd cloudflare && npx wrangler secret put API_FOOTBALL_KEY · corners=${cornersCount} · amarillas=${yellowsCount}.`;
+      } else {
+        message = `FD + API-Football: ${upcomingWithOdds}/${upcoming} con cuota (${oddsCoveragePct ?? 0}%) · top5 ${top5WithOdds}/${top5Upcoming} (${top5OddsCoveragePct ?? 0}%) · corners=${cornersCount} · amarillas=${yellowsCount}.`;
+      }
     } else if (auto.syncing) {
       message = 'Sincronizando calendario real en segundo plano… recarga en unos segundos.';
     }
@@ -558,8 +578,9 @@ async function handleApi(request, env, ctx) {
       mode,
       demo: mode === 'demo',
       source: fdCount > 0 ? 'fixturedownload' : 'seed',
-      oddsEnabled: hasKey,
+      oddsEnabled: hasKey && apiFootballAuth !== 'invalid',
       apiFootballKeyPresent: hasKey,
+      apiFootballAuth,
       oddsMatchCount: oddsCount,
       cornersMatchCount: cornersCount,
       yellowsMatchCount: yellowsCount,
@@ -659,7 +680,7 @@ async function handleApi(request, env, ctx) {
         live: buildLiveBlock(m, p),
       };
     });
-    const hasKey = Boolean(env.API_FOOTBALL_KEY && String(env.API_FOOTBALL_KEY).trim());
+    const hasKey = Boolean(apiFootballKey(env));
     const fdCount = await store.countFixtureDownloadMatches(db, WINDOW_DAYS);
     const mode = hasKey || fdCount > 0 ? 'live' : 'demo';
     const payload = {
@@ -2081,7 +2102,7 @@ async function handleApi(request, env, ctx) {
     const result = await runDailySync(env, db);
     // Chain AF enrich when key present so manual sync also fills book odds.
     let enrich = null;
-    if (env.API_FOOTBALL_KEY && String(env.API_FOOTBALL_KEY).trim()) {
+    if (apiFootballKey(env)) {
       try {
         enrich = await runAfEnrichOnly(env, db);
       } catch (err) {

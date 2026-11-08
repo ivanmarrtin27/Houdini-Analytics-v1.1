@@ -1466,20 +1466,22 @@ export async function updateMatchLiveByApiId(db, apiId, { status, home_goals, aw
   );
 }
 
-/** Update live fields by internal match id. */
+/** Update live fields by internal match id. Optional match_date corrects FD kickoff drift. */
 export async function updateMatchLiveById(
   db,
   matchId,
-  { status, home_goals, away_goals, elapsed_minute, fotmob_match_id }
+  { status, home_goals, away_goals, elapsed_minute, fotmob_match_id, match_date }
 ) {
   const st = status ?? null;
+  const md = match_date != null ? String(match_date).slice(0, 19) : null;
   await db.run(
     `UPDATE matches SET
        ${LIVE_STATUS_SET_SQL},
        home_goals = COALESCE(?, home_goals),
        away_goals = COALESCE(?, away_goals),
        elapsed_minute = ?,
-       fotmob_match_id = COALESCE(?, fotmob_match_id)
+       fotmob_match_id = COALESCE(?, fotmob_match_id),
+       match_date = COALESCE(?, match_date)
      WHERE id = ?`,
     st,
     st,
@@ -1489,8 +1491,29 @@ export async function updateMatchLiveById(
     away_goals ?? null,
     elapsed_minute ?? null,
     fotmob_match_id ?? null,
+    md,
     matchId
   );
+}
+
+/** Kickoff-only patch (FotMob utcTime / fotmob_match_id) — does not touch status or scores. */
+export async function updateMatchKickoffBatch(db, rows) {
+  const items = (rows || [])
+    .filter((r) => r && r.id != null && r.match_date != null)
+    .map((r) => ({
+      sql: `UPDATE matches SET
+         match_date = ?,
+         fotmob_match_id = COALESCE(?, fotmob_match_id)
+       WHERE id = ?`,
+      params: [
+        String(r.match_date).slice(0, 19),
+        r.fotmob_match_id ?? null,
+        r.id,
+      ],
+    }));
+  if (!items.length) return 0;
+  await db.batch(items);
+  return items.length;
 }
 
 /** Same as updateMatchLiveById for many matches in a single D1 batch. */
@@ -1499,13 +1522,15 @@ export async function updateMatchLiveBatch(db, rows) {
     .filter((r) => r && r.id != null)
     .map((r) => {
       const st = r.status ?? null;
+      const md = r.match_date != null ? String(r.match_date).slice(0, 19) : null;
       return {
         sql: `UPDATE matches SET
          ${LIVE_STATUS_SET_SQL},
          home_goals = COALESCE(?, home_goals),
          away_goals = COALESCE(?, away_goals),
          elapsed_minute = ?,
-         fotmob_match_id = COALESCE(?, fotmob_match_id)
+         fotmob_match_id = COALESCE(?, fotmob_match_id),
+         match_date = COALESCE(?, match_date)
        WHERE id = ?`,
         params: [
           st,
@@ -1516,6 +1541,7 @@ export async function updateMatchLiveBatch(db, rows) {
           r.away_goals ?? null,
           r.elapsed_minute ?? null,
           r.fotmob_match_id ?? null,
+          md,
           r.id,
         ],
       };

@@ -17,6 +17,7 @@ import {
   normalizeFotmobEvents,
   normalizeFotmobStats,
   matchEventsLagScore,
+  countGoalEventsBySide,
   parseEventsJson,
 } from './matchEvents.js';
 import { fetchSegundaFixtures } from './fotmobDomestic.js';
@@ -29,6 +30,60 @@ const INTERNATIONAL_LEAGUE_IDS = [
 ];
 
 const API_FOOTBALL_MIN_INTERVAL_MS = 6200; // free tier: 10 calls/minute
+/** After 403 Invalid API key, skip AF calls for this long (FotMob/FD cover live). */
+const AF_AUTH_COOLDOWN_MS = 6 * 60 * 60 * 1000;
+
+/** Trimmed Worker secret — never log the value. */
+export function apiFootballKey(env) {
+  return String(env?.API_FOOTBALL_KEY || '').trim();
+}
+
+/** True when upstream rejected credentials (not quota). */
+export function isApiFootballAuthFailure(errOrMsg) {
+  const s = String(errOrMsg?.message || errOrMsg || '').toLowerCase();
+  if (!s) return false;
+  if (s.includes('invalid api key') || s.includes('token: invalid')) return true;
+  if (s.includes('4xse')) return true;
+  return /\b403\b/.test(s) && (s.includes('token') || s.includes('credentials'));
+}
+
+async function markApiFootballAuthFailure(db, err) {
+  if (!isApiFootballAuthFailure(err)) return false;
+  const until = new Date(Date.now() + AF_AUTH_COOLDOWN_MS).toISOString();
+  try {
+    await store.setMeta(db, 'af_auth_blocked_until', until);
+    await store.setMeta(db, 'af_auth_last_error', 'invalid_key');
+  } catch (_) {
+    /* meta optional */
+  }
+  return true;
+}
+
+async function clearApiFootballAuthBlock(db) {
+  try {
+    await store.setMeta(db, 'af_auth_blocked_until', '');
+    await store.setMeta(db, 'af_auth_last_error', '');
+  } catch (_) {
+    /* meta optional */
+  }
+}
+
+/** Skip AF when secret missing or recently rejected as invalid. */
+export async function shouldSkipApiFootball(db, env) {
+  if (!apiFootballKey(env)) return { skip: true, reason: 'missing' };
+  try {
+    const raw = await store.getMeta(db, 'af_auth_blocked_until');
+    if (raw) {
+      const until = Date.parse(raw);
+      if (!Number.isNaN(until) && Date.now() < until) {
+        return { skip: true, reason: 'invalid_key_cooldown', until: raw };
+      }
+    }
+  } catch (_) {
+    /* ignore */
+  }
+  return { skip: false, reason: null };
+}
 
 function createApiFootballLimiter(minIntervalMs = API_FOOTBALL_MIN_INTERVAL_MS) {
   let lastRequestAt = 0;
@@ -156,12 +211,14 @@ function mapStatus(short) {
 
 async function apiGet(env, path, params = {}, rateLimit = null) {
   if (rateLimit) await rateLimit();
+  const key = apiFootballKey(env);
+  if (!key) throw new Error('API-Football: missing API_FOOTBALL_KEY');
   const url = new URL(`https://v3.football.api-sports.io${path}`);
   Object.entries(params).forEach(([k, v]) => {
     if (v != null) url.searchParams.set(k, String(v));
   });
   const res = await fetch(url.toString(), {
-    headers: { 'x-apisports-key': env.API_FOOTBALL_KEY || '' },
+    headers: { 'x-apisports-key': key },
   });
   if (!res.ok) {
     let detail = '';
@@ -173,7 +230,13 @@ async function apiGet(env, path, params = {}, rateLimit = null) {
     } catch (_) {
       /* ignore */
     }
-    throw new Error(detail ? `API-Football ${res.status}: ${detail}` : `API-Football ${res.status}`);
+    const msg = detail ? `API-Football ${res.status}: ${detail}` : `API-Football ${res.status}`;
+    if (res.status === 403 || isApiFootballAuthFailure(msg)) {
+      throw new Error(
+        `API-Football 403 invalid_key (rotar: npx wrangler secret put API_FOOTBALL_KEY). ${detail.slice(0, 80)}`
+      );
+    }
+    throw new Error(msg);
   }
   const json = await res.json();
   // api-sports sometimes returns 200 with errors object / empty when plan/key invalid
@@ -658,6 +721,22 @@ const TEAM_NAME_ALIASES = new Map([
   ['bvb', 'borussia dortmund'],
   ['arsenal', 'arsenal'],
   ['arsenal fc', 'arsenal'],
+  // La Liga FD ↔ FotMob (R. Racing Club / RC Deportivo scored ~50 without aliases)
+  ['r racing club', 'racing santander'],
+  ['racing santander', 'racing santander'],
+  ['racing de santander', 'racing santander'],
+  ['real racing club', 'racing santander'],
+  ['real racing', 'racing santander'],
+  ['rc deportivo', 'deportivo a coruna'],
+  ['deportivo a coruna', 'deportivo a coruna'],
+  ['deportivo de la coruna', 'deportivo a coruna'],
+  ['rc deportivo de la coruna', 'deportivo a coruna'],
+  ['rcd espanyol de barcelona', 'espanyol'],
+  ['rcd espanyol', 'espanyol'],
+  ['espanyol', 'espanyol'],
+  ['malaga', 'malaga'],
+  ['malaga cf', 'malaga'],
+  ['paris fc', 'paris fc'],
 ]);
 
 function canonicalTeamName(name) {
@@ -1601,6 +1680,7 @@ async function runFixtureDownloadSync(db) {
   }
 
   // FD never emits "live"; keep live/finished/voided + scores when calendar upsert is empty scheduled.
+  // Keep FotMob-corrected kickoff when FD still has the stale DateUtc (fotmob_match_id set).
   const MATCH_UPSERT = `INSERT INTO matches
     (league_id, home_team_id, away_team_id, match_date, status, home_goals, away_goals, round_number, round_group, api_id)
    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -1608,7 +1688,12 @@ async function runFixtureDownloadSync(db) {
      league_id=excluded.league_id,
      home_team_id=excluded.home_team_id,
      away_team_id=excluded.away_team_id,
-     match_date=excluded.match_date,
+     match_date=CASE
+       WHEN matches.fotmob_match_id IS NOT NULL
+            AND datetime(matches.match_date) != datetime(excluded.match_date)
+       THEN matches.match_date
+       ELSE excluded.match_date
+     END,
      status=CASE
        WHEN matches.status IN ('live','finished','postponed','cancelled')
             AND excluded.status='scheduled'
@@ -1741,7 +1826,7 @@ export async function runDailySync(env, db) {
   let segundaSynced = segunda.saved || 0;
   const fotmobStats = await enrichStatsFromFotmob(db, 12, 60);
 
-  const hasKey = Boolean(env.API_FOOTBALL_KEY && String(env.API_FOOTBALL_KEY).trim());
+  const hasKey = Boolean(apiFootballKey(env));
   // AF odds/stats van en cron/endpoint aparte (cupo subrequests)
   const oddsSynced = 0;
   const statsSynced = fotmobStats.updated || 0;
@@ -1849,7 +1934,7 @@ export async function runDailySync(env, db) {
 
 /** Solo odds + stats API-Football (cron 06:30 / POST /sync/enrich). */
 export async function runAfEnrichOnly(env, db) {
-  const hasKey = Boolean(env.API_FOOTBALL_KEY && String(env.API_FOOTBALL_KEY).trim());
+  const hasKey = Boolean(apiFootballKey(env));
   if (!hasKey) {
     return {
       ok: false,
@@ -1858,6 +1943,18 @@ export async function runAfEnrichOnly(env, db) {
       statsSynced: 0,
       oddsSynced: 0,
       tipsRefreshed: 0,
+    };
+  }
+  const skip = await shouldSkipApiFootball(db, env);
+  if (skip.skip && skip.reason === 'invalid_key_cooldown') {
+    return {
+      ok: false,
+      mode: 'af-enrich',
+      error: `API_FOOTBALL_KEY rechazada (cooldown hasta ${skip.until}). Rotar secret y reintentar.`,
+      statsSynced: 0,
+      oddsSynced: 0,
+      tipsRefreshed: 0,
+      afAuth: 'invalid',
     };
   }
   let statsSynced = 0;
@@ -1877,8 +1974,10 @@ export async function runAfEnrichOnly(env, db) {
     const rateLimit = createApiFootballLimiter();
     try {
       afProbe = await probeApiFootball(env, rateLimit);
+      await clearApiFootballAuthBlock(db);
     } catch (probeErr) {
       afError = probeErr.message || String(probeErr);
+      await markApiFootballAuthFailure(db, probeErr);
       throw probeErr;
     }
     quotaPlan = planApiFootballEnrichLimits(afProbe.remaining);
@@ -1912,6 +2011,7 @@ export async function runAfEnrichOnly(env, db) {
     }
   } catch (err) {
     afError = err.message || String(err);
+    await markApiFootballAuthFailure(db, err);
   }
   try {
     await store.setMeta(db, 'last_enrich_at', now);
@@ -1932,6 +2032,7 @@ export async function runAfEnrichOnly(env, db) {
         afProbe,
         quotaPlan,
         afError,
+        afAuth: afError && isApiFootballAuthFailure(afError) ? 'invalid' : afProbe ? 'ok' : null,
       })
     );
   } catch (_) {
@@ -1952,6 +2053,7 @@ export async function runAfEnrichOnly(env, db) {
     afProbe,
     quotaPlan,
     afError,
+    afAuth: afError && isApiFootballAuthFailure(afError) ? 'invalid' : afProbe ? 'ok' : null,
     lastEnrichAt: now,
   };
 }
@@ -2045,7 +2147,7 @@ export async function ensureMatchEventsFresh(env, db, matchId) {
 
   const row = await store.getMatchRowForEvents(db, id);
   if (!row) return match;
-  const hasKey = Boolean(env.API_FOOTBALL_KEY);
+  const hasKey = Boolean(apiFootballKey(env));
   try {
     const events = await fetchEventsForMatchRow(env, row, hasKey);
     if (events?.length) {
@@ -2190,8 +2292,8 @@ export async function runLiveStatusRefresh(env, db, { force = false } = {}) {
     }
 
     // Rows from other feeds (FixtureDownload domestic leagues) have no FotMob id.
-    // Resolve one by name so the live score, the minute and the incidents arrive.
-    // Scheduled post-kickoff rows without fotmob_match_id are included (alias-aware ≥85).
+    // Resolve one by name so kickoff corrections, live score, minute and incidents arrive.
+    // includeAll now carries scheduled (+ utcTime) for FD reschedule drift (Auxerre-like).
     const liveIndex = buildLiveNameIndex(allLive);
     for (const m of dbMatches) {
       if (updatedIds.has(m.id)) continue;
@@ -2201,7 +2303,51 @@ export async function runLiveStatusRefresh(env, db, { force = false } = {}) {
       const fm = best?._fm;
       if (!fm) continue;
       const voided = fm.status === 'postponed' || fm.status === 'cancelled';
-      if (!voided && isPreKickoff(m.match_date)) continue;
+      const fmDate = fm.matchDate ? String(fm.matchDate).slice(0, 19) : null;
+      const d1Date = String(m.match_date || '').slice(0, 19);
+      const kickoffDrift = Boolean(fmDate && fmDate !== d1Date);
+      const needsFmId = m.fotmob_match_id == null && fm.fotmobId != null;
+
+      // Prefer FotMob utcTime whenever present (FD reschedule drift).
+      const datePatch = fmDate || null;
+
+      // Scheduled↔scheduled: only correct kickoff / bind fotmob id (no scores).
+      if (fm.status === 'scheduled') {
+        if (!kickoffDrift && !needsFmId) continue;
+        liveUpdates.push({
+          id: m.id,
+          status: 'scheduled',
+          home_goals: null,
+          away_goals: null,
+          elapsed_minute: null,
+          fotmob_match_id: fm.fotmobId ?? null,
+          match_date: datePatch,
+        });
+        updatedIds.add(m.id);
+        if (fm.fotmobId) fotmobIdByMatchId.set(Number(m.id), fm.fotmobId);
+        fotmobUpdated += 1;
+        continue;
+      }
+
+      // Gate score paints on FotMob kickoff when we have it (stale D1 time must not block).
+      const kickoffRef = fmDate || m.match_date;
+      if (!voided && isPreKickoff(kickoffRef)) {
+        if (kickoffDrift || needsFmId) {
+          liveUpdates.push({
+            id: m.id,
+            status: m.status === 'scheduled' ? 'scheduled' : m.status,
+            home_goals: null,
+            away_goals: null,
+            elapsed_minute: null,
+            fotmob_match_id: fm.fotmobId ?? null,
+            match_date: datePatch,
+          });
+          updatedIds.add(m.id);
+          if (fm.fotmobId) fotmobIdByMatchId.set(Number(m.id), fm.fotmobId);
+          fotmobUpdated += 1;
+        }
+        continue;
+      }
       liveUpdates.push({
         id: m.id,
         status: fm.status,
@@ -2209,18 +2355,49 @@ export async function runLiveStatusRefresh(env, db, { force = false } = {}) {
         away_goals: voided ? null : fm.awayGoals,
         elapsed_minute: fm.status === 'live' ? fm.elapsed ?? null : null,
         fotmob_match_id: fm.fotmobId,
+        match_date: datePatch,
       });
       updatedIds.add(m.id);
       fotmobIdByMatchId.set(Number(m.id), fm.fotmobId);
       fotmobUpdated += 1;
     }
+
+    // Kickoff-only reconciliation (runs even if the row was already painted above).
+    // Fixes FD→FotMob reschedule drift when score paint skipped match_date.
+    const kickoffFixes = [];
+    for (const m of dbMatches) {
+      const candidates = liveCandidatesFor(liveIndex, m.home_name, m.away_name);
+      if (!candidates.length) continue;
+      const best = findBestFixtureMatch(candidates, m.home_name, m.away_name);
+      const fm = best?._fm;
+      if (!fm?.matchDate || !fm.fotmobId) continue;
+      const fmDate = String(fm.matchDate).slice(0, 19);
+      const d1Date = String(m.match_date || '').slice(0, 19);
+      if (fmDate === d1Date && Number(m.fotmob_match_id) === Number(fm.fotmobId)) continue;
+      kickoffFixes.push({
+        id: m.id,
+        match_date: fmDate,
+        fotmob_match_id: fm.fotmobId,
+      });
+      fotmobIdByMatchId.set(Number(m.id), fm.fotmobId);
+    }
     await store.updateMatchLiveBatch(db, liveUpdates);
+    if (kickoffFixes.length) {
+      await store.updateMatchKickoffBatch(db, kickoffFixes);
+      fotmobUpdated += kickoffFixes.length;
+    }
   } catch (err) {
     errors.push({ source: 'fotmob', error: err.message || String(err) });
   }
 
-  const hasKey = Boolean(env.API_FOOTBALL_KEY && String(env.API_FOOTBALL_KEY).trim());
-  if (hasKey) {
+  const afGate = await shouldSkipApiFootball(db, env);
+  const hasKey = !afGate.skip;
+  if (afGate.skip && afGate.reason === 'invalid_key_cooldown') {
+    errors.push({
+      source: 'api-football',
+      error: `skipped_invalid_key_cooldown until ${afGate.until}`,
+    });
+  } else if (hasKey) {
     try {
       const dbMatches = await store.getTodayMatchesForLiveRefresh(db);
       const liveData = await apiGet(env, '/fixtures', { live: 'all' });
@@ -2272,7 +2449,9 @@ export async function runLiveStatusRefresh(env, db, { force = false } = {}) {
         }
         afUpdated += 1;
       }
+      await clearApiFootballAuthBlock(db);
     } catch (err) {
+      await markApiFootballAuthFailure(db, err);
       errors.push({ source: 'api-football', error: err.message || String(err) });
     }
   }
@@ -2402,14 +2581,15 @@ export async function runLiveStatusRefresh(env, db, { force = false } = {}) {
   }
 
   // Incidents for live and newly-finished matches — capped for Worker CPU/API budget.
-  // Finished rows are fetched only when events_json is empty, avoiding repeated detail calls.
+  // Finished: empty events_json OR goal events behind the scoreboard (partial FT write).
   try {
     const eventRows = (await store.getTodayMatchesForLiveRefresh(db))
       .filter((m) => {
         if (m.status === 'live') return true;
         if (m.status !== 'finished') return false;
         const raw = String(m.events_json || '').trim();
-        return !raw || raw === '[]';
+        if (!raw || raw === '[]') return true;
+        return rowEventsLagScore(m);
       })
       // Running matches first; then rows whose incidents trail the scoreboard.
       .sort((a, b) => {
@@ -2425,7 +2605,15 @@ export async function runLiveStatusRefresh(env, db, { force = false } = {}) {
       try {
         const events = await fetchEventsForMatchRow(env, m, hasKey, fotmobIdByMatchId);
         if (events?.length) {
-          eventWrites.push({ id: m.id, events });
+          const prev = parseEventsJson(m.events_json);
+          const prevGoals = countGoalEventsBySide(prev);
+          const nextGoals = countGoalEventsBySide(events);
+          const prevTotal = prevGoals.home + prevGoals.away;
+          const nextTotal = nextGoals.home + nextGoals.away;
+          // Never regress a richer goal list with a thinner upstream snapshot.
+          if (nextTotal >= prevTotal) {
+            eventWrites.push({ id: m.id, events });
+          }
         }
         if (m.status === 'finished') {
           const fmId =
