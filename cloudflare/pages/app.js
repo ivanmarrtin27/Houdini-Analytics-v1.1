@@ -1,4 +1,4 @@
-﻿const API = '';
+const API = '';
 
 const PRIVACY_KEY = 'houdini_privacy_v1';
 const CONSENT_KEY = 'houdini_consent_v1';
@@ -633,7 +633,7 @@ function tipsUnlocked() {
   return contentUnlocked();
 }
 
-/** Blur veil + Premium crown lock for free users (Analytics chrome; tap → #premium). */
+/** Blur veil + Premium crown lock for free users (Analytics chrome; tap ? #premium). */
 function hbCensorWrap(html, { block = false } = {}) {
   if (!html) return '';
   if (contentUnlocked()) return html;
@@ -643,14 +643,14 @@ function hbCensorWrap(html, { block = false } = {}) {
   )}">
     <div class="hb-censor__veil" aria-hidden="true">${html}</div>
     <div class="hb-censor__lock" aria-hidden="true">
-      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb170" width="22" height="22" alt="" decoding="async" />
+      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb177" width="22" height="22" alt="" decoding="async" />
       <span class="hb-censor__lock-title">${escapeHtml(t('censor.title'))}</span>
       <span class="hb-censor__lock-sub">${escapeHtml(t('censor.sub'))}</span>
     </div>
   </div>`;
 }
 
-/** Prob bands: >80% hi · 60–80% mid · 50–59% neu · <50% lo */
+/** Prob bands: >80% hi  60–80% mid · 50–59% neu · <50% lo */
 function hbPillTone(v) {
   const n = Number(v);
   if (!Number.isFinite(n)) return 'muted';
@@ -910,6 +910,9 @@ function refreshTipsLockedViews() {
   if (typeof renderTop3 === 'function') {
     renderTop3().catch(() => {});
   }
+  if (typeof renderPremiumTips === 'function') {
+    renderPremiumTips().catch(() => {});
+  }
   if (typeof renderAciertos === 'function') {
     renderAciertos().catch(() => {});
   }
@@ -941,41 +944,168 @@ let cachedTipSummary = null;
 let tipPerfCacheKey = '';
 let tipPerfCache = null;
 
-/** ISO/short codes — no emoji flags (avoid UTF-8 mojibake on Windows). */
+/** ISO/short codes  no emoji flags (avoid UTF-8 mojibake on Windows). */
 const COUNTRY_ISO = {
   Spain: 'ES',
   England: 'EN',
+  Scotland: 'SCT',
+  Wales: 'WAL',
+  'Northern Ireland': 'NIR',
+  Ireland: 'IE',
   Italy: 'IT',
   Germany: 'DE',
   France: 'FR',
   Portugal: 'PT',
   Netherlands: 'NL',
   Belgium: 'BE',
+  Austria: 'AT',
+  Switzerland: 'CH',
+  Poland: 'PL',
+  Denmark: 'DK',
+  Sweden: 'SE',
+  Norway: 'NO',
+  Finland: 'FI',
+  Greece: 'GR',
+  Turkey: 'TR',
+  'Czech Republic': 'CZ',
+  Czechia: 'CZ',
+  Croatia: 'HR',
+  Serbia: 'RS',
+  Ukraine: 'UA',
+  Romania: 'RO',
+  Hungary: 'HU',
+  Slovakia: 'SK',
+  Slovenia: 'SI',
+  Russia: 'RU',
   Brazil: 'BR',
   Argentina: 'AR',
   Mexico: 'MX',
+  Uruguay: 'UY',
+  Chile: 'CL',
+  Colombia: 'CO',
+  Ecuador: 'EC',
+  Peru: 'PE',
+  Paraguay: 'PY',
   USA: 'US',
   'United States': 'US',
+  Canada: 'CA',
+  Japan: 'JP',
+  'South Korea': 'KR',
+  Korea: 'KR',
+  China: 'CN',
+  Australia: 'AU',
+  'Saudi Arabia': 'SA',
+  Qatar: 'QA',
+  UAE: 'AE',
+  'United Arab Emirates': 'AE',
+  Morocco: 'MA',
+  Egypt: 'EG',
+  Tunisia: 'TN',
+  Algeria: 'DZ',
+  Nigeria: 'NG',
+  Senegal: 'SN',
+  Ghana: 'GH',
+  Cameroon: 'CM',
+  'Ivory Coast': 'CI',
+  "Cte d'Ivoire": 'CI',
+  'South Africa': 'ZA',
   World: 'INT',
+  International: 'INT',
   Europe: 'EU',
 };
 
 const COUNTRY_ES = {
   Spain: 'España',
   England: 'Inglaterra',
+  Scotland: 'Escocia',
+  Wales: 'Gales',
+  'Northern Ireland': 'Irlanda del Norte',
+  Ireland: 'Irlanda',
   Italy: 'Italia',
   Germany: 'Alemania',
   France: 'Francia',
   Portugal: 'Portugal',
-  Netherlands: 'Países Bajos',
+  Netherlands: 'Pases Bajos',
   Belgium: 'Bélgica',
+  Austria: 'Austria',
+  Switzerland: 'Suiza',
+  Poland: 'Polonia',
+  Denmark: 'Dinamarca',
+  Sweden: 'Suecia',
+  Norway: 'Noruega',
+  Finland: 'Finlandia',
+  Greece: 'Grecia',
+  Turkey: 'Turqua',
+  'Czech Republic': 'Chequia',
+  Czechia: 'Chequia',
+  Croatia: 'Croacia',
+  Serbia: 'Serbia',
+  Ukraine: 'Ucrania',
+  Romania: 'Rumana',
+  Hungary: 'Hungra',
+  Slovakia: 'Eslovaquia',
+  Slovenia: 'Eslovenia',
+  Russia: 'Rusia',
   Brazil: 'Brasil',
   Argentina: 'Argentina',
-  Mexico: 'México',
+  Mexico: 'Mxico',
+  Uruguay: 'Uruguay',
+  Chile: 'Chile',
+  Colombia: 'Colombia',
+  Ecuador: 'Ecuador',
+  Peru: 'Per',
+  Paraguay: 'Paraguay',
   USA: 'EE. UU.',
   'United States': 'EE. UU.',
+  Canada: 'Canad',
+  Japan: 'Japn',
+  'South Korea': 'Corea del Sur',
+  Korea: 'Corea del Sur',
+  China: 'China',
+  Australia: 'Australia',
+  'Saudi Arabia': 'Arabia Saud',
+  Qatar: 'Catar',
+  UAE: 'Emiratos rabes',
+  'United Arab Emirates': 'Emiratos rabes',
+  Morocco: 'Marruecos',
+  Egypt: 'Egipto',
+  Tunisia: 'Tnez',
+  Algeria: 'Argelia',
+  Nigeria: 'Nigeria',
+  Senegal: 'Senegal',
+  Ghana: 'Ghana',
+  Cameroon: 'Camern',
+  'Ivory Coast': 'Costa de Marfil',
+  "Cte d'Ivoire": 'Costa de Marfil',
+  'South Africa': 'Sudfrica',
   World: 'Internacional',
+  International: 'Internacional',
   Europe: 'Europa',
+};
+
+/** Normalize upstream country strings (case / aliases) before ISO/ES lookup. */
+const COUNTRY_ALIASES = {
+  usa: 'United States',
+  us: 'United States',
+  'u.s.': 'United States',
+  'u.s.a.': 'United States',
+  holland: 'Netherlands',
+  'the netherlands': 'Netherlands',
+  international: 'World',
+  intl: 'World',
+  uk: 'England',
+  'united kingdom': 'England',
+  'great britain': 'England',
+  'republic of ireland': 'Ireland',
+  'cote divoire': "Cte d'Ivoire",
+  "cote d'ivoire": "Cte d'Ivoire",
+  'south korea': 'South Korea',
+  'korea republic': 'South Korea',
+  'saudi': 'Saudi Arabia',
+  'uae': 'United Arab Emirates',
+  czech: 'Czech Republic',
+  'czech rep': 'Czech Republic',
+  'czech rep.': 'Czech Republic',
 };
 
 /** Display names for allowlist leagues (AF api_id). */
@@ -997,7 +1127,7 @@ const BET_LABELS = {
   AWAY_WIN: 'Victoria visitante',
   DC_1X: 'Doble oportunidad 1X',
   DC_X2: 'Doble oportunidad X2',
-  DNB_HOME: 'Empate no válido · local',
+  DNB_HOME: 'Empate no vlido · local',
   DNB_AWAY: 'Empate no válido · visitante',
   OVER_05: 'Más de 0,5 goles',
   UNDER_05: 'Menos de 0,5 goles',
@@ -1066,7 +1196,7 @@ const FAMILY_LABELS = {
 /** Align with predictionService MIN_VALUE (5% edge vs fair book). */
 const MIN_VALUE_EDGE = 0.05;
 
-/** "15" → "1,5" (ES) / "1.5" (EN) ; "105" → "10,5" / "10.5" */
+/** "15" ? "1,5" (ES) / "1.5" (EN) ; "105" ? "10,5" / "10.5" */
 function lineFromSuffix(suffix) {
   const s = String(suffix || '');
   const sep = getUiLang() === 'en' ? '.' : ',';
@@ -1077,7 +1207,7 @@ function lineFromSuffix(suffix) {
 
 function labelBetFallback(code, homeName, awayName) {
   const raw = String(code || '').toUpperCase();
-  if (!raw) return '—';
+  if (!raw) return '';
   const home = String(homeName || '').trim();
   const away = String(awayName || '').trim();
   const en = getUiLang() === 'en';
@@ -1334,11 +1464,11 @@ function flagUrlForTeam(name) {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/ø/g, 'o')
-    .replace(/æ/g, 'ae')
-    .replace(/å/g, 'a')
-    .replace(/ł/g, 'l')
-    .replace(/đ/g, 'd')
+    .replace(/\u00f8/g, 'o')
+    .replace(/\u00e6/g, 'ae')
+    .replace(/\u00e5/g, 'a')
+    .replace(/\u0142/g, 'l')
+    .replace(/\u0111/g, 'd')
     .replace(/&/g, ' and ')
     .replace(/\//g, ' ')
     .replace(/nott'?m\b/g, 'nottm')
@@ -1553,11 +1683,11 @@ function normalizeCrestKey(name) {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/ø/g, 'o')
-    .replace(/æ/g, 'ae')
-    .replace(/å/g, 'a')
-    .replace(/ł/g, 'l')
-    .replace(/đ/g, 'd')
+    .replace(/\u00f8/g, 'o')
+    .replace(/\u00e6/g, 'ae')
+    .replace(/\u00e5/g, 'a')
+    .replace(/\u0142/g, 'l')
+    .replace(/\u0111/g, 'd')
     .replace(/&/g, ' and ')
     .replace(/\//g, ' ')
     .replace(/[^a-z0-9.\s'-]/g, ' ')
@@ -1649,7 +1779,7 @@ function formatMatchTimeShort(value) {
 function matchStatusPill(m) {
   if (m.status === 'live') {
     const min = m.elapsedMinute != null ? `${Number(m.elapsedMinute)}'` : 'LIVE';
-    return `${min} · ${t('chip.liveFull')}`;
+    return `${min}  ${t('chip.liveFull')}`;
   }
   if (m.status === 'postponed') return t('chip.postponed');
   if (m.status === 'cancelled') return t('chip.cancelled');
@@ -1676,7 +1806,7 @@ function mpVsMidLabel(m, live) {
 }
 
 function mpVsBrandMarkHtml() {
-  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb170" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
+  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb177" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
 }
 
 function mpVsMidHtml(m, live) {
@@ -1804,7 +1934,7 @@ function matchEventsHtml(events, { stack = false, split = false } = {}) {
   if (split) {
     const home = focus.filter((e) => e.isHome === true);
     const away = focus.filter((e) => e.isHome === false);
-    // Three grid cells for .mp-teams (1fr auto 1fr) — home | spacer | away
+    // Three grid cells for .mp-teams (1fr auto 1fr)  home | spacer | away
     // Always paint cols (even empty) so the dashed divider spans both teams.
     return `<div class="mp-live-events__col mp-live-events__col--home" aria-label="Eventos local">${home.map(eventChipHtml).join('')}</div>
       <div class="mp-live-events__mid" aria-hidden="true"></div>
@@ -1887,7 +2017,7 @@ function livePanelHtml(live, homeName, awayName) {
         )}</span>
         ${score ? `<span class="mp-live__score">${escapeHtml(score)}</span>` : ''}
         ${redChip}
-        <span class="mp-live__left">Quedan ~${Number(live.remaining || 0)}′</span>
+        <span class="mp-live__left">Quedan ~${Number(live.remaining || 0)}'</span>
       </div>
       ${hbCensorWrap(
         `<div class="mp-live__bar" role="img" aria-label="Probabilidades en vivo: local ${h}%, empate ${d}%, visitante ${a}%">
@@ -1912,7 +2042,7 @@ function livePanelHtml(live, homeName, awayName) {
         live.tip
           ? hbCensorWrap(
               `<div class="mp-live__tip">
-              <span class="mp-live__tip-key">Tip · ${escapeHtml(
+              <span class="mp-live__tip-key">Tip  ${escapeHtml(
                 labelBet(live.tip.label, homeName, awayName)
               )}</span>
               <span class="live-tip ${(LIVE_TIP_META[live.tip.status] || LIVE_TIP_META.unknown).cls}">${escapeHtml(
@@ -1971,7 +2101,7 @@ function sumRecentAvg(recentAvgs, key) {
   return Number(((Number(h) || 0) + (Number(a) || 0)).toFixed(2));
 }
 
-const UI_ICON_V = 'hb170';
+const UI_ICON_V = 'hb177';
 const MP_STAT_ICON_PX = 20;
 const mpStatImg = (file) =>
   `<img class="mp-stat__icon mp-stat__icon--img" src="/icons/ui/${file}?v=${UI_ICON_V}" width="${MP_STAT_ICON_PX}" height="${MP_STAT_ICON_PX}" alt="" aria-hidden="true" decoding="async" />`;
@@ -2001,7 +2131,7 @@ function keyStatCard({ title, valueHtml, barPct, tone = 'accent', sub = '', icon
     </article>`;
 }
 
-/** General «Probabilidades clave» cards — visible for free (no Premium censor). */
+/** General Probabilidades clave» cards — visible for free (no Premium censor). */
 function pctStatCard(title, prob, leagueRate = null, iconHtml = '') {
   const p = pct(prob);
   const rate =
@@ -2101,7 +2231,7 @@ function ladderLineProb(side, line) {
   return v == null ? null : v;
 }
 
-/** Poisson P(K=k | λ) — mirror Worker matchModel.poissonP. */
+/** Poisson P(K=k | ?)  mirror Worker matchModel.poissonP. */
 function poissonP(k, lambda) {
   const lam = Number(lambda);
   const kk = Number(k);
@@ -2112,7 +2242,7 @@ function poissonP(k, lambda) {
   return (Math.exp(-lam) * lam ** kk) / fact;
 }
 
-/** P(X > L) = 1 − Σ P(0..⌊L⌋) — mirror Worker poissonOverLadder. */
+/** P(X > L) = 1 - S P(0..?L?)  mirror Worker poissonOverLadder. */
 function poissonOver(lambda, line) {
   if (lambda == null || line == null || line === '') return null;
   const lam = Number(lambda);
@@ -2124,7 +2254,7 @@ function poissonOver(lambda, line) {
   return Math.max(0, Math.min(1, 1 - under));
 }
 
-/** Prefer ladder over-prob; fallback Poisson CDF from λ. */
+/** Prefer ladder over-prob; fallback Poisson CDF from ?. */
 function ladderOrPoisson(sideLadder, lambda, line) {
   const fromLadder = ladderLineProb(sideLadder, line);
   if (fromLadder != null) return fromLadder;
@@ -2132,7 +2262,7 @@ function ladderOrPoisson(sideLadder, lambda, line) {
 }
 
 /**
- * One row per line L: Home/Away/Match = P(Over L) or P(Under L)=1−over.
+ * One row per line L: Home/Away/Match = P(Over L) or P(Under L)=1-over.
  * Drops rows where all three columns are null. Overs decrease with L; Unders increase.
  */
 function buildOuRows(lines, opts = {}) {
@@ -2178,7 +2308,7 @@ function buildUnderRows(lines, opts = {}) {
   return buildOuRows(lines, { ...opts, side: 'under' });
 }
 
-/** Goals Over 0.5–3.5 from flat prediction fields (same L H/A/Match). BTTS is separate. */
+/** Goals Over 0.53.5 from flat prediction fields (same L H/A/Match). BTTS is separate. */
 function goalsTrendRows(p) {
   const pred = p || {};
   const over = (n) => t('panel.overLine', { n });
@@ -2211,7 +2341,7 @@ function goalsTrendRows(p) {
   return rows.filter((r) => r.home != null || r.away != null || r.match != null);
 }
 
-/** Goals Under 0.5–3.5 — explicit under_* fields, else 1−over. */
+/** Goals Under 0.5–3.5 — explicit under_* fields, else 1-over. */
 function goalsTrendUnderRows(p) {
   const pred = p || {};
   const under = (n) => t('panel.underLine', { n });
@@ -2462,7 +2592,7 @@ function h2hHtml(h2h, homeName) {
     .join('');
   return `
     <section class="mp-h2h">
-      <div class="mp-section-title">Últimos enfrentamientos</div>
+      <div class="mp-section-title">Úúúúúltimos enfrentamientos</div>
       <ul class="mp-h2h__list">${list}</ul>
     </section>`;
 }
@@ -2661,7 +2791,7 @@ function prefersReducedMotion() {
 }
 
 /**
- * Count-up % from data-target (0–1 fraction) → "67%" / "12.3%".
+ * Count-up % from data-target (0–1 fraction) ? "67%" / "12.3%".
  * Skips free blur (.hb-censor): snap to final. Once per reveal / tab switch.
  */
 function animatePercents(root) {
@@ -2810,7 +2940,7 @@ function formatMatchDate(value) {
     hour: '2-digit',
     minute: '2-digit',
   });
-  return `${weekday} ${datePart} · ${timePart}`;
+  return `${weekday} ${datePart}  ${timePart}`;
 }
 
 function formBadge(raw) {
@@ -2881,12 +3011,27 @@ function shortLeagueName(name) {
     .slice(0, 28);
 }
 
+function normalizeCountryKey(country) {
+  const raw = String(country || '').trim();
+  if (!raw) return '';
+  const lower = raw.toLowerCase();
+  if (COUNTRY_ALIASES[lower]) return COUNTRY_ALIASES[lower];
+  if (COUNTRY_ES[raw] || COUNTRY_ISO[raw]) return raw;
+  for (const key of Object.keys(COUNTRY_ES)) {
+    if (key.toLowerCase() === lower) return key;
+  }
+  for (const key of Object.keys(COUNTRY_ISO)) {
+    if (key.toLowerCase() === lower) return key;
+  }
+  return raw;
+}
+
 function countryIsoCode(country) {
-  const c = String(country || '').trim();
+  const c = normalizeCountryKey(country);
   return COUNTRY_ISO[c] || '';
 }
 
-/** ASCII ISO badge HTML — never emoji (mojibake-safe). */
+/** ASCII ISO badge HTML  never emoji (mojibake-safe). */
 function countryIsoBadge(country, className = 'hb-iso') {
   const code = countryIsoCode(country);
   if (!code) return '';
@@ -2894,8 +3039,8 @@ function countryIsoBadge(country, className = 'hb-iso') {
 }
 
 function countryLabel(country) {
-  const c = String(country || '').trim();
-  if (!c) return '—';
+  const c = normalizeCountryKey(country);
+  if (!c) return '';
   if (getUiLang() === 'en') return c;
   return COUNTRY_ES[c] || c;
 }
@@ -2946,7 +3091,7 @@ function leagueLogoHtml(url, cls = 'mp-league__logo') {
 
 /**
  * Matchday / jornada from synced RoundNumber (+ optional Group).
- * EPL → Matchday N; rest → Jornada N; degrade to '' when missing.
+ * EPL ? Matchday N; rest ? Jornada N; degrade to '' when missing.
  */
 function formatRoundLabel(m) {
   if (!m) return '';
@@ -2962,7 +3107,7 @@ function formatRoundLabel(m) {
   }
   if (g) {
     const grupo = /^[A-H]$/i.test(g) ? t('round.group', { g: g.toUpperCase() }) : g;
-    return base ? `${grupo} · ${base}` : grupo;
+    return base ? `${grupo}  ${base}` : grupo;
   }
   return base;
 }
@@ -3321,7 +3466,8 @@ function renderLigasFolders(catalog) {
       .filter(Boolean)
       .filter((league) => {
         if (!needle) return true;
-        const haystack = `${folder.label} ${league.name} ${league.dbName} ${league.tag}`
+        const countryEs = folder.flagCountry ? countryLabel(folder.flagCountry) : '';
+        const haystack = `${folder.label} ${folder.flagCountry || ''} ${countryEs} ${league.name} ${league.dbName} ${league.tag}`
           .normalize('NFD')
           .replace(/[\u0300-\u036f]/g, '')
           .toLowerCase();
@@ -3331,7 +3477,7 @@ function renderLigasFolders(catalog) {
   }).filter((f) => f.leagues.length > 0);
 
   if (!folders.length) {
-    listEl.innerHTML = `<p class="ligas-standings__empty">No hay ligas que coincidan con la búsqueda.</p>`;
+    listEl.innerHTML = `<p class="ligas-standings__empty">No hay ligas que coincidan con la bsqueda.</p>`;
     return;
   }
 
@@ -3760,10 +3906,10 @@ const I18N = {
     'perfil.promoNeedAuth': 'Inicia sesión para canjear',
     'premium.priceWeek': '9,99 €',
     'premium.priceMonth': '19,90 €',
-    'premium.discountBadge': '−{pct}% promo',
+    'premium.discountBadge': '-{pct}% promo',
     'date.yesterday': 'Ayer',
     'date.today': 'Hoy',
-    'date.tomorrow': 'Mañana',
+    'date.tomorrow': 'Ma\u00f1ana',
     'search.placeholder': 'Buscar equipo',
     'search.results': 'Resultados',
     'search.loading': 'Buscando…',
@@ -3785,8 +3931,8 @@ const I18N = {
     'ligas.matchCount': '{n} partido',
     'ligas.matchCountPlural': '{n} partidos',
     'empty.noMatches': 'Sin partidos para {date}',
-    'empty.noTips': 'Sin tips jugables hoy (P≥{p}%)',
-    'empty.noClosedTips': 'Sin tips cerrados aún',
+    'empty.noTips': 'Sin tips jugables hoy (P={p}%)',
+    'empty.noClosedTips': 'Sin tips cerrados an',
     'empty.loadingAnalysis': 'Cargando análisis…',
     'form.win': 'Victoria',
     'form.draw': 'Empate',
@@ -3824,9 +3970,9 @@ const I18N = {
     'consent.acceptAll': 'Aceptar todo',
     'consent.necessary': 'Solo necesarias',
     'consent.customize': 'Personalizar',
-    'consent.back': '← Volver',
+    'consent.back': '? Volver',
     'consent.customLead':
-      'Elige qué guardar en este dispositivo. Necesitas confirmar la mayoría de edad para guardar.',
+      'Elige qu guardar en este dispositivo. Necesitas confirmar la mayoría de edad para guardar.',
     'consent.privacy': 'Privacidad',
     'consent.cookies': 'Cookies',
     'consent.notice': 'Aviso',
@@ -3936,7 +4082,9 @@ const I18N = {
     'premium.perMonth': '/ mes',
     'premium.popular': 'Más popular',
     'premium.featLine': 'Goles · Tiros · Córners · Tarjetas · Top 10',
-    'premium.note': 'Pago seguro. Sin Stripe verás «Pago no configurado».',
+    'premium.tipsTitle': 'Tips del día',
+    'premium.tipsLoadError': 'No se pudieron cargar los tips Premium',
+    'premium.note': 'Pago seguro. Sin Stripe vers «Pago no configurado».',
     'premium.bannerBadge': 'OFERTA ESPECIAL',
     'premium.bannerTitle': 'Houdini Premium',
     'premium.bannerLead': 'Tip Houdini y estadísticas avanzadas del partido.',
@@ -3975,31 +4123,31 @@ const I18N = {
     'stats.metric.corners': 'Córners',
     'stats.metric.cards': 'Tarjetas',
     'stats.byLeague': 'Por liga',
-    'stats.backLeagues': '← Ligas',
+    'stats.backLeagues': '? Ligas',
     'stats.team': 'Equipo',
     'stats.allTeams': 'Todos los equipos',
     'stats.colLeague': 'Liga',
     'stats.colTotal': 'Partidos totales',
     'stats.colPlayed': 'Partidos jugados',
     'stats.colScore': 'Score',
-    'stats.emptyMatches': 'No hay partidos con datos para este día',
+    'stats.emptyMatches': 'No hay partidos con datos para este da',
     'stats.label.goals': 'goles',
     'stats.label.shots': 'tiros',
     'stats.label.sot': 'tiros a puerta',
     'stats.label.corners': 'córners',
     'stats.label.cards': 'tarjetas',
     'stats.market.OVER_05': 'Total de goles: +0.5',
-    'stats.market.UNDER_05': 'Total de goles: −0.5',
+    'stats.market.UNDER_05': 'Total de goles: -0.5',
     'stats.market.OVER_15': 'Total de goles: +1.5',
-    'stats.market.UNDER_15': 'Total de goles: −1.5',
+    'stats.market.UNDER_15': 'Total de goles: -1.5',
     'stats.market.OVER_25': 'Total de goles: +2.5',
-    'stats.market.UNDER_25': 'Total de goles: −2.5',
+    'stats.market.UNDER_25': 'Total de goles: -2.5',
     'stats.market.OVER_35': 'Total de goles: +3.5',
-    'stats.market.UNDER_35': 'Total de goles: −3.5',
+    'stats.market.UNDER_35': 'Total de goles: -3.5',
     'stats.market.OVER_45': 'Total de goles: +4.5',
-    'stats.market.UNDER_45': 'Total de goles: −4.5',
+    'stats.market.UNDER_45': 'Total de goles: -4.5',
     'stats.market.OVER_55': 'Total de goles: +5.5',
-    'stats.market.UNDER_55': 'Total de goles: −5.5',
+    'stats.market.UNDER_55': 'Total de goles: -5.5',
     'stats.market.BTTS_YES': 'Ambos equipos marcan: SI',
     'stats.market.BTTS_NO': 'Ambos equipos marcan: NO',
     'stats.market.HOME_WIN': '1',
@@ -4011,9 +4159,9 @@ const I18N = {
     'panel.avgTitle': 'Promedios recientes · {unit}',
     'panel.avgLeague': 'Media liga / equipo',
     'panel.avgProxy': 'Media proxy (sin muestra liga)',
-    'panel.avgCaption': '{unit} por partido (últimos partidos)',
-    'panel.avgCaptionProxy': '{unit} por partido · liga sin muestra → proxy',
-    'panel.avgCaptionNoTeam': 'Sin muestras de equipo · media proxy de referencia',
+    'panel.avgCaption': '{unit} por partido (úúúúúltimos partidos)',
+    'panel.avgCaptionProxy': '{unit} por partido · liga sin muestra ? proxy',
+    'panel.avgCaptionNoTeam': 'Sin muestras de equipo  media proxy de referencia',
     'panel.avgAria': 'Promedios recientes de {unit}',
     'chip.liveFull': 'EN VIVO',
     'round.matchday': 'Matchday {n}',
@@ -4033,7 +4181,7 @@ const I18N = {
     'privacy.analyticsTitle': 'Analytics / telemetría',
     'privacy.analyticsHint': 'Stub local (consola). No enviamos telemetría de terceros.',
     'privacy.searchTitle': 'Guardar búsqueda reciente',
-    'privacy.searchHint': 'Recuerda el último equipo buscado en este dispositivo.',
+    'privacy.searchHint': 'Recuerda el úúúltimo equipo buscado en este dispositivo.',
     'privacy.filtersTitle': 'Recordar filtros',
     'privacy.filtersHint': 'Conserva fecha y ámbito entre sesiones.',
     'privacy.manageCookies': 'Gestionar cookies',
@@ -4044,10 +4192,10 @@ const I18N = {
     'consent.optPrefs': 'Preferencias opcionales',
     'consent.saveCustom': 'Guardar preferencias',
     'consent.docTitle': 'Documento',
-    'consent.backDoc': '← Volver',
+    'consent.backDoc': '? Volver',
     'consent.analyticsHintShort': 'Stub local (consola).',
-    'consent.searchTitle': 'Guardar búsqueda',
-    'consent.searchHintShort': 'Último equipo buscado.',
+    'consent.searchTitle': 'Guardar bsqueda',
+    'consent.searchHintShort': 'Úúúltimo equipo buscado.',
     'consent.filtersHintShort': 'Fecha y ámbito.',
     'auth.deleteConfirm': '¿Eliminar tu cuenta de forma permanente? Se borrarán tu sesión y tus datos de acceso.',
     'toast.apiOffline': 'No hay conexión con la API. Revisa la red e inténtalo de nuevo.',
@@ -4157,13 +4305,13 @@ const I18N = {
     'perfil.promoNeedAuth': 'Sign in to redeem',
     'premium.priceWeek': '€9.99',
     'premium.priceMonth': '€19.90',
-    'premium.discountBadge': '−{pct}% promo',
+    'premium.discountBadge': '-{pct}% promo',
     'date.yesterday': 'Yesterday',
     'date.today': 'Today',
     'date.tomorrow': 'Tomorrow',
     'search.placeholder': 'Search team',
     'search.results': 'Results',
-    'search.loading': 'Searching…',
+    'search.loading': 'Searching',
     'search.empty': 'No results.',
     'view.top10': 'Top 10 predictions',
     'view.aciertos': 'Hits',
@@ -4182,9 +4330,9 @@ const I18N = {
     'ligas.matchCount': '{n} match',
     'ligas.matchCountPlural': '{n} matches',
     'empty.noMatches': 'No matches for {date}',
-    'empty.noTips': 'No playable tips today (P≥{p}%)',
+    'empty.noTips': 'No playable tips today (P={p}%)',
     'empty.noClosedTips': 'No settled tips yet',
-    'empty.loadingAnalysis': 'Loading analysis…',
+    'empty.loadingAnalysis': 'Loading analysis',
     'form.win': 'Win',
     'form.draw': 'Draw',
     'form.loss': 'Loss',
@@ -4221,7 +4369,7 @@ const I18N = {
     'consent.acceptAll': 'Accept all',
     'consent.necessary': 'Necessary only',
     'consent.customize': 'Customize',
-    'consent.back': '← Back',
+    'consent.back': '? Back',
     'consent.customLead':
       'Choose what to store on this device. You need to confirm you are of legal age to save.',
     'consent.privacy': 'Privacy',
@@ -4231,7 +4379,7 @@ const I18N = {
     'toast.payOpenFail': 'Could not open checkout. Try again in a few seconds.',
     'toast.payStartFail': 'Could not start Premium checkout: {msg}',
     'toast.payOk': 'Payment confirmed: Premium unlocked. It will show in a few seconds.',
-    'toast.payCancel': 'Payment cancelled — no charge.',
+    'toast.payCancel': 'Payment cancelled  no charge.',
     'toast.accountDeleted': 'Account deleted',
     'toast.accountDeleteFail': 'Could not delete account',
     'toast.telegramSoon': 'Telegram · Soon',
@@ -4333,7 +4481,9 @@ const I18N = {
     'premium.perMonth': '/ month',
     'premium.popular': 'Most popular',
     'premium.featLine': 'Goals · Shots · Corners · Cards · Top 10',
-    'premium.note': 'Secure checkout. Without Stripe you will see “Payment not configured”.',
+    'premium.tipsTitle': 'Tips of the day',
+    'premium.tipsLoadError': 'Could not load Premium tips',
+    'premium.note': 'Secure checkout. Without Stripe you will see Payment not configured”.',
     'premium.bannerBadge': 'SPECIAL OFFER',
     'premium.bannerTitle': 'Houdini Premium',
     'premium.bannerLead': 'Houdini tip and advanced match stats.',
@@ -4372,7 +4522,7 @@ const I18N = {
     'stats.metric.corners': 'Corners',
     'stats.metric.cards': 'Cards',
     'stats.byLeague': 'By league',
-    'stats.backLeagues': '← Leagues',
+    'stats.backLeagues': '? Leagues',
     'stats.team': 'Team',
     'stats.allTeams': 'All teams',
     'stats.colLeague': 'League',
@@ -4386,17 +4536,17 @@ const I18N = {
     'stats.label.corners': 'corners',
     'stats.label.cards': 'cards',
     'stats.market.OVER_05': 'Total goals: +0.5',
-    'stats.market.UNDER_05': 'Total goals: −0.5',
+    'stats.market.UNDER_05': 'Total goals: -0.5',
     'stats.market.OVER_15': 'Total goals: +1.5',
-    'stats.market.UNDER_15': 'Total goals: −1.5',
+    'stats.market.UNDER_15': 'Total goals: -1.5',
     'stats.market.OVER_25': 'Total goals: +2.5',
-    'stats.market.UNDER_25': 'Total goals: −2.5',
+    'stats.market.UNDER_25': 'Total goals: -2.5',
     'stats.market.OVER_35': 'Total goals: +3.5',
-    'stats.market.UNDER_35': 'Total goals: −3.5',
+    'stats.market.UNDER_35': 'Total goals: -3.5',
     'stats.market.OVER_45': 'Total goals: +4.5',
-    'stats.market.UNDER_45': 'Total goals: −4.5',
+    'stats.market.UNDER_45': 'Total goals: -4.5',
     'stats.market.OVER_55': 'Total goals: +5.5',
-    'stats.market.UNDER_55': 'Total goals: −5.5',
+    'stats.market.UNDER_55': 'Total goals: -5.5',
     'stats.market.BTTS_YES': 'Both teams to score: YES',
     'stats.market.BTTS_NO': 'Both teams to score: NO',
     'stats.market.HOME_WIN': '1',
@@ -4405,12 +4555,12 @@ const I18N = {
     'stats.market.AVG_YELLOW': 'Avg yellow cards per match',
     'stats.market.AVG_RED': 'Avg red cards per match',
     'stats.market.AVG_CORNERS': 'Avg corners per match',
-    'panel.avgTitle': 'Recent averages · {unit}',
+    'panel.avgTitle': 'Recent averages  {unit}',
     'panel.avgLeague': 'League / team average',
     'panel.avgProxy': 'Proxy average (no league sample)',
     'panel.avgCaption': '{unit} per match (recent matches)',
-    'panel.avgCaptionProxy': '{unit} per match · no league sample → proxy',
-    'panel.avgCaptionNoTeam': 'No team samples · reference proxy average',
+    'panel.avgCaptionProxy': '{unit} per match · no league sample ? proxy',
+    'panel.avgCaptionNoTeam': 'No team samples  reference proxy average',
     'panel.avgAria': 'Recent averages for {unit}',
     'chip.liveFull': 'LIVE',
     'round.matchday': 'Matchday {n}',
@@ -4441,7 +4591,7 @@ const I18N = {
     'consent.optPrefs': 'Optional preferences',
     'consent.saveCustom': 'Save preferences',
     'consent.docTitle': 'Document',
-    'consent.backDoc': '← Back',
+    'consent.backDoc': '? Back',
     'consent.analyticsHintShort': 'Local stub (console).',
     'consent.searchTitle': 'Save search',
     'consent.searchHintShort': 'Last team searched.',
@@ -4451,7 +4601,7 @@ const I18N = {
     'nav.sections': 'Sections',
     'weekly.other': 'Another',
     'weekly.days14': '14 days',
-    'premium.statusFree': 'Free plan — unlock tip and advanced stats',
+    'premium.statusFree': 'Free plan  unlock tip and advanced stats',
     'premium.statusOn': 'Premium plan active',
     'premium.statusUntil': 'Premium plan active · until {date}',
     'premium.subscribe': 'Subscribe',
@@ -4852,7 +5002,7 @@ function renderAdminStatus(status) {
   lines.push(
     status.oddsEnabled
       ? 'API-Football: activa'
-      : 'API-Football: sin key → sin cuotas; stats FotMob activas'
+      : 'API-Football: sin key ? sin cuotas; stats FotMob activas'
   );
   const cov =
     status.oddsCoveragePct != null
@@ -4868,7 +5018,7 @@ function renderAdminStatus(status) {
   const es = status.lastEnrichSummary;
   if (es && typeof es === 'object') {
     lines.push(
-      `Último enrich: odds ${es.oddsSynced ?? 0}/${es.queued ?? '—'} · miss ${es.nameMiss ?? 0} · vacío ${es.emptyOdds ?? 0} · direct ${es.directHits ?? 0}`
+      `Úúúltimo enrich: odds ${es.oddsSynced ?? 0}/${es.queued ?? '—'} · miss ${es.nameMiss ?? 0} · vacío ${es.emptyOdds ?? 0} · direct ${es.directHits ?? 0}`
     );
   }
   if (status.calibrationDecided != null) {
@@ -4898,7 +5048,7 @@ function setSyncLabel(status) {
   const hours = Math.max(0, Math.round((Date.now() - t) / 36e5));
   const short =
     hours <= 0 ? 'Sync hace un momento' : hours === 1 ? 'Sync hace 1 h' : `Sync hace ${hours} h`;
-  const full = `Última sincronización: ${new Date(t).toLocaleString('es-ES')}`;
+  const full = `Úúúltima sincronización: ${new Date(t).toLocaleString('es-ES')}`;
   el.hidden = false;
   el.textContent = short;
   el.title = full;
@@ -4958,7 +5108,7 @@ function matchListQuery() {
   const d = resolveSelectedDate();
   selectedDate = d;
   let q = `date=${encodeURIComponent(d)}`;
-  // Single D1 league selection → server-side filter (multi stays client-side)
+  // Single D1 league selection ? server-side filter (multi stays client-side)
   if (leagueFilterIds.size === 1) {
     const lid = [...leagueFilterIds][0];
     if (Number.isFinite(Number(lid))) q += `&leagueId=${encodeURIComponent(String(lid))}`;
@@ -5413,6 +5563,32 @@ function pickTop10Tips(matches, limit = TOP10_LIMIT) {
 }
 
 let top3LoadSeq = 0;
+let premiumTipsLoadSeq = 0;
+
+function canReuseDayMatchesCache() {
+  const date = resolveSelectedDate();
+  return (
+    matchesFetchDate === date &&
+    matchesFetchLeagueId == null &&
+    Array.isArray(cachedMatches) &&
+    cachedMatches.length > 0
+  );
+}
+
+/** Same calendar-day match pool as Top 10 / Partidos (fills cache when needed). */
+async function loadDayMatchesForTips() {
+  if (canReuseDayMatchesCache()) return cachedMatches;
+  const date = resolveSelectedDate();
+  const data = await api(`/api/v1/matches/today?date=${encodeURIComponent(date)}`);
+  const matches = data.matches || [];
+  if (matchesFetchLeagueId == null) {
+    cachedMatches = matches;
+    cachedBets = cachedMatches.filter((m) => m.suggestedBet);
+    cachedMode = data.mode || cachedMode;
+    matchesFetchDate = date;
+  }
+  return matches;
+}
 
 function paintTop10List(el, matches) {
   const picked = pickTop10Tips(matches, TOP10_LIMIT);
@@ -5463,7 +5639,7 @@ function paintTop10List(el, matches) {
             bet.leagueLogo || m.leagueLogo,
             'card-tip__league-logo'
           )}<span>${escapeHtml(leagueKey(m))}${
-            round ? ` · ${escapeHtml(round)}` : ''
+            round ? `  ${escapeHtml(round)}` : ''
           }</span></p>
         </div>
         <button class="primary card-tip__action" data-analyze="${matchId}" type="button">Analizar</button>
@@ -5482,27 +5658,14 @@ async function renderTop3() {
   const el = document.getElementById('top3-list');
   if (!el) return;
   const seq = ++top3LoadSeq;
-  const date = resolveSelectedDate();
-  const canReuse =
-    matchesFetchDate === date &&
-    matchesFetchLeagueId == null &&
-    Array.isArray(cachedMatches) &&
-    cachedMatches.length > 0;
-  if (canReuse) {
+  if (canReuseDayMatchesCache()) {
     paintTop10List(el, cachedMatches);
     return;
   }
   el.innerHTML = Array.from({ length: 4 }, () => `<div class="skeleton" aria-hidden="true"></div>`).join('');
   try {
-    const data = await api(`/api/v1/matches/today?date=${encodeURIComponent(date)}`);
+    const matches = await loadDayMatchesForTips();
     if (seq !== top3LoadSeq) return;
-    const matches = data.matches || [];
-    if (matchesFetchLeagueId == null) {
-      cachedMatches = matches;
-      cachedBets = cachedMatches.filter((m) => m.suggestedBet);
-      cachedMode = data.mode || cachedMode;
-      matchesFetchDate = date;
-    }
     paintTop10List(el, matches);
   } catch (err) {
     if (seq !== top3LoadSeq) return;
@@ -5512,11 +5675,36 @@ async function renderTop3() {
   }
 }
 
+/**
+ * Premium tab tip strips: same Top 10 universe / day context as `#top3`.
+ * Free: tip line blurred via hbCensorWrap; teams / meta / Analizar stay visible.
+ */
+async function renderPremiumTips() {
+  const el = document.getElementById('premium-tips-list');
+  if (!el) return;
+  const seq = ++premiumTipsLoadSeq;
+  if (canReuseDayMatchesCache()) {
+    paintTop10List(el, cachedMatches);
+    return;
+  }
+  el.innerHTML = Array.from({ length: 4 }, () => `<div class="skeleton" aria-hidden="true"></div>`).join('');
+  try {
+    const matches = await loadDayMatchesForTips();
+    if (seq !== premiumTipsLoadSeq) return;
+    paintTop10List(el, matches);
+  } catch (err) {
+    if (seq !== premiumTipsLoadSeq) return;
+    el.innerHTML = `<div class="empty-board">${escapeHtml(t('premium.tipsLoadError'))}: ${escapeHtml(
+      err.message || 'error'
+    )}</div>`;
+  }
+}
+
 let aciertosLoadSeq = 0;
 let aciertosBound = false;
 
 function formatAciertosHitRate(rate) {
-  if (rate == null || !Number.isFinite(Number(rate))) return '—';
+  if (rate == null || !Number.isFinite(Number(rate))) return '';
   return `${Math.round(Number(rate) * 100)}%`;
 }
 
@@ -5798,11 +5986,11 @@ function tipMetaHtml({
     );
   }
   if (tipTier === 'none' || tipTier === 'fallback') {
-    bits.push('<span class="muted">sin tip ≥78%</span>');
+    bits.push('<span class="muted">sin tip =78%</span>');
   } else if (tipTier === 'playable' && conf != null && Number(conf) >= 80) {
     bits.push('<span class="muted">tip seguro</span>');
   }
-  return bits.length ? `<div class="tip-meta">${bits.join(' · ')}</div>` : '';
+  return bits.length ? `<div class="tip-meta">${bits.join('  ')}</div>` : '';
 }
 
 function tipCardHtml({
@@ -5901,11 +6089,12 @@ function bindAnalyze(root) {
       document.querySelectorAll('.league-match.is-selected').forEach((el) => el.classList.remove('is-selected'));
       if (node.classList.contains('league-match')) node.classList.add('is-selected');
       const view = document.getElementById('views')?.dataset.view;
-      // Views without a desktop analysis split → Partidos so its panel is available.
+      // Views without a desktop analysis split ? Partidos so its panel is available.
       if (
         (view === 'top3' && window.matchMedia('(min-width: 900px)').matches) ||
         view === 'aciertos' ||
-        view === 'stats'
+        view === 'stats' ||
+        view === 'premium'
       ) {
         setActiveNav('#partidos');
         requestAnimationFrame(() => {
@@ -5937,7 +6126,7 @@ function updateFilterChip() {
   const el = document.getElementById('filter-chip');
   if (!el) return;
   const parts = [];
-  if (windowMode === '5d') parts.push('5 días');
+  if (windowMode === '5d') parts.push('5 das');
   else if (windowMode === 'manana') parts.push('Mañana');
   else if (windowMode === 'date') parts.push(selectedDate);
   else parts.push('Hoy');
@@ -6082,7 +6271,7 @@ function probForLabel(prediction, label) {
 }
 
 /**
- * Tip display % (0–100): tipMarketProb (server raw) → probForLabel → conf fallback.
+ * Tip display % (0–100): tipMarketProb (server raw) ? probForLabel ? conf fallback.
  * Never returns null when a suggested bet has a resolvable market probability.
  */
 function tipProbPct(raw) {
@@ -6103,7 +6292,7 @@ function tipProbPct(raw) {
   return conf != null && conf > 0 ? formatTipPct(conf) : null;
 }
 
-/** Format tip meta % + optional odds-source hint. Never bare "— modelo". */
+/** Format tip meta % + optional odds-source hint. Never bare " modelo". */
 function tipConfMetaHtml(tipProb, oddsSource = null) {
   const src =
     oddsSource && oddsSource !== 'book'
@@ -6133,7 +6322,11 @@ function matchBoardRowHtml(raw) {
   const away = raw.awayTeam?.name || raw.away || '';
   const homeLogo = raw.homeTeam?.logo || raw.homeLogo;
   const awayLogo = raw.awayTeam?.logo || raw.awayLogo;
-  const league = leagueLabelEs(raw);
+  const league = formatLeagueLine(
+    raw.leagueCountry || raw.country || '',
+    raw.leagueName || raw.league || '',
+    raw.leagueApiId ?? raw.apiId
+  );
   const tip = raw.suggestedBet || raw.tip;
   const tipOdds = raw.tipOdds;
   const prob = tipProbPct(raw);
@@ -6150,7 +6343,7 @@ function matchBoardRowHtml(raw) {
       ? `<span class="match-minute">${Number(raw.elapsedMinute)}'</span>`
       : '';
   const liveBits = [liveBadge, score, minute].filter(Boolean).join(' ');
-  const tipLabel = tip ? escapeHtml(labelBet(tip, home, away)) : '—';
+  const tipLabel = tip ? escapeHtml(labelBet(tip, home, away)) : '';
   const oddsTxt = tipOddsDisplay(tipOdds);
   const tipTier =
     raw.tipTier ||
@@ -6167,7 +6360,7 @@ function matchBoardRowHtml(raw) {
       : '';
   const tierBit =
     tipTier === 'none' || tipTier === 'fallback'
-      ? '<span class="muted sheet__odd-src">sin tip ≥78%</span>'
+      ? '<span class="muted sheet__odd-src">sin tip =78%</span>'
       : tipTier === 'playable' && prob != null && Number(prob) >= 80
         ? '<span class="muted sheet__odd-src">tip seguro</span>'
         : '';
@@ -6182,7 +6375,7 @@ function matchBoardRowHtml(raw) {
           ${crestHtml(away, awayLogo, 'sm')}
         </span>
         <span class="sheet__names">
-          <span class="sheet__vs">${escapeHtml(home)} – ${escapeHtml(away)}</span>
+          <span class="sheet__vs">${escapeHtml(home)}  ${escapeHtml(away)}</span>
           <span class="sheet__meta">${escapeHtml(league)} · ${escapeHtml(
             formatMatchDate(raw.matchDate)
           )}${liveBits ? ` · ${liveBits}` : ''}</span>
@@ -6214,7 +6407,7 @@ function premiumLockHtml(extraCount, kind) {
       <span class="sheet__lock-title">${escapeHtml(label)}</span>
       <span class="sheet__lock-meta">Desbloquea en Premium</span>
     </span>
-    <span class="muted">Premium →</span>
+    <span class="muted">Premium ?</span>
   </button>`;
 }
 
@@ -6300,7 +6493,7 @@ function applyFilters() {
   renderLeagueCategories(cachedMatches);
   renderHoyBoard();
   // Semanal has its own selects; do not touch it here.
-  // Refetch Partidos when the server league param should change (0↔1 liga).
+  // Refetch Partidos when the server league param should change (0?1 liga).
   const want = desiredMatchesFetchLeagueId();
   if (want !== matchesFetchLeagueId && !matchesReloadQueued) {
     matchesReloadQueued = true;
@@ -6313,7 +6506,7 @@ function applyFilters() {
 }
 
 function outcomeBadge(outcome) {
-  if (outcome === 'hit') return '<span class="outcome outcome--hit">Acertó</span>';
+  if (outcome === 'hit') return '<span class="outcome outcome--hit">Acert</span>';
   if (outcome === 'miss') return '<span class="outcome outcome--miss">Falló</span>';
   return `<span class="outcome">${escapeHtml(outcome || '—')}</span>`;
 }
@@ -6364,7 +6557,7 @@ function perfRoiHtml(perf) {
   return `<div class="perf-roi ${roiTone(roi.yield)}">
     <span class="perf-roi__label">Rentabilidad</span>
     <span class="perf-roi__value">${escapeHtml(value ?? '—')}</span>
-    <span class="perf-roi__meta">${staked} apostadas · ${roi.hits}✔ ${roi.misses}✘ · ${profit >= 0 ? '+' : ''}${profit.toFixed(2)} uds${
+    <span class="perf-roi__meta">${staked} apostadas · ${roi.hits}? ${roi.misses}?  ${profit >= 0 ? '+' : ''}${profit.toFixed(2)} uds${
       roi.avgOdds ? ` · cuota media ${Number(roi.avgOdds).toFixed(2)}` : ''
     }</span>
   </div>`;
@@ -6378,7 +6571,7 @@ function perfTipDisplayHtml(tip) {
   )}">
     <span class="perf-row__tip-blur" aria-hidden="true">${tip}</span>
     <span class="perf-row__tip-premium" aria-hidden="true">
-      <img src="/icons/ui/premium-crown.png?v=hb170" width="13" height="13" alt="" />
+      <img src="/icons/ui/premium-crown.png?v=hb177" width="13" height="13" alt="" />
       Premium
     </span>
   </span>`;
@@ -6395,7 +6588,7 @@ function recentTipRowHtml(r) {
   const score =
     r.homeGoals != null && r.awayGoals != null
       ? `${Number(r.homeGoals)}-${Number(r.awayGoals)}`
-      : '—';
+      : '';
   const liveLabel = r.matchStatus === 'live' ? ' — En vivo' : '';
   const odds = contentUnlocked() ? tipOddsDisplay(r.tipOdds) : '';
   // Single role attr (listitem vs button) — duplicate roles break keyboard a11y.
@@ -6600,11 +6793,15 @@ function renderMatchStatsRows(rows) {
     .map((row, index) => {
       const home = row.homeTeam || {};
       const away = row.awayTeam || {};
-      const league = leagueLabelEs(row);
+      const leagueLine = formatLeagueLine(
+        row.leagueCountry || row.country || '',
+        row.leagueName || row.league || '',
+        row.leagueApiId ?? row.apiId
+      );
       const leagueLogo = leagueLogoHtml(row.leagueLogo, 'match-stats-row__league-logo');
       const delay = Math.min(8, index) * 40;
       return `<button type="button" class="match-stats-row" data-analyze="${Number(row.id)}" role="listitem" style="animation-delay:${delay}ms">
-        <span class="match-stats-row__rank" aria-label="Posición ${index + 1}">${index + 1}</span>
+        <span class="match-stats-row__rank" aria-label="Posicin ${index + 1}">${index + 1}</span>
         <span class="match-stats-row__crests" aria-hidden="true">
           ${crestHtml(home.name, home.logo, 'sm')}
           ${crestHtml(away.name, away.logo, 'sm')}
@@ -6615,7 +6812,7 @@ function renderMatchStatsRows(rows) {
           )}</span>
           <span class="match-stats-row__league">
             ${countryIsoBadge(row.leagueCountry, 'match-stats-row__iso hb-iso')}${leagueLogo}<span>${escapeHtml(
-              league
+              leagueLine
             )}</span>
           </span>
         </span>
@@ -6977,12 +7174,15 @@ function openPanel(html) {
 function closePanel() {
   const panel = document.getElementById('panel');
   const backdrop = document.getElementById('panel-backdrop');
+  const hadLiveCtx = Boolean(panelLiveCtx);
   panel.classList.remove('is-open');
   panel.setAttribute('aria-hidden', 'true');
   backdrop.classList.remove('is-open');
   backdrop.setAttribute('aria-hidden', 'true');
   document.body.classList.remove('panel-open');
   panelLiveCtx = null;
+  // Flush panel live minute/score/status into Partidos list on exit.
+  if (hadLiveCtx) flushPartidosListLive();
 }
 
 function isLegalViewId(id) {
@@ -7053,7 +7253,7 @@ function syncNavIndicator({ instant = false } = {}) {
   }
 }
 
-/** Subtle enter motion for all main tabs (nav / tabbar taps only — no swipe). */
+/** Subtle enter motion for all main tabs (nav / tabbar taps only  no swipe). */
 const VIEW_ENTER_IDS = new Set(['partidos', 'top3', 'aciertos', 'stats', 'ligas']);
 let lastViewEnterId = null;
 
@@ -7105,7 +7305,10 @@ function setActiveNav(hash, { pushHash = true } = {}) {
   if (view === 'aciertos') renderAciertos().catch(() => {});
   if (view === 'ligas') renderLigasView();
   if (view === 'ajustes') syncPrivacyToggles();
-  if (view === 'premium') syncPremiumView();
+  if (view === 'premium') {
+    syncPremiumView();
+    renderPremiumTips().catch(() => {});
+  }
   if (view === 'perfil') syncPerfilView();
   if (view === 'admin') loadAdminPanel().catch(() => {});
   if (view !== prevView || lastViewEnterId !== view) {
@@ -7128,7 +7331,7 @@ function pricingLabel(pricing) {
   if (pricing === 'book') return 'Cuotas de casa';
   if (pricing === 'mixed') return 'Mixto (casa + estimado)';
   if (pricing === 'model') return 'Estimado (sin cuota de casa)';
-  return pricing ? String(pricing) : '—';
+  return pricing ? String(pricing) : '';
 }
 
 function oddsSourceLabel(src) {
@@ -7469,13 +7672,13 @@ function weeklyEmptyMessage(data) {
   const jornada = win ? weeklyWindowLabel(win) : null;
   if (data?.emptyReason === 'no_legs_filtered') {
     const scope = [jornada, liga, fam].filter(Boolean).join(' · ');
-    return `No hay selecciones válidas (${scope}) con cuota ≥1,20. Sin inventar mercados.`;
+    return `No hay selecciones válidas (${scope}) con cuota =1,20. Sin inventar mercados.`;
   }
   if (data?.emptyReason === 'no_legs') {
-    return 'No hay suficientes selecciones con cuota verificada o modelo etiquetado (≥1,20) en las cinco grandes. Sin inventar cuotas de casa.';
+    return 'No hay suficientes selecciones con cuota verificada o modelo etiquetado (=1,20) en las cinco grandes. Sin inventar cuotas de casa.';
   }
   if (data?.emptyReason === 'no_more_after_exclude') {
-    return 'No hay más combinadas distintas con estos filtros. Cambia jornada/liga/mercado o vuelve más tarde.';
+    return 'No hay ms combinadas distintas con estos filtros. Cambia jornada/liga/mercado o vuelve más tarde.';
   }
   return 'No se encontró una combinada cerca de cuota 10 con criterios de calidad. Prueba más tarde tras el enrich de odds.';
 }
@@ -7497,7 +7700,7 @@ function conservativeBlockHtml(combo, meta = {}) {
     combo.belowTarget || meta.conservative?.belowTarget
       ? `<p class="weekly-profile__warn muted">${escapeHtml(
           meta.conservative?.belowReason ||
-            'No alcanza P conjunta ajustada ≥78%; mejor estimación del modelo.'
+            'No alcanza P conjunta ajustada =78%; mejor estimacin del modelo.'
         )}</p>`
       : '';
   return `<div class="weekly-profile">
@@ -8319,6 +8522,7 @@ async function load() {
   const view = document.getElementById('views')?.dataset.view;
   if (view === 'stats') loadLeagueStatsView().catch(() => {});
   else if (view === 'top3') renderTop3().catch(() => {});
+  else if (view === 'premium') renderPremiumTips().catch(() => {});
   else if (view === 'aciertos') renderAciertos().catch(() => {});
   else if (view === 'ligas') renderLigasView();
 
@@ -8360,6 +8564,44 @@ function isLoadingMatchesPlaceholder() {
   return el && /skeleton|Cargando/i.test(el.innerHTML || '');
 }
 
+/** Copy live fields from a /matches/:id/live payload onto a cached match/bet row. */
+function applyLiveFieldsToCached(target, freshMatch, live) {
+  if (!target || !freshMatch) return;
+  target.status = freshMatch.status;
+  target.homeGoals = freshMatch.homeGoals;
+  target.awayGoals = freshMatch.awayGoals;
+  target.elapsedMinute = freshMatch.elapsedMinute;
+  target.events = freshMatch.events || [];
+  target.live = live || null;
+}
+
+/** Patch Partidos list row mid/score/minute/strip from cache (cheap while panel open). */
+function paintPartidosLiveRow(matchId) {
+  const id = Number(matchId);
+  if (!Number.isFinite(id) || id <= 0) return;
+  const m = cachedMatches.find((x) => Number(x.id) === id);
+  if (!m) return;
+  const row = document.querySelector(`#matches .league-match[data-analyze="${id}"]`);
+  if (!row) return;
+  const mid = row.querySelector('.league-match__mid');
+  if (mid) mid.innerHTML = browseMidHtml(m);
+  row.classList.toggle('league-match--live', m.status === 'live');
+  const existingStrip = row.querySelector(':scope > .live-strip');
+  const stripHtml = m.status === 'live' ? liveStripHtml(m) : '';
+  if (stripHtml) {
+    if (existingStrip) existingStrip.outerHTML = stripHtml;
+    else row.insertAdjacentHTML('beforeend', stripHtml);
+  } else if (existingStrip) {
+    existingStrip.remove();
+  }
+}
+
+/** Full Partidos list repaint from cachedMatches (status chips + finished transitions). */
+function flushPartidosListLive() {
+  if (!document.getElementById('matches')) return;
+  if (typeof renderPartidosList === 'function') renderPartidosList();
+}
+
 /** Refresh the live block of the open analysis panel without reloading it. */
 async function refreshOpenPanelLive() {
   if (!panelLiveCtx) return;
@@ -8376,33 +8618,24 @@ async function refreshOpenPanelLive() {
     } else if (current) {
       current.remove();
     }
-    // Also update cached objects so the panel sees fresh data on next open/re-render
+    // Keep cachedMatches + Partidos list row in sync with panel live ticks.
     const freshMatch = data.match;
     if (freshMatch) {
       refreshMpVsMid(root, freshMatch, data.live);
       refreshMpLiveEvents(root, freshMatch.events || [], freshMatch);
       for (const m of cachedMatches) {
         if (Number(m.id) === Number(id)) {
-          m.status = freshMatch.status;
-          m.homeGoals = freshMatch.homeGoals;
-          m.awayGoals = freshMatch.awayGoals;
-          m.elapsedMinute = freshMatch.elapsedMinute;
-          m.events = freshMatch.events || [];
-          m.live = data.live || null;
+          applyLiveFieldsToCached(m, freshMatch, data.live);
           break;
         }
       }
       for (const b of cachedBets) {
         if (Number(b.matchId || b.id) === Number(id)) {
-          b.status = freshMatch.status;
-          b.homeGoals = freshMatch.homeGoals;
-          b.awayGoals = freshMatch.awayGoals;
-          b.elapsedMinute = freshMatch.elapsedMinute;
-          b.events = freshMatch.events || [];
-          b.live = data.live || null;
+          applyLiveFieldsToCached(b, freshMatch, data.live);
           break;
         }
       }
+      paintPartidosLiveRow(id);
     }
   } catch (_) {
     /* ignore */
@@ -8454,7 +8687,7 @@ function startLivePoll() {
 document.getElementById('close-panel').addEventListener('click', closePanel);
 document.getElementById('panel-backdrop').addEventListener('click', closePanel);
 
-/** —— Auth modal (UI placeholder until real login/register) —— */
+/**  Auth modal (UI placeholder until real login/register) —— */
 const AUTH_FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 let authLastFocus = null;
@@ -9230,7 +9463,7 @@ function isDaySwipeExcludedTarget(target, zone) {
   return false;
 }
 
-/* Horizontal swipe on list → change day; this gesture belongs to the list. */
+/* Horizontal swipe on list ? change day; this gesture belongs to the list. */
 (function initDaySwipe() {
   const zone = document.getElementById('listScreen') || document.getElementById('matches');
   if (!zone) return;
@@ -9289,7 +9522,7 @@ function isDaySwipeExcludedTarget(target, zone) {
   );
 })();
 
-/* Tab changes: nav / tabbar taps only — no finger swipe between main views. */
+/* Tab changes: nav / tabbar taps only  no finger swipe between main views. */
 
 window.addEventListener('hashchange', () => {
   const h = location.hash || '#hoy';
@@ -9808,7 +10041,36 @@ function registerServiceWorker() {
     location.reload();
   });
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    navigator.serviceWorker
+      .register('/sw.js', { scope: '/' })
+      .then((reg) => {
+        try {
+          reg.update();
+        } catch (_) {
+          /* ignore */
+        }
+        if (reg.waiting) {
+          try {
+            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+          } catch (_) {
+            /* ignore */
+          }
+        }
+        reg.addEventListener('updatefound', () => {
+          const sw = reg.installing;
+          if (!sw) return;
+          sw.addEventListener('statechange', () => {
+            if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+              try {
+                sw.postMessage({ type: 'SKIP_WAITING' });
+              } catch (_) {
+                /* ignore */
+              }
+            }
+          });
+        });
+      })
+      .catch(() => {});
   });
 }
 
@@ -9820,7 +10082,7 @@ function updateConnectionBanner() {
     }
     return;
   }
-  showBanner('Sin conexión: se muestran los últimos datos guardados.', 'info');
+  showBanner('Sin conexión: se muestran los úúúúúltimos datos guardados.', 'info');
 }
 
 window.addEventListener('offline', updateConnectionBanner);

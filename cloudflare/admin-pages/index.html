@@ -5,12 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="robots" content="noindex,nofollow,noarchive" />
   <meta name="theme-color" content="#0a0a0a" />
-  <meta name="description" content="Houdini Bet — panel de control privado" />
-  <title>Houdini Bet · Control</title>
+  <meta name="description" content="Houdini Analytics — panel de control privado" />
+  <title>Houdini Analytics · Control</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./styles.css?v=adm4" />
+  <link rel="stylesheet" href="./styles.css?v=adm9" />
+  <link rel="stylesheet" href="./stats-public.css?v=adm9" />
   <link rel="icon" href="https://houdini-bet.pages.dev/icons/favicon-32.png" type="image/png" />
 </head>
 <body>
@@ -18,10 +19,11 @@
 
   <section id="gate" class="gate" aria-label="Acceso admin">
     <div class="gate__card">
-      <p class="gate__brand">Houdini Bet</p>
+      <p class="gate__brand">Houdini Analytics</p>
       <h1 class="gate__title">Acceso privado</h1>
       <p class="gate__lead">Gestiona cuentas y métricas del Worker desde un solo panel.</p>
       <form id="gate-form" class="gate__form" autocomplete="off">
+        <p class="gate__product">Houdini Analytics</p>
         <label class="field-label" for="pin">PIN de acceso</label>
         <input
           id="pin"
@@ -43,14 +45,14 @@
 
   <div id="entry" class="entry" hidden aria-hidden="true">
     <div class="entry__veil"></div>
-    <p class="entry__mark">Houdini Bet</p>
+    <p class="entry__mark">Houdini Analytics</p>
   </div>
 
   <div id="app" class="app" hidden>
     <header class="topbar">
       <div class="topbar__inner shell">
         <div class="topbar__brand">
-          <span class="topbar__mark">Houdini Bet</span>
+          <span class="topbar__mark">Houdini Analytics</span>
           <span class="topbar__badge">Control</span>
         </div>
         <div class="topbar__actions">
@@ -71,15 +73,18 @@
 
         <section class="panel panel--stats-preview" aria-labelledby="stats-heading">
           <div class="panel__head panel__head--wrap">
-            <h2 id="stats-heading" class="panel__title">Stats (tips)</h2>
-            <p id="stats-meta" class="panel__meta muted"></p>
+            <h2 id="stats-heading" class="panel__title">Stats</h2>
+            <p id="stats-meta" class="panel__meta muted">Misma pantalla que la app pública</p>
           </div>
-          <div id="stats-panel" class="panel__body" aria-live="polite">
-            <p class="muted">Cargando…</p>
+          <div id="stats-panel" class="panel__body">
+            <header class="stats-hero stats-hero--teaser">
+              <h3 class="stats-hero__title">Estadísticas de partidos</h3>
+              <p class="stats-hero__lead">Compara la forma reciente de cada enfrentamiento (medias por día y por liga).</p>
+            </header>
           </div>
           <div class="panel__footer">
             <button type="button" class="btn btn--secondary btn--block" id="btn-stats-all">
-              Ver todas
+              Abrir Stats
             </button>
           </div>
         </section>
@@ -204,27 +209,94 @@
       </div>
 
       <div id="screen-stats" class="screen screen--stats" hidden>
-        <section class="panel panel--stats-full" aria-labelledby="stats-full-heading">
+        <section class="panel panel--stats-full panel--public-stats" aria-labelledby="stats-full-heading">
           <div class="panel__head panel__head--detail">
-            <h2 id="stats-full-heading" class="panel__title">Stats (tips)</h2>
+            <h2 id="stats-full-heading" class="panel__title">Stats</h2>
             <button type="button" class="btn btn--ghost btn--icon-close" id="btn-stats-close" aria-label="Cerrar">×</button>
           </div>
-          <div class="panel__head panel__head--users">
-            <label class="users-search stats-search" for="stats-search">
-              <span class="visually-hidden">Buscar tips</span>
-              <input
-                id="stats-search"
-                class="field-input users-search__input"
-                type="search"
-                placeholder="Buscar partido, tip, liga…"
-                autocomplete="off"
-                spellcheck="false"
-              />
-            </label>
-            <p id="stats-full-count" class="panel__meta muted"></p>
-          </div>
-          <div id="stats-full-panel" class="panel__body" aria-live="polite">
-            <p class="muted">Cargando…</p>
+          <div class="panel__body panel__body--public-stats" id="stats-full-panel">
+            <header class="stats-hero">
+              <h3 class="stats-hero__title">Estadísticas de partidos</h3>
+              <p class="stats-hero__lead">Compara la forma reciente de cada enfrentamiento.</p>
+            </header>
+            <div class="match-stats">
+              <div class="match-stats__date-sort">
+                <div class="match-stats__date">
+                  <button type="button" class="match-stats__date-arrow hb-chrome-chevron" id="match-stats-prev" aria-label="Día anterior">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 6 9 12l6 6"></path></svg>
+                  </button>
+                  <time class="match-stats__date-chip" id="match-stats-date"></time>
+                  <button type="button" class="match-stats__date-arrow hb-chrome-chevron" id="match-stats-next" aria-label="Día siguiente">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 6l6 6-6 6"></path></svg>
+                  </button>
+                </div>
+                <div class="match-stats__sort" role="group" aria-label="Orden de resultados">
+                  <button type="button" class="match-stats__sort-pill is-active" data-stats-sort="high" aria-pressed="true">Más altos</button>
+                  <button type="button" class="match-stats__sort-pill" data-stats-sort="low" aria-pressed="false">Más bajos</button>
+                </div>
+              </div>
+              <div class="match-stats__metrics" role="group" aria-label="Métrica">
+                <button type="button" class="match-stats__metric is-active" data-stats-metric="goals" aria-pressed="true">
+                  <img class="match-stats__metric-ico" src="https://houdini-analytics.pages.dev/icons/ui/avg-goals.png?v=hb176" width="20" height="20" alt="" aria-hidden="true" decoding="async" /><span>Goles</span>
+                </button>
+                <button type="button" class="match-stats__metric" data-stats-metric="shots" aria-pressed="false">
+                  <img class="match-stats__metric-ico" src="https://houdini-analytics.pages.dev/icons/ui/shots.png?v=hb176" width="20" height="20" alt="" aria-hidden="true" decoding="async" /><span>Tiros</span>
+                </button>
+                <button type="button" class="match-stats__metric" data-stats-metric="sot" aria-pressed="false">
+                  <img class="match-stats__metric-ico" src="https://houdini-analytics.pages.dev/icons/ui/sot.png?v=hb176" width="20" height="20" alt="" aria-hidden="true" decoding="async" /><span>Tiros a puerta</span>
+                </button>
+                <button type="button" class="match-stats__metric" data-stats-metric="corners" aria-pressed="false">
+                  <img class="match-stats__metric-ico" src="https://houdini-analytics.pages.dev/icons/ui/avg-corners.png?v=hb176" width="20" height="20" alt="" aria-hidden="true" decoding="async" /><span>Córners</span>
+                </button>
+                <button type="button" class="match-stats__metric" data-stats-metric="cards" aria-pressed="false">
+                  <img class="match-stats__metric-ico" src="https://houdini-analytics.pages.dev/icons/ui/avg-cards.png?v=hb176" width="20" height="20" alt="" aria-hidden="true" decoding="async" /><span>Tarjetas</span>
+                </button>
+              </div>
+              <p class="match-stats__meta" id="match-stats-meta" aria-live="polite"></p>
+              <div class="match-stats__list" id="match-stats-list" role="list"></div>
+            </div>
+            <details class="league-stats-details">
+              <summary>Por liga</summary>
+              <div class="league-stats">
+                <div class="league-stats__controls">
+                  <div class="league-stats__market" id="league-stats-market-wrap">
+                    <button
+                      type="button"
+                      class="league-stats__market-btn"
+                      id="league-stats-market-btn"
+                      aria-haspopup="listbox"
+                      aria-expanded="false"
+                      aria-controls="league-stats-market-menu"
+                    >
+                      <span id="league-stats-market-label">Total de goles: +2.5</span>
+                      <span class="league-stats__caret" aria-hidden="true">&#9662;</span>
+                    </button>
+                    <div class="league-stats__menu" id="league-stats-market-menu" role="listbox" hidden></div>
+                  </div>
+                  <div class="league-stats__scope" id="league-stats-scope" hidden>
+                    <button type="button" class="league-stats__back" id="league-stats-back">← Ligas</button>
+                    <span class="league-stats__scope-name" id="league-stats-scope-name"></span>
+                    <label class="league-stats__team-filter">
+                      <span class="visually-hidden">Equipo</span>
+                      <select id="league-stats-team-select">
+                        <option value="">Todos los equipos</option>
+                      </select>
+                    </label>
+                  </div>
+                  <label class="league-stats__toggle">
+                    <input type="checkbox" id="league-stats-active-only" />
+                    <span>Mostrar ligas con partidos</span>
+                  </label>
+                </div>
+                <div class="league-stats__head" id="league-stats-head" aria-hidden="true">
+                  <span>Liga</span>
+                  <span>Partidos totales</span>
+                  <span>Partidos jugados</span>
+                  <span>Score</span>
+                </div>
+                <div id="league-stats-list" class="league-stats__list" role="list"></div>
+              </div>
+            </details>
           </div>
         </section>
       </div>
@@ -275,6 +347,7 @@
     </div>
   </div>
 
-  <script src="./app.js?v=adm4" defer></script>
+  <script src="./stats-public.js?v=adm9" defer></script>
+  <script src="./app.js?v=adm9" defer></script>
 </body>
 </html>

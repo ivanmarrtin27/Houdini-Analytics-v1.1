@@ -5,6 +5,24 @@
 
 /
   Cache-Control: no-cache
+  Content-Type: text/html; charset=utf-8
 
 /*.html
   Cache-Control: no-cache
+  Content-Type: text/html; charset=utf-8
+
+/app.js
+  Cache-Control: no-cache
+  Content-Type: application/javascript; charset=utf-8
+
+/stats-public.js
+  Cache-Control: no-cache
+  Content-Type: application/javascript; charset=utf-8
+
+/styles.css
+  Cache-Control: no-cache
+  Content-Type: text/css; charset=utf-8
+
+/stats-public.css
+  Cache-Control: no-cache
+  Content-Type: text/css; charset=utf-8

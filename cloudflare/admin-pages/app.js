@@ -16,9 +16,6 @@ const hitsFullCount = document.getElementById('hits-full-count');
 const hitsSearch = document.getElementById('hits-search');
 const statsPanel = document.getElementById('stats-panel');
 const statsMeta = document.getElementById('stats-meta');
-const statsFullPanel = document.getElementById('stats-full-panel');
-const statsFullCount = document.getElementById('stats-full-count');
-const statsSearch = document.getElementById('stats-search');
 const usersBody = document.getElementById('users-body');
 const usersCards = document.getElementById('users-cards');
 const usersCount = document.getElementById('users-count');
@@ -46,11 +43,6 @@ let usersQuery = '';
 let allHits = [];
 let hitsQuery = '';
 let hitsUniqueToday = 0;
-/** @type {Record<string, unknown> | null} */
-let statsPerf = null;
-/** @type {Array<Record<string, unknown>>} */
-let allStatsRecent = [];
-let statsQuery = '';
 /** @type {{ id: string, label: string } | null} */
 let pendingDelete = null;
 /** @type {{ id: string, label: string } | null} */
@@ -58,66 +50,6 @@ let pendingRevokePremium = null;
 
 const HITS_PREVIEW = 3;
 const HITS_HISTORY_LIMIT = 500;
-const STATS_PREVIEW = 3;
-const STATS_RECENT_LIMIT = 80;
-
-const BET_LABELS = {
-  HOME_WIN: 'Victoria local',
-  DRAW: 'Empate',
-  AWAY_WIN: 'Victoria visitante',
-  DC_1X: 'Doble oportunidad 1X',
-  DC_X2: 'Doble oportunidad X2',
-  DNB_HOME: 'Empate no válido · local',
-  DNB_AWAY: 'Empate no válido · visitante',
-  OVER_05: 'Más de 0,5 goles',
-  UNDER_05: 'Menos de 0,5 goles',
-  OVER_15: 'Más de 1,5 goles',
-  UNDER_15: 'Menos de 1,5 goles',
-  OVER_25: 'Más de 2,5 goles',
-  UNDER_25: 'Menos de 2,5 goles',
-  OVER_35: 'Más de 3,5 goles',
-  UNDER_35: 'Menos de 3,5 goles',
-  OVER_45: 'Más de 4,5 goles',
-  UNDER_45: 'Menos de 4,5 goles',
-  BTTS_YES: 'Ambos marcan — Sí',
-  BTTS_NO: 'Ambos marcan — No',
-  HOME_OVER_05: 'Local · Más de 0,5 goles',
-  HOME_UNDER_05: 'Local · Menos de 0,5 goles',
-  HOME_OVER_15: 'Local · Más de 1,5 goles',
-  HOME_UNDER_15: 'Local · Menos de 1,5 goles',
-  HOME_OVER_25: 'Local · Más de 2,5 goles',
-  HOME_UNDER_25: 'Local · Menos de 2,5 goles',
-  HOME_OVER_35: 'Local · Más de 3,5 goles',
-  HOME_UNDER_35: 'Local · Menos de 3,5 goles',
-  AWAY_OVER_05: 'Visitante · Más de 0,5 goles',
-  AWAY_UNDER_05: 'Visitante · Menos de 0,5 goles',
-  AWAY_OVER_15: 'Visitante · Más de 1,5 goles',
-  AWAY_UNDER_15: 'Visitante · Menos de 1,5 goles',
-  AWAY_OVER_25: 'Visitante · Más de 2,5 goles',
-  AWAY_UNDER_25: 'Visitante · Menos de 2,5 goles',
-  AWAY_OVER_35: 'Visitante · Más de 3,5 goles',
-  AWAY_UNDER_35: 'Visitante · Menos de 3,5 goles',
-  CORNERS_OVER_85: 'Más de 8,5 córners',
-  CORNERS_UNDER_85: 'Menos de 8,5 córners',
-  CORNERS_OVER_95: 'Más de 9,5 córners',
-  CORNERS_UNDER_95: 'Menos de 9,5 córners',
-  CORNERS_OVER_105: 'Más de 10,5 córners',
-  CORNERS_UNDER_105: 'Menos de 10,5 córners',
-  SHOTS_OVER_225: 'Más de 22,5 tiros',
-  SHOTS_UNDER_225: 'Menos de 22,5 tiros',
-  SHOTS_OVER_255: 'Más de 25,5 tiros',
-  SHOTS_UNDER_255: 'Menos de 25,5 tiros',
-  SOT_OVER_75: 'Más de 7,5 tiros a puerta',
-  SOT_UNDER_75: 'Menos de 7,5 tiros a puerta',
-  SOT_OVER_85: 'Más de 8,5 tiros a puerta',
-  SOT_UNDER_85: 'Menos de 8,5 tiros a puerta',
-  SOT_OVER_95: 'Más de 9,5 tiros a puerta',
-  SOT_UNDER_95: 'Menos de 9,5 tiros a puerta',
-  CARDS_OVER_35: 'Más de 3,5 amarillas',
-  CARDS_UNDER_35: 'Menos de 3,5 amarillas',
-  CARDS_OVER_45: 'Más de 4,5 amarillas',
-  CARDS_UNDER_45: 'Menos de 4,5 amarillas',
-};
 
 function getSecret() {
   try {
@@ -220,122 +152,6 @@ async function adminFetch(path, { method = 'GET', secret, body } = {}) {
 
 async function validatePin(pin) {
   await adminFetch('/api/v1/admin/users', { secret: pin });
-}
-
-/** "15" → "1,5" ; "105" → "10,5" */
-function lineFromSuffix(suffix) {
-  const s = String(suffix || '');
-  if (!/^\d+$/.test(s)) return s.replace('.', ',');
-  if (s.length === 1) return s;
-  return `${s.slice(0, -1)},${s.slice(-1)}`;
-}
-
-function labelBetFallback(code, homeName, awayName) {
-  const raw = String(code || '').toUpperCase();
-  if (!raw) return '—';
-  const home = String(homeName || '').trim();
-  const away = String(awayName || '').trim();
-  if (raw === 'HOME_WIN') return home ? `Victoria ${home}` : 'Victoria local';
-  if (raw === 'AWAY_WIN') return away ? `Victoria ${away}` : 'Victoria visitante';
-  if (raw === 'DRAW') return 'Empate';
-  if (raw === 'BTTS_YES') return 'Ambos marcan — Sí';
-  if (raw === 'BTTS_NO') return 'Ambos marcan — No';
-
-  const m = raw.match(/^(HOME_|AWAY_|CORNERS_|CARDS_|SHOTS_|SOT_)?(OVER|UNDER)_(\d+)$/);
-  if (!m) return String(code).replace(/_/g, ' ');
-  const scope = m[1] || '';
-  const side = m[2] === 'OVER' ? 'Más de' : 'Menos de';
-  const line = lineFromSuffix(m[3]);
-  let unit = 'goles';
-  let who = '';
-  if (scope === 'HOME_') who = home ? `${home} · ` : 'Local · ';
-  else if (scope === 'AWAY_') who = away ? `${away} · ` : 'Visitante · ';
-  else if (scope === 'CORNERS_') unit = 'córners';
-  else if (scope === 'CARDS_') unit = 'amarillas';
-  else if (scope === 'SHOTS_') unit = 'tiros';
-  else if (scope === 'SOT_') unit = 'tiros a puerta';
-  return `${who}${side} ${line} ${unit}`;
-}
-
-/** Prefer tip_results.suggestedBet (settled Stats tip); never show raw market codes. */
-function labelBetEs(code, homeName, awayName) {
-  if (!code) return '—';
-  const home = String(homeName || '').trim();
-  const away = String(awayName || '').trim();
-  const raw = String(code).toUpperCase();
-  if (raw === 'HOME_WIN') return home ? `Victoria ${home}` : BET_LABELS.HOME_WIN;
-  if (raw === 'AWAY_WIN') return away ? `Victoria ${away}` : BET_LABELS.AWAY_WIN;
-  if (raw.startsWith('HOME_') && home) return labelBetFallback(raw, home, away);
-  if (raw.startsWith('AWAY_') && away) return labelBetFallback(raw, home, away);
-  // Match public labelBet: try exact key, then uppercased, then fallback.
-  return BET_LABELS[code] || BET_LABELS[raw] || labelBetFallback(code, home, away);
-}
-
-/** tip_results market code from /tips/performance recent rows */
-function tipCode(r) {
-  return r?.suggestedBet || r?.label || null;
-}
-
-/** Settled tip label — same source for table Tip column and mobile `.stat-card__tip`. */
-function tipLabelText(r) {
-  return labelBetEs(tipCode(r), r.homeName, r.awayName);
-}
-
-function tipLabelHtml(r) {
-  return `<span class="tip-accent">${escapeHtml(tipLabelText(r))}</span>`;
-}
-
-function tipOddsLabel(r) {
-  const n = Number(r?.tipOdds);
-  if (!Number.isFinite(n) || n <= 1) return '';
-  return `${n.toFixed(2)} €`;
-}
-
-function statsMetaText(r) {
-  const league = String(r.leagueName || r.league || '—').trim() || '—';
-  const when = formatDate(r.matchDate || r.settledAt);
-  const odds = tipOddsLabel(r);
-  return odds ? `${league} · ${when} · ${odds}` : `${league} · ${when}`;
-}
-
-function crestImg(name, logoUrl) {
-  const alt = escapeHtml(String(name || '').trim() || 'Equipo');
-  const src = String(logoUrl || '').trim();
-  if (!src) return '';
-  return `<img class="stat-crest" src="${escapeHtml(src)}" alt="${alt}" width="18" height="18" loading="lazy" decoding="async" onerror="this.style.display='none'" />`;
-}
-
-function matchLine(r) {
-  const home = String(r.homeName || '—').trim() || '—';
-  const away = String(r.awayName || '—').trim() || '—';
-  const hg = r.homeGoals;
-  const ag = r.awayGoals;
-  const score =
-    hg != null && ag != null && Number.isFinite(Number(hg)) && Number.isFinite(Number(ag))
-      ? `${Number(hg)}-${Number(ag)}`
-      : null;
-  return score ? `${home} – ${away} · ${score}` : `${home} – ${away}`;
-}
-
-function matchCellHtml(r) {
-  const home = String(r.homeName || '—').trim() || '—';
-  const away = String(r.awayName || '—').trim() || '—';
-  const hg = r.homeGoals;
-  const ag = r.awayGoals;
-  const score =
-    hg != null && ag != null && Number.isFinite(Number(hg)) && Number.isFinite(Number(ag))
-      ? `${Number(hg)}-${Number(ag)}`
-      : null;
-  const homeCrest = crestImg(home, r.homeLogo);
-  const awayCrest = crestImg(away, r.awayLogo);
-  const midHtml = score
-    ? `<span class="stat-match__score">${escapeHtml(score)}</span>`
-    : `<span class="stat-match__sep">–</span>`;
-  return `<span class="stat-match">
-    <span class="stat-match__side stat-match__side--home">${homeCrest}<span class="stat-match__name">${escapeHtml(home)}</span></span>
-    ${midHtml}
-    <span class="stat-match__side stat-match__side--away">${awayCrest}<span class="stat-match__name">${escapeHtml(away)}</span></span>
-  </span>`;
 }
 
 function usageVisitsBlock(visits) {
@@ -525,163 +341,6 @@ function renderHitsFull() {
   hitsFullPanel.innerHTML = hitsTableBlock(list);
 }
 
-function tipOutcomeBadge(outcome) {
-  if (outcome === 'hit') return '<span class="badge badge--ok">Acertó</span>';
-  if (outcome === 'miss') return '<span class="badge badge--off">Falló</span>';
-  return `<span class="badge">${escapeHtml(outcome || '—')}</span>`;
-}
-
-function statsSearchBlob(r) {
-  return [
-    matchLine(r),
-    tipLabelText(r),
-    statsMetaText(r),
-    r.outcome,
-  ]
-    .map((x) => String(x || '').toLowerCase())
-    .join(' ');
-}
-
-function filteredStats() {
-  const q = String(statsQuery || '')
-    .trim()
-    .toLowerCase();
-  if (!q) return allStatsRecent;
-  return allStatsRecent.filter((r) => statsSearchBlob(r).includes(q));
-}
-
-function statsBoardHtml(perf) {
-  const hits = Number(perf?.hits || 0);
-  const misses = Number(perf?.misses || 0);
-  const pending = Number(perf?.pending || 0);
-  const decided = Number(perf?.decided || hits + misses);
-  const rate =
-    perf?.hitRate != null && decided > 0
-      ? `${(Number(perf.hitRate) * 100).toFixed(0)}%`
-      : decided > 0
-        ? `${Math.round((hits / decided) * 100)}%`
-        : '—';
-  return `
-    <div class="stats-board">
-      <div class="stats-board__hero">
-        <p class="stats-board__rate">${escapeHtml(rate)}</p>
-        <p class="stats-board__label">Aciertos</p>
-      </div>
-      <div class="stats-board__grid">
-        <div class="stats-board__cell"><strong>${hits.toLocaleString('es-ES')}</strong><span>Aciertos</span></div>
-        <div class="stats-board__cell"><strong>${misses.toLocaleString('es-ES')}</strong><span>Fallos</span></div>
-        <div class="stats-board__cell"><strong>${pending.toLocaleString('es-ES')}</strong><span>Pendientes</span></div>
-        <div class="stats-board__cell"><strong>${decided.toLocaleString('es-ES')}</strong><span>Cerrados</span></div>
-      </div>
-    </div>`;
-}
-
-function statsListHtml(list, { title = 'Últimos tips' } = {}) {
-  if (!list.length) {
-    return `<div class="stats-recent">
-      <p class="stats-recent__title">${escapeHtml(title)}</p>
-      <p class="muted">Sin tips.</p>
-    </div>`;
-  }
-  const rows = list
-    .map((r) => {
-      const tip = tipLabelHtml(r);
-      const league = escapeHtml(r.leagueName || r.league || '—');
-      const when = escapeHtml(formatDate(r.matchDate || r.settledAt));
-      const odds = tipOddsLabel(r);
-      const tipCell = odds
-        ? `${tip}<span class="stats-tip__odds muted"> · ${escapeHtml(odds)}</span>`
-        : tip;
-      return `<tr>
-        <td>${matchCellHtml(r)}</td>
-        <td class="stats-tip">${tipCell}</td>
-        <td>${league}</td>
-        <td>${when}</td>
-        <td>${tipOutcomeBadge(r.outcome)}</td>
-      </tr>`;
-    })
-    .join('');
-  const cards = list
-    .map((r) => {
-      const tip = tipLabelHtml(r);
-      const odds = tipOddsLabel(r);
-      const tipRow = odds
-        ? `<p class="stat-card__tip-row">${tip}<span class="stats-tip__odds muted">${escapeHtml(odds)}</span></p>`
-        : `<p class="stat-card__tip">${tip}</p>`;
-      const league = String(r.leagueName || r.league || '—').trim() || '—';
-      const when = formatDate(r.matchDate || r.settledAt);
-      const leagueWhen = escapeHtml(`${league} · ${when}`);
-      return `<article class="stat-card">
-        <header class="stat-card__head">
-          <p class="stat-card__match">${matchCellHtml(r)}</p>
-          ${tipOutcomeBadge(r.outcome)}
-        </header>
-        ${tipRow}
-        <p class="stat-card__meta muted">${leagueWhen}</p>
-      </article>`;
-    })
-    .join('');
-  return `
-    <div class="stats-recent">
-      <p class="stats-recent__title">${escapeHtml(title)}</p>
-      <div class="table-wrap stats-desktop">
-        <table class="hits-table stats-table">
-          <thead>
-            <tr>
-              <th>Partido</th>
-              <th>Tip</th>
-              <th>Liga</th>
-              <th>Fecha</th>
-              <th>Resultado</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>
-      <div class="stats-cards">${cards}</div>
-    </div>`;
-}
-
-function renderStatsPreview() {
-  if (!statsPanel) return;
-  if (!statsPerf) {
-    statsPanel.innerHTML = '<p class="muted">Sin datos de tips.</p>';
-    return;
-  }
-  const hits = Number(statsPerf.hits || 0);
-  const misses = Number(statsPerf.misses || 0);
-  const decided = Number(statsPerf.decided || hits + misses);
-  if (statsMeta) {
-    statsMeta.textContent = statsPerf.windowLabel
-      ? String(statsPerf.windowLabel)
-      : decided
-        ? `${decided} cerrados`
-        : '';
-  }
-  const preview = allStatsRecent.slice(0, STATS_PREVIEW);
-  statsPanel.innerHTML = `${statsBoardHtml(statsPerf)}${statsListHtml(preview, { title: 'Últimos tips' })}`;
-}
-
-function renderStatsFull() {
-  if (!statsFullPanel) return;
-  if (!statsPerf) {
-    statsFullPanel.innerHTML = '<p class="muted">Sin datos de tips.</p>';
-    return;
-  }
-  const list = filteredStats();
-  const total = allStatsRecent.length;
-  if (statsFullCount) {
-    if (!total) statsFullCount.textContent = '';
-    else if (statsQuery.trim()) statsFullCount.textContent = `${list.length} / ${total}`;
-    else statsFullCount.textContent = `${total} tip${total === 1 ? '' : 's'}`;
-  }
-  if (!list.length && statsQuery.trim()) {
-    statsFullPanel.innerHTML = `${statsBoardHtml(statsPerf)}<div class="stats-recent"><p class="stats-recent__title">Tips</p><p class="muted">Ninguna coincidencia</p></div>`;
-    return;
-  }
-  statsFullPanel.innerHTML = `${statsBoardHtml(statsPerf)}${statsListHtml(list, { title: 'Tips' })}`;
-}
-
 function setAdminScreen(name) {
   const screen = name === 'hits' || name === 'stats' ? name : 'home';
   if (mainEl) mainEl.dataset.screen = screen;
@@ -694,7 +353,7 @@ function setAdminScreen(name) {
     renderHitsFull();
   } else if (screen === 'stats') {
     if (location.hash !== '#stats') history.replaceState(null, '', '#stats');
-    renderStatsFull();
+    loadStats().catch(() => {});
   } else if (location.hash === '#hits' || location.hash === '#stats') {
     history.replaceState(null, '', '#');
   }
@@ -737,19 +396,8 @@ async function confirmDelete() {
 }
 
 async function loadStats() {
-  if (statsPanel) statsPanel.innerHTML = '<p class="muted">Cargando…</p>';
-  try {
-    const res = await fetch(
-      `${API_BASE}/api/v1/tips/performance?all=1&limit=${STATS_RECENT_LIMIT}&offset=0`
-    );
-    const data = await res.json().catch(() => null);
-    if (!res.ok) throw new Error((data && data.error) || `Error ${res.status}`);
-    statsPerf = data;
-    allStatsRecent = Array.isArray(data?.recent) ? data.recent : [];
-    renderStatsPreview();
-    if (mainEl?.dataset.screen === 'stats') renderStatsFull();
-  } catch (err) {
-    if (statsPanel) statsPanel.innerHTML = `<p class="muted">${escapeHtml(err.message || 'Error')}</p>`;
+  if (typeof window.AdminPublicStats?.load === 'function') {
+    await window.AdminPublicStats.load();
   }
 }
 
@@ -1041,7 +689,6 @@ async function loadDashboard() {
   usagePanel.innerHTML = '<p class="muted">Cargando…</p>';
   if (hitsPanel) hitsPanel.innerHTML = '<p class="muted">Cargando…</p>';
   if (hitsFullPanel) hitsFullPanel.innerHTML = '<p class="muted">Cargando…</p>';
-  if (statsPanel) statsPanel.innerHTML = '<p class="muted">Cargando…</p>';
   usersBody.innerHTML = '<tr><td colspan="9" class="muted">Cargando…</td></tr>';
   if (usersCards) usersCards.innerHTML = '<p class="muted users-cards__empty">Cargando…</p>';
   try {
@@ -1281,11 +928,6 @@ hitsSearch?.addEventListener('input', () => {
   renderHitsFull();
 });
 
-statsSearch?.addEventListener('input', () => {
-  statsQuery = String(statsSearch.value || '');
-  renderStatsFull();
-});
-
 document.getElementById('btn-hits-history')?.addEventListener('click', () => {
   setAdminScreen('hits');
 });
@@ -1305,9 +947,7 @@ hitsPanel?.addEventListener('click', (e) => {
   setAdminScreen('hits');
 });
 
-statsPanel?.addEventListener('click', (e) => {
-  const t = e.target instanceof Element ? e.target.closest('tr, .stat-card') : null;
-  if (!t) return;
+statsPanel?.addEventListener('click', () => {
   setAdminScreen('stats');
 });
 

@@ -1,7 +1,7 @@
-﻿/* Houdini Analytics service worker.
+/* Houdini Analytics service worker.
  *
  * Strategy
- * - App shell (html/js/css/icons): stale-while-revalidate → fast offline boot
+ * - App shell (html/js/css/icons): stale-while-revalidate ? fast offline boot
  *   and a background refresh on every load.
  * - API GETs: network-first with a short TTL, cached copy as offline fallback.
  * - Admin and sync endpoints are never cached.
@@ -11,7 +11,7 @@
  * the shell changes, so clients pick the new files.
  */
 
-const VERSION = 'hb-v170';
+const VERSION = 'hb-v177';
 const SHELL_CACHE = `houdini-shell-${VERSION}`;
 const DATA_CACHE = `houdini-data-${VERSION}`;
 const DATA_TTL_MS = 60_000;
@@ -19,8 +19,8 @@ const DATA_TTL_MS = 60_000;
 const SHELL_ASSETS = [
   '/',
   '/index.html',
-  '/app.js?v=hb170',
-  '/styles.css?v=hb170',
+  '/app.js?v=hb177',
+  '/styles.css?v=hb177',
   '/manifest.webmanifest',
   '/icons/icon.svg',
   '/icons/icon-192.png',
@@ -119,10 +119,34 @@ async function networkFirstApi(request) {
       });
     }
     return new Response(
-      JSON.stringify({ error: 'Sin conexión y sin copia guardada de esta consulta.' }),
+      JSON.stringify({ error: 'Sin conexiÃ³n y sin copia guardada de esta consulta.' }),
       { status: 503, headers: { 'content-type': 'application/json; charset=utf-8' } }
     );
   }
+}
+
+/** Prefer network for versioned app shell JS/CSS so deploys are not stuck on SWR stale. */
+async function networkFirstShellScript(request) {
+  const cache = await caches.open(SHELL_CACHE);
+  try {
+    const res = await fetch(request, { cache: 'reload' });
+    if (res && res.ok && !looksLikeSpaFallback(res)) {
+      cache.put(request, res.clone());
+    }
+    return res;
+  } catch (_) {
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    return new Response('', { status: 504, statusText: 'Offline' });
+  }
+}
+
+function isCriticalShellScript(url) {
+  return (
+    url.pathname === '/app.js' ||
+    url.pathname === '/styles.css' ||
+    url.pathname === '/sw.js'
+  );
 }
 
 async function staleWhileRevalidate(request) {
@@ -155,9 +179,9 @@ async function networkFirstNavigation(request) {
     const cached = await cache.match('/index.html');
     if (cached) return cached;
     return new Response(
-      '<!doctype html><meta charset="utf-8"><title>Sin conexión</title>' +
+      '<!doctype html><meta charset="utf-8"><title>Sin conexiÃ³n</title>' +
         '<body style="font-family:system-ui;background:#0a0a0a;color:#f5f5f5;padding:2rem">' +
-        '<h1 style="font-size:1.2rem">Sin conexión</h1>' +
+        '<h1 style="font-size:1.2rem">Sin conexiÃ³n</h1>' +
         '<p>Vuelve a intentarlo cuando recuperes la red.</p>',
       { status: 503, headers: { 'content-type': 'text/html; charset=utf-8' } }
     );
@@ -179,7 +203,15 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(networkFirstNavigation(request));
     return;
   }
+  if (isCriticalShellScript(url)) {
+    event.respondWith(networkFirstShellScript(request));
+    return;
+  }
   if (isShellAsset(url)) {
     event.respondWith(staleWhileRevalidate(request));
   }
+});
+
+self.addEventListener('message', (event) => {
+  if (event?.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
