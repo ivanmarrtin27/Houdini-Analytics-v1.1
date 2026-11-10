@@ -643,7 +643,7 @@ function hbCensorWrap(html, { block = false } = {}) {
   )}">
     <div class="hb-censor__veil" aria-hidden="true">${html}</div>
     <div class="hb-censor__lock" aria-hidden="true">
-      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb177" width="22" height="22" alt="" decoding="async" />
+      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb178" width="22" height="22" alt="" decoding="async" />
       <span class="hb-censor__lock-title">${escapeHtml(t('censor.title'))}</span>
       <span class="hb-censor__lock-sub">${escapeHtml(t('censor.sub'))}</span>
     </div>
@@ -1806,7 +1806,7 @@ function mpVsMidLabel(m, live) {
 }
 
 function mpVsBrandMarkHtml() {
-  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb177" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
+  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb178" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
 }
 
 function mpVsMidHtml(m, live) {
@@ -2101,7 +2101,7 @@ function sumRecentAvg(recentAvgs, key) {
   return Number(((Number(h) || 0) + (Number(a) || 0)).toFixed(2));
 }
 
-const UI_ICON_V = 'hb177';
+const UI_ICON_V = 'hb178';
 const MP_STAT_ICON_PX = 20;
 const mpStatImg = (file) =>
   `<img class="mp-stat__icon mp-stat__icon--img" src="/icons/ui/${file}?v=${UI_ICON_V}" width="${MP_STAT_ICON_PX}" height="${MP_STAT_ICON_PX}" alt="" aria-hidden="true" decoding="async" />`;
@@ -3829,12 +3829,21 @@ async function handlePremiumReturn() {
   window.history.replaceState({}, '', `${window.location.pathname}${rest ? `?${rest}` : ''}`);
 }
 
+function syncPremiumTipsChrome(el = document.getElementById('premium-tips-list')) {
+  if (!el) return;
+  const section = el.closest('.premium-tips');
+  if (!section) return;
+  /* Premium + no tips: hide title/empty sheet. Free keeps section for funnel context. */
+  section.hidden = contentUnlocked() && !el.childElementCount;
+}
+
 function syncPremiumView() {
   const root = document.getElementById('premium');
   if (!root) return;
+  const unlocked = contentUnlocked();
   const status = root.querySelector('[data-premium-status]');
   if (status) {
-    if (contentUnlocked()) {
+    if (unlocked) {
       status.textContent = premiumState.premiumUntil
         ? t('premium.statusUntil', { date: String(premiumState.premiumUntil).slice(0, 10) })
         : t('premium.statusOn');
@@ -3842,6 +3851,13 @@ function syncPremiumView() {
       status.textContent = t('premium.statusFree');
     }
   }
+  const plans = root.querySelector('.premium-plans');
+  if (plans) plans.hidden = unlocked;
+  const feat = root.querySelector('.premium-features-line');
+  if (feat) feat.hidden = unlocked;
+  const note = root.querySelector('.premium-note');
+  if (note) note.hidden = unlocked;
+  syncPremiumTipsChrome();
   const pct = Number(premiumState.pendingPromoPercent) || 0;
   root.querySelectorAll('[data-premium-price]').forEach((el) => {
     const plan = el.getAttribute('data-premium-price');
@@ -3856,13 +3872,13 @@ function syncPremiumView() {
     }
   });
   let badge = root.querySelector('[data-premium-discount-badge]');
-  if (pct > 0 && !contentUnlocked()) {
+  if (pct > 0 && !unlocked) {
     if (!badge) {
       badge = document.createElement('p');
       badge.className = 'premium-promo__badge';
       badge.setAttribute('data-premium-discount-badge', '1');
-      const plans = root.querySelector('.premium-plans') || root.querySelector('.premium-grid');
-      if (plans) plans.before(badge);
+      const plansEl = root.querySelector('.premium-plans') || root.querySelector('.premium-grid');
+      if (plansEl) plansEl.before(badge);
       else root.appendChild(badge);
     }
     badge.hidden = false;
@@ -3871,8 +3887,8 @@ function syncPremiumView() {
     badge.hidden = true;
   }
   root.querySelectorAll('[data-premium-activate]').forEach((btn) => {
-    btn.disabled = contentUnlocked();
-    btn.textContent = contentUnlocked() ? t('premium.already') : t('premium.subscribe');
+    btn.disabled = unlocked;
+    btn.textContent = unlocked ? t('premium.already') : t('premium.subscribe');
   });
   bindPremiumActivate(root);
 }
@@ -5593,9 +5609,7 @@ async function loadDayMatchesForTips() {
 function paintTop10List(el, matches) {
   const picked = pickTop10Tips(matches, TOP10_LIMIT);
   if (!picked.length) {
-    el.innerHTML = `<div class="empty-board">${escapeHtml(
-      t('empty.noTips', { p: TOP10_MIN_PROB })
-    )}</div>`;
+    el.innerHTML = '';
     return;
   }
   el.innerHTML = picked
@@ -5685,18 +5699,23 @@ async function renderPremiumTips() {
   const seq = ++premiumTipsLoadSeq;
   if (canReuseDayMatchesCache()) {
     paintTop10List(el, cachedMatches);
+    syncPremiumTipsChrome(el);
     return;
   }
   el.innerHTML = Array.from({ length: 4 }, () => `<div class="skeleton" aria-hidden="true"></div>`).join('');
+  syncPremiumTipsChrome(el);
   try {
     const matches = await loadDayMatchesForTips();
     if (seq !== premiumTipsLoadSeq) return;
     paintTop10List(el, matches);
+    syncPremiumTipsChrome(el);
   } catch (err) {
     if (seq !== premiumTipsLoadSeq) return;
+    /* Keep load errors visible even for Premium (not the empty-tips board). */
     el.innerHTML = `<div class="empty-board">${escapeHtml(t('premium.tipsLoadError'))}: ${escapeHtml(
       err.message || 'error'
     )}</div>`;
+    syncPremiumTipsChrome(el);
   }
 }
 
@@ -6571,7 +6590,7 @@ function perfTipDisplayHtml(tip) {
   )}">
     <span class="perf-row__tip-blur" aria-hidden="true">${tip}</span>
     <span class="perf-row__tip-premium" aria-hidden="true">
-      <img src="/icons/ui/premium-crown.png?v=hb177" width="13" height="13" alt="" />
+      <img src="/icons/ui/premium-crown.png?v=hb178" width="13" height="13" alt="" />
       Premium
     </span>
   </span>`;
