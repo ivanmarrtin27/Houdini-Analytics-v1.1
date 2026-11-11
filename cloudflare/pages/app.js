@@ -616,13 +616,16 @@ let hoyMarketTab = 'top';
 /** Soft-gate caps (ignored while PREMIUM_UNLOCKED). */
 const FREE_TOP_CAP = 10;
 const FREE_VALOR_CAP = 5;
-/** Free Aciertos: first N tip rows clear; rest behind hbCensorWrap. */
+/** Free Aciertos: first N tip rows shown; tip text still censored except free daily tip. */
 const FREE_ACIERTOS_CAP = 3;
 /**
  * Legacy soft-caps flag (Top10 caps etc.). Content paywall is now
  * `contentUnlocked()` = premiumState.premium (even while this is true).
  */
 const PREMIUM_UNLOCKED = true;
+
+/** Day-keyed free tip (1/day from Top 3) so Top 10 + Aciertos agree. */
+const freeDailyTipByDate = new Map();
 
 function contentUnlocked() {
   return Boolean(premiumState.premium);
@@ -631,6 +634,53 @@ function contentUnlocked() {
 /** @deprecated use contentUnlocked — kept as alias for older call sites */
 function tipsUnlocked() {
   return contentUnlocked();
+}
+
+function freeDailyTipIdentity(matchId, tip) {
+  const id = Number(matchId);
+  const label = String(tip || '')
+    .trim()
+    .toUpperCase();
+  if (!Number.isFinite(id) || id <= 0 || !label) return '';
+  return `${id}::${label}`;
+}
+
+/**
+ * Most interesting within Top 3: highest model P; ties keep earlier rank (#1 wins).
+ * First writer for the calendar day wins so Top 10 and Aciertos stay aligned.
+ * @param {string} date YYYY-MM-DD
+ * @param {{ matchId?: number, tip?: string, tipLabel?: string, suggestedBet?: string, prob?: number|null, tipMarketProb?: number|null }[]} orderedTips
+ */
+function ensureFreeDailyTip(date, orderedTips) {
+  const day = String(date || '');
+  if (!day) return null;
+  const cached = freeDailyTipByDate.get(day);
+  if (cached?.matchId && cached?.tip) return cached;
+  const top3 = (Array.isArray(orderedTips) ? orderedTips : []).slice(0, 3);
+  if (!top3.length) return null;
+  let best = top3[0];
+  let bestProb = Number(best?.prob ?? best?.tipMarketProb);
+  if (!Number.isFinite(bestProb)) bestProb = -1;
+  for (let i = 1; i < top3.length; i += 1) {
+    let p = Number(top3[i]?.prob ?? top3[i]?.tipMarketProb);
+    if (!Number.isFinite(p)) p = -1;
+    if (p > bestProb) {
+      best = top3[i];
+      bestProb = p;
+    }
+  }
+  const matchId = Number(best?.matchId ?? best?.id);
+  const tip = String(best?.tip || best?.tipLabel || best?.suggestedBet || '').trim();
+  if (!Number.isFinite(matchId) || matchId <= 0 || !tip) return null;
+  const pick = { matchId, tip };
+  freeDailyTipByDate.set(day, pick);
+  return pick;
+}
+
+function isFreeDailyTip(date, matchId, tip) {
+  const pick = freeDailyTipByDate.get(String(date || ''));
+  if (!pick) return false;
+  return freeDailyTipIdentity(pick.matchId, pick.tip) === freeDailyTipIdentity(matchId, tip);
 }
 
 /** Blur veil + Premium crown lock for free users (Analytics chrome; tap ? #premium). */
@@ -643,7 +693,7 @@ function hbCensorWrap(html, { block = false } = {}) {
   )}">
     <div class="hb-censor__veil" aria-hidden="true">${html}</div>
     <div class="hb-censor__lock" aria-hidden="true">
-      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb178" width="22" height="22" alt="" decoding="async" />
+      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb179" width="16" height="16" alt="" decoding="async" />
       <span class="hb-censor__lock-title">${escapeHtml(t('censor.title'))}</span>
       <span class="hb-censor__lock-sub">${escapeHtml(t('censor.sub'))}</span>
     </div>
@@ -1806,7 +1856,7 @@ function mpVsMidLabel(m, live) {
 }
 
 function mpVsBrandMarkHtml() {
-  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb178" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
+  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb179" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
 }
 
 function mpVsMidHtml(m, live) {
@@ -2101,7 +2151,7 @@ function sumRecentAvg(recentAvgs, key) {
   return Number(((Number(h) || 0) + (Number(a) || 0)).toFixed(2));
 }
 
-const UI_ICON_V = 'hb178';
+const UI_ICON_V = 'hb179';
 const MP_STAT_ICON_PX = 20;
 const mpStatImg = (file) =>
   `<img class="mp-stat__icon mp-stat__icon--img" src="/icons/ui/${file}?v=${UI_ICON_V}" width="${MP_STAT_ICON_PX}" height="${MP_STAT_ICON_PX}" alt="" aria-hidden="true" decoding="async" />`;
@@ -3728,7 +3778,14 @@ const premiumState = {
   pendingPromoCode: null,
 };
 
-const PREMIUM_LIST_PRICES = { weekly: 9.99, monthly: 19.9 };
+/** List prices for Premium UI (Stripe price IDs for quarterly/annual later). */
+const PREMIUM_LIST_PRICES = {
+  monthlyIntro: 4.99,
+  monthly: 8.99,
+  quarterly: 19.99,
+  annual: 69.99,
+  weekly: 9.99,
+};
 
 function formatEuroPrice(n) {
   const v = Number(n);
@@ -3741,6 +3798,66 @@ function discountedListPrice(base, percent) {
   const pct = Number(percent);
   if (!Number.isFinite(pct) || pct <= 0) return null;
   return Math.round(base * (100 - pct)) / 100;
+}
+
+function applyPromoPrice(base, percent) {
+  const discounted = discountedListPrice(base, percent);
+  return discounted != null ? discounted : Number(base);
+}
+
+/** Rich plan price HTML for Premium landing (intro / savings / equiv). */
+function premiumPlanPriceHtml(plan, percent) {
+  const pct = Number(percent) || 0;
+  if (plan === 'monthly') {
+    const intro = applyPromoPrice(PREMIUM_LIST_PRICES.monthlyIntro, pct);
+    const then = applyPromoPrice(PREMIUM_LIST_PRICES.monthly, pct);
+    const was =
+      pct > 0
+        ? ` <span class="premium-card__was">${escapeHtml(formatEuroPrice(PREMIUM_LIST_PRICES.monthlyIntro))}</span>`
+        : '';
+    return `<strong>${escapeHtml(formatEuroPrice(intro))}</strong>${was} <span>${escapeHtml(
+      t('premium.firstMonth')
+    )}</span><span class="premium-plan__then">${escapeHtml(
+      t('premium.thenMonthly', { price: formatEuroPrice(then) })
+    )}</span>`;
+  }
+  if (plan === 'quarterly') {
+    const base = PREMIUM_LIST_PRICES.quarterly;
+    const price = applyPromoPrice(base, pct);
+    const per = price / 3;
+    const save = Math.max(0, PREMIUM_LIST_PRICES.monthly * 3 - price);
+    const was =
+      pct > 0 ? ` <span class="premium-card__was">${escapeHtml(formatEuroPrice(base))}</span>` : '';
+    return `<strong>${escapeHtml(formatEuroPrice(price))}</strong>${was} <span>${escapeHtml(
+      t('premium.perQuarter')
+    )}</span><span class="premium-plan__equiv">${escapeHtml(
+      t('premium.equivMonth', { price: formatEuroPrice(per) })
+    )}</span><span class="premium-plan__save">${escapeHtml(
+      t('premium.saveVsMonthly', { amount: formatEuroPrice(save) })
+    )}</span>`;
+  }
+  if (plan === 'annual') {
+    const base = PREMIUM_LIST_PRICES.annual;
+    const price = applyPromoPrice(base, pct);
+    const per = price / 12;
+    const save = Math.max(0, PREMIUM_LIST_PRICES.monthly * 12 - price);
+    const was =
+      pct > 0 ? ` <span class="premium-card__was">${escapeHtml(formatEuroPrice(base))}</span>` : '';
+    return `<strong>${escapeHtml(formatEuroPrice(price))}</strong>${was} <span>${escapeHtml(
+      t('premium.perYear')
+    )}</span><span class="premium-plan__equiv">${escapeHtml(
+      t('premium.equivMonth', { price: formatEuroPrice(per) })
+    )}</span><span class="premium-plan__save">${escapeHtml(
+      t('premium.saveVsMonthly', { amount: formatEuroPrice(save) })
+    )}</span>`;
+  }
+  const base = PREMIUM_LIST_PRICES[plan];
+  if (base == null) return '';
+  const price = applyPromoPrice(base, pct);
+  const period = plan === 'weekly' ? t('premium.perWeek') : t('premium.perMonth');
+  const was =
+    pct > 0 ? ` <span class="premium-card__was">${escapeHtml(formatEuroPrice(base))}</span>` : '';
+  return `<strong>${escapeHtml(formatEuroPrice(price))}</strong>${was} <span>${escapeHtml(period)}</span>`;
 }
 
 async function loadPremiumState() {
@@ -3773,7 +3890,9 @@ async function startPremiumCheckout(plan = 'monthly') {
     showBanner(t('toast.payUnconfigured'), 'info');
     return;
   }
-  const chosen = plan === 'weekly' ? 'weekly' : 'monthly';
+  /* quarterly/annual UI now; Stripe price IDs later — server falls back to monthly. */
+  const allowed = new Set(['weekly', 'monthly', 'quarterly', 'annual']);
+  const chosen = allowed.has(String(plan || '')) ? String(plan) : 'monthly';
   try {
     const data = await api(`/api/v1/premium/session`, {
       method: 'POST',
@@ -3861,15 +3980,8 @@ function syncPremiumView() {
   const pct = Number(premiumState.pendingPromoPercent) || 0;
   root.querySelectorAll('[data-premium-price]').forEach((el) => {
     const plan = el.getAttribute('data-premium-price');
-    const base = PREMIUM_LIST_PRICES[plan];
-    if (base == null) return;
-    const discounted = pct > 0 ? discountedListPrice(base, pct) : null;
-    const period = plan === 'weekly' ? t('premium.perWeek') : t('premium.perMonth');
-    if (discounted != null) {
-      el.innerHTML = `<strong>${escapeHtml(formatEuroPrice(discounted))}</strong> <span class="premium-card__was">${escapeHtml(formatEuroPrice(base))}</span> <span>${escapeHtml(period)}</span>`;
-    } else {
-      el.innerHTML = `<strong>${escapeHtml(formatEuroPrice(base))}</strong> <span>${escapeHtml(period)}</span>`;
-    }
+    const html = premiumPlanPriceHtml(plan, pct);
+    if (html) el.innerHTML = html;
   });
   let badge = root.querySelector('[data-premium-discount-badge]');
   if (pct > 0 && !unlocked) {
@@ -3921,7 +4033,10 @@ const I18N = {
     'perfil.promoExpired': 'Código agotado o caducado',
     'perfil.promoNeedAuth': 'Inicia sesión para canjear',
     'premium.priceWeek': '9,99 €',
-    'premium.priceMonth': '19,90 €',
+    'premium.priceMonth': '8,99 €',
+    'premium.priceMonthIntro': '4,99 €',
+    'premium.priceQuarter': '19,99 €',
+    'premium.priceAnnual': '69,99 €',
     'premium.discountBadge': '-{pct}% promo',
     'date.yesterday': 'Ayer',
     'date.today': 'Hoy',
@@ -4094,13 +4209,21 @@ const I18N = {
     'premium.title': 'Todos los datos del partido',
     'premium.planWeekly': 'Semanal',
     'premium.planMonthly': 'Mensual',
+    'premium.planQuarterly': 'Trimestral',
+    'premium.planAnnual': 'Anual',
     'premium.perWeek': '/ semana',
     'premium.perMonth': '/ mes',
+    'premium.perQuarter': '/ 3 meses',
+    'premium.perYear': '/ año',
+    'premium.firstMonth': '1.er mes',
+    'premium.thenMonthly': 'Luego {price}/mes',
+    'premium.equivMonth': '~{price}/mes',
+    'premium.saveVsMonthly': 'Ahorras {amount}',
     'premium.popular': 'Más popular',
     'premium.featLine': 'Goles · Tiros · Córners · Tarjetas · Top 10',
     'premium.tipsTitle': 'Tips del día',
     'premium.tipsLoadError': 'No se pudieron cargar los tips Premium',
-    'premium.note': 'Pago seguro. Sin Stripe vers «Pago no configurado».',
+    'premium.note': 'Pago seguro. Sin Stripe verás «Pago no configurado».',
     'premium.bannerBadge': 'OFERTA ESPECIAL',
     'premium.bannerTitle': 'Houdini Premium',
     'premium.bannerLead': 'Tip Houdini y estadísticas avanzadas del partido.',
@@ -4320,7 +4443,10 @@ const I18N = {
     'perfil.promoExpired': 'Code exhausted or expired',
     'perfil.promoNeedAuth': 'Sign in to redeem',
     'premium.priceWeek': '€9.99',
-    'premium.priceMonth': '€19.90',
+    'premium.priceMonth': '€8.99',
+    'premium.priceMonthIntro': '€4.99',
+    'premium.priceQuarter': '€19.99',
+    'premium.priceAnnual': '€69.99',
     'premium.discountBadge': '-{pct}% promo',
     'date.yesterday': 'Yesterday',
     'date.today': 'Today',
@@ -4493,13 +4619,21 @@ const I18N = {
     'premium.title': 'Every match insight unlocked',
     'premium.planWeekly': 'Weekly',
     'premium.planMonthly': 'Monthly',
+    'premium.planQuarterly': 'Quarterly',
+    'premium.planAnnual': 'Annual',
     'premium.perWeek': '/ week',
     'premium.perMonth': '/ month',
+    'premium.perQuarter': '/ 3 months',
+    'premium.perYear': '/ year',
+    'premium.firstMonth': '1st month',
+    'premium.thenMonthly': 'Then {price}/mo',
+    'premium.equivMonth': '~{price}/mo',
+    'premium.saveVsMonthly': 'Save {amount}',
     'premium.popular': 'Most popular',
     'premium.featLine': 'Goals · Shots · Corners · Cards · Top 10',
     'premium.tipsTitle': 'Tips of the day',
     'premium.tipsLoadError': 'Could not load Premium tips',
-    'premium.note': 'Secure checkout. Without Stripe you will see Payment not configured”.',
+    'premium.note': 'Secure checkout. Without Stripe you will see “Payment not configured”.',
     'premium.bannerBadge': 'SPECIAL OFFER',
     'premium.bannerTitle': 'Houdini Premium',
     'premium.bannerLead': 'Houdini tip and advanced match stats.',
@@ -4774,7 +4908,7 @@ function applyAccountI18n() {
     ['#perfil-open-settings', 'perfil.settings'],
     ['#perfil-logout', 'perfil.logout'],
     ['#perfil-delete', 'perfil.delete'],
-    ['#perfil-upgrade', 'perfil.upgrade'],
+    ['#perfil-upgrade .perfil-plan__upgrade-label', 'perfil.upgrade'],
     ['#settings-modal-title', 'settings.title'],
     ['#settings-save', 'settings.save'],
     ['#sanction-modal-title', 'sanction.title'],
@@ -4905,7 +5039,9 @@ function syncPerfilView() {
   }
   if (upgrade) {
     upgrade.hidden = on;
-    upgrade.textContent = t('perfil.upgrade');
+    const label = upgrade.querySelector('.perfil-plan__upgrade-label');
+    if (label) label.textContent = t('perfil.upgrade');
+    else upgrade.textContent = t('perfil.upgrade');
   }
 }
 
@@ -5612,6 +5748,22 @@ function paintTop10List(el, matches) {
     el.innerHTML = '';
     return;
   }
+  const day = resolveSelectedDate();
+  ensureFreeDailyTip(
+    day,
+    picked.map((item) => {
+      const bet = item.m || {};
+      const tip = item.tipLabel || bet.suggestedBet;
+      const matchId = Number(item.matchId ?? bet.id ?? bet.matchId);
+      const prob = tipProbPct({
+        ...bet,
+        id: matchId,
+        suggestedBet: tip,
+        tipMarketProb: bet.tipMarketProb ?? item.meta?.prob,
+      });
+      return { matchId, tip, prob };
+    })
+  );
   el.innerHTML = picked
     .map((item, i) => {
       const bet = item.m;
@@ -5630,16 +5782,16 @@ function paintTop10List(el, matches) {
       const matchId = Number(item.matchId ?? bet.id ?? bet.matchId);
       const liveStrip = bet.status === 'live' ? liveStripHtml(m) : '';
       const round = formatRoundLabel(m);
-      const tipPrimary = hbCensorWrap(
-        `<div class="card-tip__primary">
+      const tipInner = `<div class="card-tip__primary">
             <span class="card-tip__bet tip-accent">${escapeHtml(tipLabel)}</span>
             ${
               prob != null
                 ? `<span class="${confClass(prob)} card-tip__conf">${formatTipPct(prob)}%</span>`
                 : ''
             }
-          </div>`
-      );
+          </div>`;
+      const tipPrimary =
+        !contentUnlocked() && isFreeDailyTip(day, matchId, tip) ? tipInner : hbCensorWrap(tipInner);
       const delay = Math.min(8, i) * 40;
       return `
       <article class="card card--tip card--row card--top3" data-analyze="${matchId}" style="animation-delay:${delay}ms">
@@ -5834,7 +5986,7 @@ function aciertosSummaryHtml(summary) {
   `;
 }
 
-function aciertosRowHtml(item, rankFallback) {
+function aciertosRowHtml(item, rankFallback, { freeDay = '' } = {}) {
   const matchId = Number(item.matchId);
   const home = item.homeName || '';
   const away = item.awayName || '';
@@ -5856,7 +6008,8 @@ function aciertosRowHtml(item, rankFallback) {
           : ''
       }
     </div>`;
-  const tipBlock = contentUnlocked() ? tipMeta : hbCensorWrap(tipMeta);
+  const unlockFree = !contentUnlocked() && freeDay && isFreeDailyTip(freeDay, matchId, tip);
+  const tipBlock = contentUnlocked() || unlockFree ? tipMeta : hbCensorWrap(tipMeta);
   const delay = Math.min(8, Math.max(0, Number(rankFallback) || 0)) * 40;
   const side = score
     ? `<div class="aciertos-row__side"><span class="aciertos-row__score">${escapeHtml(score)}</span></div>`
@@ -5903,14 +6056,25 @@ async function renderAciertos() {
       list.innerHTML = `<div class="empty-board">${escapeHtml(t('aciertos.empty'))}</div>`;
       return;
     }
+    ensureFreeDailyTip(
+      date,
+      items.map((it) => ({
+        matchId: it.matchId,
+        tip: it.suggestedBet,
+        tipMarketProb: it.tipMarketProb,
+      }))
+    );
     const unlocked = contentUnlocked();
     const visible = unlocked ? items : items.slice(0, FREE_ACIERTOS_CAP);
     const locked = unlocked ? [] : items.slice(FREE_ACIERTOS_CAP);
-    let html = visible.map((it, i) => aciertosRowHtml(it, i)).join('');
+    let html = visible.map((it, i) => aciertosRowHtml(it, i, { freeDay: date })).join('');
     if (locked.length) {
-      html += hbCensorWrap(locked.map((it, i) => aciertosRowHtml(it, FREE_ACIERTOS_CAP + i)).join(''), {
-        block: true,
-      });
+      html += hbCensorWrap(
+        locked.map((it, i) => aciertosRowHtml(it, FREE_ACIERTOS_CAP + i, { freeDay: date })).join(''),
+        {
+          block: true,
+        }
+      );
     }
     list.innerHTML = html;
     bindAnalyze(list);
@@ -6590,7 +6754,7 @@ function perfTipDisplayHtml(tip) {
   )}">
     <span class="perf-row__tip-blur" aria-hidden="true">${tip}</span>
     <span class="perf-row__tip-premium" aria-hidden="true">
-      <img src="/icons/ui/premium-crown.png?v=hb178" width="13" height="13" alt="" />
+      <img src="/icons/ui/premium-crown.png?v=hb179" width="13" height="13" alt="" />
       Premium
     </span>
   </span>`;
