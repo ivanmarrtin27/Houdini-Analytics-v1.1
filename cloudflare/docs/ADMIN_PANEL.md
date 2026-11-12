@@ -1,14 +1,18 @@
-# Panel admin Houdini
+# Panel admin Houdini Analytics
 
-## Microsite (recomendado)
+## Microsite (canónico)
 
-1. Abre **`https://houdini-bet-admin.pages.dev`** (proyecto Pages `houdini-bet-admin`).
+> **Deploy siempre a** Pages project **`houdini-analytics-admin`** → `https://houdini-analytics-admin.pages.dev`.  
+> `houdini-bet-admin` es **legacy**: no usar día a día; last-resort opcional. No borrar el proyecto remoto salvo petición explícita.
+
+1. Abre **`https://houdini-analytics-admin.pages.dev`** (proyecto Pages `houdini-analytics-admin`).
 2. Introduce el **PIN numérico** (= Worker `SYNC_SECRET`), campo enmascarado (`type=password` + `inputmode=numeric`). Se envía como header `x-sync-secret`; se guarda en `sessionStorage` solo para esa pestaña.
-3. Tras validar: dashboard (uso CF hoy + visitantes preview 5 + Stats tips + gráfico consultas/día + cuentas con búsqueda + revoke/enable/delete). `#hits` = historial completo (búsqueda tipo Cuentas).
-4. UI: DocuForge layout, fondo negro `#0a0a0a`, primary rojo `#DC2626`. Código: [`cloudflare/admin-pages/`](../admin-pages/).
+3. Tras validar: dashboard (uso CF hoy + Tips rendimiento preview + Stats públicos teaser + visitantes + cupones + cuentas). `#tips` = tip performance completo; `#stats` = Stats públicos; `#hits` = historial visitas.
+4. UI: DocuForge layout, fondo negro `#0a0a0a`, primary rojo `#DC2626`. Branding **Houdini Analytics**. Código: [`cloudflare/admin-pages/`](../admin-pages/).
 5. API base: `https://houdini-bet.ivanmarrtin2703.workers.dev`.
 6. QR privado: carpeta local [`admin-qr/`](../../admin-qr/) (`mi-qr.html` + PNG). Apunta al microsite **sin** embeber el secret. Está en `.gitignore`.
-7. **Stats (tips):** el panel admin consume `GET /api/v1/tips/performance` (misma API pública). La casa a largo plazo de Stats es el admin; la vista pública `#stats` se retirará más adelante (aún no eliminada).
+7. **Tips vs Stats:** pestaña **Tips** (`#tips`) = rendimiento de tips (`GET /api/v1/tips/performance`: aciertos/fallos/pending + lista). Pestaña **Stats** (`#stats`) = UI pública de medias de partidos (`stats-public.js`). Separadas a propósito.
+8. **Cupones Premium:** el panel crea códigos (`discount_20` | `discount_40` | `free_days` | `free_month`). El usuario los aplica en la app en **Premium → Aplicar cupón** (`POST /api/v1/premium/promo`). Descuentos se usan al pagar; `free_*` activan Premium al canjear (login obligatorio).
 
 Cambiar acceso admin (solo Wrangler; **nunca** en git):
 
@@ -17,16 +21,18 @@ cd cloudflare
 npx wrangler secret put SYNC_SECRET
 ```
 
-Deploy:
+Deploy (canónico):
 
 ```bash
 cd cloudflare
-npx wrangler pages deploy admin-pages --project-name houdini-bet-admin --branch main
+npx wrangler pages deploy admin-pages --project-name houdini-analytics-admin --branch main
 ```
+
+Legacy (no día a día): `--project-name houdini-bet-admin` → `https://houdini-bet-admin.pages.dev`.
 
 ## Acceso legacy (app principal)
 
-1. `https://houdini-bet.pages.dev/?admin=1#admin` (o workers.dev).
+1. `https://houdini-analytics.pages.dev/?admin=1#admin` (o workers.dev / `houdini-bet.pages.dev` legacy).
 2. La UI pide `SYNC_SECRET` una vez por pestaña (`sessionStorage`).
 
 Sin `?admin=1`, la vista `#admin` no se muestra ni se enruta.
@@ -71,7 +77,7 @@ npx wrangler secret put CF_WEB_ANALYTICS_SITE_TAG
 ```
 
 Token: permiso **Account Analytics · Read**.  
-Site tag: activar **Web Analytics** en Pages `houdini-bet` y copiar el `siteTag`.
+Site tag: activar **Web Analytics** en Pages `houdini-analytics` (o legacy `houdini-bet`) y copiar el `siteTag`.
 
 Sin `CF_ACCOUNT_ID`/`CF_API_TOKEN`: UI corta «Métricas CF no configuradas» (logins + hits D1 sí).  
 Sin site tag: Visitas «No configuradas». Comprobar: `npx wrangler secret list`.

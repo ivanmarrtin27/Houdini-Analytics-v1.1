@@ -10,9 +10,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./styles.css?v=adm9" />
-  <link rel="stylesheet" href="./stats-public.css?v=adm9" />
-  <link rel="icon" href="https://houdini-bet.pages.dev/icons/favicon-32.png" type="image/png" />
+  <link rel="stylesheet" href="./styles.css?v=adm11" />
+  <link rel="stylesheet" href="./stats-public.css?v=adm11" />
+  <!-- Canonical admin Pages project: houdini-analytics-admin (legacy: houdini-bet-admin — do not use day-to-day) -->
+  <link rel="icon" href="https://houdini-analytics.pages.dev/icons/favicon-32.png" type="image/png" />
 </head>
 <body>
   <a class="skip-link" href="#main">Saltar al contenido</a>
@@ -89,6 +90,21 @@
           </div>
         </section>
 
+        <section class="panel panel--tips-preview" aria-labelledby="tips-heading">
+          <div class="panel__head panel__head--wrap">
+            <h2 id="tips-heading" class="panel__title">Tips</h2>
+            <p id="tips-meta" class="panel__meta muted"></p>
+          </div>
+          <div id="tips-panel" class="panel__body" aria-live="polite">
+            <p class="muted">Cargando…</p>
+          </div>
+          <div class="panel__footer">
+            <button type="button" class="btn btn--secondary btn--block" id="btn-tips-all">
+              Ver Tips
+            </button>
+          </div>
+        </section>
+
         <section class="panel panel--hits-preview" aria-labelledby="hits-heading">
           <div class="panel__head panel__head--wrap">
             <h2 id="hits-heading" class="panel__title">Visitantes recientes</h2>
@@ -106,22 +122,27 @@
 
         <section class="panel panel--promo" aria-labelledby="promo-heading">
           <div class="panel__head panel__head--wrap">
-            <h2 id="promo-heading" class="panel__title">Códigos promo</h2>
+            <h2 id="promo-heading" class="panel__title">Cupones Premium</h2>
             <p id="promo-meta" class="panel__meta muted"></p>
           </div>
+          <p class="promo-help muted">
+            Cupones para la app pública: el usuario los introduce en
+            <strong>Premium → Aplicar cupón</strong> (también en Perfil).
+            Tipos: descuento al pagar o Premium gratis (días / mes).
+          </p>
           <form id="promo-form" class="promo-form" autocomplete="off">
             <div class="promo-form__grid">
               <div class="promo-form__field promo-form__field--code">
                 <label class="field-label" for="promo-code">Código</label>
-                <input id="promo-code" class="field-input field-input--mono" name="code" type="text" maxlength="32" required spellcheck="false" autocapitalize="characters" />
+                <input id="promo-code" class="field-input field-input--mono" name="code" type="text" maxlength="32" required spellcheck="false" autocapitalize="characters" placeholder="Ej. VERANO20" />
               </div>
               <div class="promo-form__field promo-form__field--type">
                 <label class="field-label" for="promo-type">Tipo</label>
                 <select id="promo-type" class="field-input" name="type" required>
                   <option value="discount_20">Descuento 20%</option>
                   <option value="discount_40">Descuento 40%</option>
-                  <option value="free_month">Regalo 1 mes Premium</option>
-                  <option value="free_days">Días Premium gratis</option>
+                  <option value="free_days">Días gratis</option>
+                  <option value="free_month">Mes gratis</option>
                 </select>
               </div>
               <div class="promo-form__field promo-form__field--days" id="promo-days-wrap" hidden>
@@ -130,12 +151,13 @@
               </div>
               <div class="promo-form__field promo-form__field--max">
                 <label class="field-label" for="promo-max">Máx. canjes</label>
-                <input id="promo-max" class="field-input" name="max" type="number" min="1" max="100000" />
+                <input id="promo-max" class="field-input" name="max" type="number" min="1" max="100000" placeholder="∞" />
               </div>
               <div class="promo-form__field promo-form__field--submit">
-                <button type="submit" class="btn btn--primary" id="promo-submit">Crear</button>
+                <button type="submit" class="btn btn--primary" id="promo-submit">Crear cupón</button>
               </div>
             </div>
+            <p id="promo-type-effect" class="promo-type-effect field-helper" aria-live="polite"></p>
           </form>
           <div id="promo-list" class="promo-list" aria-live="polite">
             <p class="muted">Cargando…</p>
@@ -203,6 +225,32 @@
             <p id="hits-full-count" class="panel__meta muted"></p>
           </div>
           <div id="hits-full-panel" class="panel__body" aria-live="polite">
+            <p class="muted">Cargando…</p>
+          </div>
+        </section>
+      </div>
+
+      <div id="screen-tips" class="screen screen--tips" hidden>
+        <section class="panel panel--tips-full" aria-labelledby="tips-full-heading">
+          <div class="panel__head panel__head--detail">
+            <h2 id="tips-full-heading" class="panel__title">Tips</h2>
+            <button type="button" class="btn btn--ghost btn--icon-close" id="btn-tips-close" aria-label="Cerrar">×</button>
+          </div>
+          <div class="panel__head panel__head--users">
+            <label class="users-search tips-search" for="tips-search">
+              <span class="visually-hidden">Buscar tips</span>
+              <input
+                id="tips-search"
+                class="field-input users-search__input"
+                type="search"
+                placeholder="Buscar partido, tip, liga…"
+                autocomplete="off"
+                spellcheck="false"
+              />
+            </label>
+            <p id="tips-full-count" class="panel__meta muted"></p>
+          </div>
+          <div id="tips-full-panel" class="panel__body" aria-live="polite">
             <p class="muted">Cargando…</p>
           </div>
         </section>
@@ -347,7 +395,7 @@
     </div>
   </div>
 
-  <script src="./stats-public.js?v=adm9" defer></script>
-  <script src="./app.js?v=adm9" defer></script>
+  <script src="./stats-public.js?v=adm11" defer></script>
+  <script src="./app.js?v=adm11" defer></script>
 </body>
 </html>

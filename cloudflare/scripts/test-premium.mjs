@@ -30,7 +30,7 @@ function mockDb() {
     find,
     async run(sql, ...params) {
       state.updates.push(sql);
-      const [p1, p2, p3, p4, p5] = params;
+      const [p1, p2, p3, p4, p5, p6] = params;
       if (/INSERT INTO premium_sessions/.test(sql)) {
         state.rows.push({
           id: p1,
@@ -46,20 +46,39 @@ function mockDb() {
         const row = find(p1);
         if (row) row.active = 0;
       } else if (/SET premium_until = NULL/.test(sql)) {
-        state.rows.filter((r) => r.stripe_session_id === p1).forEach((r) => {
-          r.premium_until = null;
-        });
-      } else if (/SET stripe_session_id/.test(sql)) {
+        if (/WHERE id = \?1/.test(sql)) {
+          const row = find(p1);
+          if (row) row.premium_until = null;
+        } else if (/stripe_customer_id = \?1/.test(sql)) {
+          state.rows.filter((r) => r.stripe_customer_id === p1).forEach((r) => {
+            r.premium_until = null;
+          });
+        } else {
+          state.rows.filter((r) => r.stripe_session_id === p1).forEach((r) => {
+            r.premium_until = null;
+          });
+        }
+      } else if (/stripe_session_id/.test(sql) && /UPDATE premium_sessions/.test(sql)) {
         const row = find(p1);
         if (row) {
-          row.stripe_session_id = p2;
-          row.stripe_customer_id = p3;
-          row.amount_total = p4;
-          row.currency = p5;
+          if (p2 != null) row.stripe_session_id = p2;
+          if (p3 != null) row.stripe_customer_id = p3;
+          if (p4 != null) row.stripe_subscription_id = p4;
+          if (p5 != null) row.amount_total = p5;
+          if (p6 != null) row.currency = p6;
         }
       }
     },
     async first(sql, ...params) {
+      if (/stripe_subscription_id = \?1/.test(sql)) {
+        return state.rows.find((r) => r.stripe_subscription_id === params[0]) || null;
+      }
+      if (/stripe_session_id = \?1/.test(sql)) {
+        return state.rows.find((r) => r.stripe_session_id === params[0]) || null;
+      }
+      if (/stripe_customer_id = \?1/.test(sql)) {
+        return state.rows.find((r) => r.stripe_customer_id === params[0]) || null;
+      }
       if (/WHERE id = \?1/.test(sql)) return find(params[0]) || null;
       return null;
     },
@@ -103,24 +122,52 @@ check('a paid session resolves as premium', again.premium === true);
 check('stripe checkout without keys reports not configured',
   prem.stripeConfigured({}) === false && prem.stripeConfigured(null) === false);
 check('checkout needs key and price',
-  prem.stripeConfigured({ STRIPE_SECRET_KEY: 'sk_x', STRIPE_PRICE_ID: 'price_x' }) === true);
+  prem.stripeConfigured({ STRIPE_SECRET_KEY: 'sk_x', STRIPE_PRICE_ID_MONTHLY: 'price_m' }) === true);
+check('price resolver maps monthly/quarterly/annual',
+  prem.resolveStripePriceId(
+    {
+      STRIPE_PRICE_ID_MONTHLY: 'price_m',
+      STRIPE_PRICE_ID_QUARTERLY: 'price_q',
+      STRIPE_PRICE_ID_ANNUAL: 'price_a',
+    },
+    'quarterly'
+  ) === 'price_q' &&
+    prem.resolveStripePriceId(
+      { STRIPE_PRICE_ID_MONTHLY: 'price_m', STRIPE_PRICE_ID_ANNUAL: 'price_a' },
+      'annual'
+    ) === 'price_a');
 
 const body = prem.checkoutFormBody({
   clientReferenceId: created.id,
   origin: 'https://houdini-bet.dev',
   priceId: 'price_123',
+  plan: 'monthly',
 });
-check('the checkout body is form encoded with the session reference',
+check('the checkout body is subscription mode with the session reference',
   typeof body === 'string' &&
+    body.includes('mode=subscription') &&
     body.includes(`client_reference_id=${created.id}`) &&
     body.includes('line_items%5B0%5D%5Bprice%5D=price_123') &&
+    body.includes('metadata%5Bplan%5D=monthly') &&
     body.includes('success_url=https%3A%2F%2Fhoudini-bet.dev%2F%3Fpremium%3Dok'));
 
 const WEBHOOK_SECRET = 'whsec_test_123';
 const eventPayload = JSON.stringify({
   id: 'evt_1',
   type: 'checkout.session.completed',
-  data: { object: { id: 'cs_1', client_reference_id: created.id, created: Math.floor(Date.now() / 1000), amount_total: 499, currency: 'eur', customer: 'cus_1' } },
+  data: {
+    object: {
+      id: 'cs_1',
+      mode: 'subscription',
+      client_reference_id: created.id,
+      created: Math.floor(Date.now() / 1000),
+      amount_total: 499,
+      currency: 'eur',
+      customer: 'cus_1',
+      subscription: 'sub_1',
+      metadata: { plan: 'monthly' },
+    },
+  },
 });
 const t = Math.floor(Date.now() / 1000);
 const signedPayload = `${t}.${eventPayload}`;
@@ -143,14 +190,56 @@ check('a webhook older than the tolerance is rejected', stale === false);
 const noSig = await prem.verifyStripeSignature(eventPayload, null, WEBHOOK_SECRET);
 check('a webhook without a header is rejected', noSig === false);
 
-const applied = await prem.applyStripeEvent(db, { PREMIUM_DAYS: 30 }, JSON.parse(eventPayload));
-check('checkout completed grants the paid days', applied.applied === true && applied.kind === 'granted');
+const fakeFetch = async (url) => {
+  if (String(url).includes('/v1/subscriptions/sub_1')) {
+    return {
+      ok: true,
+      async json() {
+        return { id: 'sub_1', current_period_end: Math.floor(Date.now() / 1000) + 30 * 86400 };
+      },
+    };
+  }
+  return { ok: false, async text() { return ''; }, async json() { return {}; } };
+};
+
+const applied = await prem.applyStripeEvent(
+  db,
+  { PREMIUM_DAYS: 30, STRIPE_SECRET_KEY: 'sk_test' },
+  JSON.parse(eventPayload),
+  { fetchImpl: fakeFetch }
+);
+check('checkout completed grants from subscription period',
+  applied.applied === true && applied.kind === 'granted' && db.find(created.id).stripe_subscription_id === 'sub_1');
 
 const badRef = await prem.applyStripeEvent(db, { PREMIUM_DAYS: 30 }, {
   type: 'checkout.session.completed',
   data: { object: { client_reference_id: 'not-a-token' } },
 });
 check('a webhook with an unknown reference does not grant', badRef.kind === 'no_session_ref');
+
+const renewed = await prem.applyStripeEvent(
+  db,
+  { STRIPE_SECRET_KEY: 'sk_test' },
+  {
+    type: 'invoice.paid',
+    data: {
+      object: {
+        subscription: 'sub_1',
+        customer: 'cus_1',
+        lines: { data: [{ period: { end: Math.floor(Date.now() / 1000) + 60 * 86400 } }] },
+      },
+    },
+  }
+);
+check('invoice.paid renews premium_until from period end',
+  renewed.applied === true && renewed.kind === 'synced');
+
+const canceled = await prem.applyStripeEvent(db, {}, {
+  type: 'customer.subscription.deleted',
+  data: { object: { id: 'sub_1', customer: 'cus_1' } },
+});
+check('subscription deleted revokes premium',
+  canceled.applied === true && db.find(created.id).premium_until === null);
 
 const refund = await prem.applyStripeEvent(db, { PREMIUM_DAYS: 30 }, {
   type: 'charge.refunded',
@@ -159,10 +248,15 @@ const refund = await prem.applyStripeEvent(db, { PREMIUM_DAYS: 30 }, {
 check('a refund revokes the associated session', refund.applied === true && db.find(created.id).premium_until === null);
 
 const ignored = await prem.applyStripeEvent(db, { PREMIUM_DAYS: 30 }, {
-  type: 'invoice.paid',
+  type: 'payment_intent.succeeded',
   data: { object: {} },
 });
-check('other stripe events are ignored', ignored.applied === false && ignored.kind === 'ignored');
+check('unrelated stripe events are ignored', ignored.applied === false && ignored.kind === 'ignored');
+
+check('API accepts quarterly/annual plan keys',
+  INDEX.includes('normalizeStripePlan(body?.plan') &&
+    APP.includes("'quarterly'") &&
+    APP.includes("'annual'"));
 
 /* ---------------------------------------------------------------- gating */
 const perf = {
@@ -194,8 +288,9 @@ check('an admin grant endpoint exists behind the sync secret',
   INDEX.includes('/api/v1/admin/premium/grant') && INDEX.includes('x-sync-secret'));
 check('the session route sets the guest cookie when absent',
   INDEX.includes("'set-cookie': setCookie") && INDEX.includes('createPremiumSession(db)'));
-check('the checkout success url comes from the request origin',
-  INDEX.includes("origin: new URL(request.url).origin"));
+check('the checkout success url uses premiumCheckoutOrigin (not workers.dev proxy)',
+  INDEX.includes('premiumCheckoutOrigin(request, env)') &&
+    INDEX.includes('function premiumCheckoutOrigin'));
 
 check('the band loader shows the upsell on premium_required',
   APP.includes("err.code === 'premium_required'") && APP.includes('premiumUpsellHtml(`banda-'));

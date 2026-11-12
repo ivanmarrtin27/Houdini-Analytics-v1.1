@@ -235,6 +235,39 @@ function clientIp(request) {
   );
 }
 
+/** Public app origin for Stripe success/cancel (never the workers.dev proxy host). */
+function premiumCheckoutOrigin(request, env) {
+  const candidates = [];
+  const hdrOrigin = String(request.headers.get('origin') || '').trim();
+  if (hdrOrigin) candidates.push(hdrOrigin);
+  const referer = String(request.headers.get('referer') || '').trim();
+  if (referer) {
+    try {
+      candidates.push(new URL(referer).origin);
+    } catch (_) {
+      /* ignore */
+    }
+  }
+  const authOrigin = String(env?.AUTH_PUBLIC_ORIGIN || '').trim().replace(/\/$/, '');
+  if (authOrigin) candidates.push(authOrigin);
+  const success = String(env?.PREMIUM_SUCCESS_URL || '').trim().replace(/\/$/, '');
+  if (success) candidates.push(success);
+  try {
+    candidates.push(new URL(request.url).origin);
+  } catch (_) {
+    /* ignore */
+  }
+  for (const raw of candidates) {
+    try {
+      const origin = new URL(raw).origin;
+      if (origin && !/\.workers\.dev$/i.test(new URL(origin).hostname)) return origin;
+    } catch (_) {
+      /* ignore */
+    }
+  }
+  return 'https://houdini-analytics.pages.dev';
+}
+
 /** Resolve premium from hb_prem cookie and/or linked auth user. */
 async function premiumSessionOf(request, db, userId = null) {
   const cookieValue = premiumService.sessionCookieFromHeader(request.headers.get('cookie'));
@@ -1338,9 +1371,11 @@ async function handleApi(request, env, ctx) {
   if (method === 'POST' && path === '/api/v1/premium/session') {
     const user = await authUserOf(request, db);
     let plan = 'monthly';
+    let promoCodeBody = '';
     try {
       const body = await request.json();
-      if (body?.plan === 'weekly' || body?.plan === 'monthly') plan = body.plan;
+      plan = premiumService.normalizeStripePlan(body?.plan, 'monthly');
+      promoCodeBody = String(body?.promoCode || body?.code || '').trim();
     } catch (_) {
       /* empty / non-JSON body → monthly */
     }
@@ -1361,16 +1396,36 @@ async function handleApi(request, env, ctx) {
     const pending = user?.id
       ? await premiumService.getPendingPromoDiscount(db, user.id)
       : { percent: null, code: null };
+    let percentOff = pending.percent || null;
+    let appliedPromoCode = pending.code || null;
+    if (!percentOff && promoCodeBody) {
+      const preview = await premiumService.previewPromoCode(db, promoCodeBody, {
+        userId: user?.id || null,
+      });
+      if (preview.ok && preview.percentOff) {
+        percentOff = preview.percentOff;
+        appliedPromoCode = preview.code || promoCodeBody;
+      }
+    }
     let checkoutUrl = null;
     let appliedPercentOff = null;
+    let checkoutError = null;
+    let checkoutDetail = null;
     if (premiumService.stripeConfigured(env)) {
       const checkout = await premiumService.createStripeCheckout(env, String(session.id), {
-        origin: new URL(request.url).origin,
-        percentOff: pending.percent || null,
+        // Pages `_worker.js` proxies /api → workers.dev, so request.url.origin is wrong
+        // for Stripe success/cancel. Prefer browser Origin, then AUTH_PUBLIC_ORIGIN.
+        origin: premiumCheckoutOrigin(request, env),
+        percentOff: percentOff || null,
         plan,
       });
       checkoutUrl = checkout.url || null;
       appliedPercentOff = checkout.percentOff || null;
+      if (!checkoutUrl) {
+        checkoutError = checkout.error || 'checkout_failed';
+        checkoutDetail = checkout.detail || null;
+        console.error('[premium/session] checkout failed', checkoutError, checkoutDetail);
+      }
     }
     return json(
       {
@@ -1378,8 +1433,11 @@ async function handleApi(request, env, ctx) {
         premiumUntil: premium ? session.premium_until : null,
         stripeConfigured: premiumService.stripeConfigured(env),
         checkoutUrl,
+        checkoutError,
+        checkoutDetail,
         pendingPromoPercent: pending.percent,
         appliedPercentOff,
+        appliedPromoCode,
       },
       200,
       setCookie ? { 'set-cookie': setCookie } : null
@@ -1405,6 +1463,35 @@ async function handleApi(request, env, ctx) {
     }
     const applied = await premiumService.applyStripeEvent(db, env, event);
     return json({ ok: true, ...applied });
+  }
+
+  if (method === 'POST' && path === '/api/v1/premium/promo/preview') {
+    const user = await authUserOf(request, db);
+    let body = {};
+    try {
+      body = await request.json();
+    } catch (_) {
+      body = {};
+    }
+    const result = await premiumService.previewPromoCode(db, body.code, {
+      userId: user?.id || null,
+    });
+    if (!result.ok) {
+      const status = result.error === 'already_used' ? 409 : 400;
+      return json(
+        { ok: false, error: result.message || 'Código no válido', errorCode: result.error },
+        status
+      );
+    }
+    return json({
+      ok: true,
+      code: result.code,
+      type: result.type,
+      kind: result.kind,
+      percentOff: result.percentOff ?? null,
+      days: result.days ?? null,
+      needsAuth: Boolean(result.needsAuth),
+    });
   }
 
   if (method === 'POST' && path === '/api/v1/premium/promo') {

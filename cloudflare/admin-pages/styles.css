@@ -748,12 +748,25 @@ select.field-input {
 .panel--promo .panel__head {
   margin-bottom: 0;
 }
+.promo-help {
+  margin: 0;
+  font: 400 13px/1.55 var(--font-body);
+  max-width: 42rem;
+}
+.promo-help strong {
+  color: var(--text);
+  font-weight: 600;
+}
 .promo-form {
   margin: 0;
   padding: 16px;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--surface-raised);
+}
+.promo-type-effect {
+  margin: 12px 0 0;
+  grid-column: 1 / -1;
 }
 .promo-form__grid {
   display: grid;
@@ -963,17 +976,18 @@ select.field-input {
   border-color: var(--border-hover);
 }
 .panel--hits-preview #hits-panel,
+.panel--tips-preview #tips-panel,
 .panel--stats-preview #stats-panel {
   cursor: pointer;
 }
 .panel--hits-preview #hits-panel tr,
 .panel--hits-preview #hits-panel .hit-card,
-.panel--stats-preview #stats-panel tr,
-.panel--stats-preview #stats-panel .stat-card {
+.panel--tips-preview #tips-panel tr,
+.panel--tips-preview #tips-panel .stat-card {
   cursor: pointer;
 }
 
-/* Stats tip list: same card language as hits (preview + full screen) */
+/* Tips performance list (preview + #tips); reuses stats-board / stat-card chrome */
 .stats-recent {
   display: grid;
   gap: 10px;
@@ -986,10 +1000,14 @@ select.field-input {
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
+.panel--tips-preview .stats-board,
+.panel--tips-full .stats-board,
 .panel--stats-preview .stats-board,
 .panel--stats-full .stats-board {
   margin-bottom: 12px;
 }
+.panel--tips-preview .stats-recent,
+.panel--tips-full .stats-recent,
 .panel--stats-preview .stats-recent,
 .panel--stats-full .stats-recent {
   margin-top: 0;
@@ -1152,6 +1170,8 @@ select.field-input {
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+.screen--tips,
+.panel--tips-full,
 .screen--stats,
 .panel--stats-full,
 .panel__body--public-stats,
@@ -1160,6 +1180,8 @@ select.field-input {
   min-width: 0;
   box-sizing: border-box;
 }
+.screen--tips,
+.panel--tips-full,
 .screen--stats,
 .panel--stats-full {
   overflow-x: hidden;
@@ -1515,16 +1537,16 @@ select.field-input {
     line-height: 1.35;
   }
   .panel--hits-preview .hits-cards,
-  .panel--stats-preview .stats-cards {
+  .panel--tips-preview .stats-cards {
     gap: 8px;
   }
   .panel--hits-preview .hit-card,
-  .panel--stats-preview .stat-card {
+  .panel--tips-preview .stat-card {
     padding: 8px 10px;
     gap: 4px;
   }
   .panel--hits-preview .hit-card__head,
-  .panel--stats-preview .stat-card__head {
+  .panel--tips-preview .stat-card__head {
     margin-bottom: 0;
   }
   .panel--hits-preview .hit-card__path {
@@ -1532,37 +1554,39 @@ select.field-input {
     font-size: 12px;
   }
   .panel--hits-preview .hit-card__meta,
-  .panel--stats-preview .stat-card__meta {
+  .panel--tips-preview .stat-card__meta {
     font-size: 11px;
   }
-  .panel--stats-preview .stat-card__tip,
-  .panel--stats-preview .stat-card__tip-row {
+  .panel--tips-preview .stat-card__tip,
+  .panel--tips-preview .stat-card__tip-row {
     font-size: 0.9rem;
   }
-  .panel--stats-preview .stats-board {
+  .panel--tips-preview .stats-board {
     gap: 10px;
     margin-bottom: 10px;
   }
-  .panel--stats-preview .stats-board__hero {
+  .panel--tips-preview .stats-board__hero {
     padding: 12px 12px;
   }
-  .panel--stats-preview .stats-board__rate {
+  .panel--tips-preview .stats-board__rate {
     font-size: 32px;
   }
-  .panel--stats-preview .stats-board__cell {
+  .panel--tips-preview .stats-board__cell {
     padding: 10px 8px;
   }
-  .panel--stats-preview .stats-board__cell strong {
+  .panel--tips-preview .stats-board__cell strong {
     font-size: 18px;
   }
-  .panel--stats-preview .stats-recent__title {
+  .panel--tips-preview .stats-recent__title {
     font-size: 10px;
   }
   .panel--hits-preview .panel__footer,
+  .panel--tips-preview .panel__footer,
   .panel--stats-preview .panel__footer {
     margin-top: 8px;
   }
   .panel--hits-preview .panel__footer .btn,
+  .panel--tips-preview .panel__footer .btn,
   .panel--stats-preview .panel__footer .btn {
     min-height: 36px;
     padding: 8px 12px;

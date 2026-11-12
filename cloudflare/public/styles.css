@@ -2134,6 +2134,10 @@ h2 {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 .aciertos-board__date {
   display: flex;
@@ -2309,6 +2313,10 @@ h2 {
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 .card--aciertos {
   display: grid;
@@ -2325,6 +2333,10 @@ h2 {
   color: inherit;
   font: inherit;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: hidden;
   transition: border-color 0.15s ease, transform 0.15s ease, background 0.15s ease;
   animation: aciertos-row-in 0.35s ease both;
 }
@@ -2373,11 +2385,26 @@ h2 {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.35rem 0.5rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   font-size: 0.8rem;
+  box-sizing: border-box;
+}
+/* Unlocked free tip: same strip rhythm as inline censor */
+#aciertos .aciertos-row__body > .aciertos-row__tip {
+  min-height: 32px;
+  padding: 0.28rem 0.55rem;
+  border-radius: 11px;
+  border: 1px solid rgba(248, 113, 113, 0.16);
+  background: rgba(255, 255, 255, 0.03);
 }
 .aciertos-row__bet {
   font-weight: 650;
   color: var(--chalk);
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .aciertos-row__meta {
   margin: 0;
@@ -2387,8 +2414,10 @@ h2 {
   align-items: center;
   gap: 0.35rem;
   min-width: 0;
+  max-width: 100%;
 }
 .aciertos-row__meta span {
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2399,6 +2428,7 @@ h2 {
   align-items: flex-end;
   gap: 0.25rem;
   flex-shrink: 0;
+  max-width: 4.5rem;
 }
 .aciertos-row__score {
   font-size: 0.78rem;
@@ -2531,10 +2561,20 @@ h2 {
   }
   .card--aciertos {
     grid-template-columns: minmax(0, 1fr) auto;
+    padding: 0.65rem 0.7rem;
+    gap: 0.5rem 0.55rem;
+  }
+  .aciertos-row__match {
+    font-size: 0.84rem;
   }
   .aciertos-row__side {
     align-self: start;
     padding-top: 0.15rem;
+    max-width: 3.75rem;
+  }
+  #aciertos .aciertos-row__body > .aciertos-row__tip,
+  #aciertos .hb-censor--inline {
+    min-height: 30px;
   }
 }
 
@@ -5463,6 +5503,8 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
 .premium-plan__price strong {
   color: var(--chalk);
   font-size: 1.4rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
 .premium-plan__then,
 .premium-plan__equiv,
@@ -5566,6 +5608,165 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
   margin: 0 auto 0.75rem;
   object-fit: contain;
 }
+.premium-coupon {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0.85rem 0.95rem;
+  border-radius: 14px;
+  border: 1px solid rgba(220, 38, 38, 0.28);
+  background:
+    radial-gradient(ellipse at 12% 0%, rgba(220, 38, 38, 0.14), transparent 62%),
+    linear-gradient(160deg, rgba(28, 16, 18, 0.96), rgba(12, 12, 14, 0.98));
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.04);
+  box-sizing: border-box;
+}
+.premium-coupon__label {
+  display: block;
+  margin: 0 0 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: var(--fog-2);
+}
+.premium-coupon__row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+}
+.premium-coupon__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: 0.62rem 0.75rem;
+  border-radius: 11px;
+  border: 1px solid var(--line);
+  background: rgba(10, 10, 12, 0.72);
+  color: var(--chalk);
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-sizing: border-box;
+}
+.premium-coupon__input:focus-visible {
+  outline: 2px solid rgba(220, 38, 38, 0.55);
+  outline-offset: 1px;
+}
+.premium-coupon__btn {
+  flex: 0 0 auto;
+  min-width: 5.75rem;
+  min-height: 2.75rem;
+  padding: 0.58rem 1rem;
+  border-radius: 11px;
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  background: linear-gradient(155deg, #dc2626 0%, #b91c1c 70%, #7f1d1d 100%);
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 0.86rem;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(220, 38, 38, 0.25);
+  box-sizing: border-box;
+}
+.premium-coupon__btn:hover {
+  filter: brightness(1.05);
+}
+.premium-coupon__btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+  filter: none;
+}
+.premium-coupon__msg {
+  margin: 0.55rem 0 0;
+  padding: 0.4rem 0.55rem;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--fog-2);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.premium-coupon__msg[hidden] {
+  display: none !important;
+}
+.premium-coupon__msg.is-ok {
+  color: #bbf7d0;
+  border-color: rgba(74, 222, 128, 0.28);
+  background: rgba(22, 163, 74, 0.12);
+}
+.premium-coupon__msg.is-error {
+  color: #fecaca;
+  border-color: rgba(248, 113, 113, 0.32);
+  background: rgba(185, 28, 28, 0.14);
+}
+.premium-coupon__msg.is-info {
+  color: #fde68a;
+  border-color: rgba(250, 204, 21, 0.28);
+  background: rgba(161, 98, 7, 0.14);
+}
+@media (max-width: 640px) {
+  .premium-coupon {
+    width: 100%;
+    padding: 0.75rem 0.8rem;
+  }
+  .premium-coupon__row {
+    gap: 0.4rem;
+  }
+  .premium-coupon__input,
+  .premium-coupon__btn {
+    min-height: 2.85rem;
+  }
+  .premium-coupon__btn {
+    min-width: 5.25rem;
+    padding-inline: 0.85rem;
+    font-size: 0.84rem;
+  }
+  .premium-coupon__msg {
+    font-size: 0.76rem;
+    padding: 0.38rem 0.5rem;
+  }
+}
+@media (min-width: 560px) {
+  .premium-coupon__input {
+    font-size: 0.94rem;
+  }
+  .premium-coupon__btn {
+    min-width: 6.25rem;
+  }
+}
+body[data-theme='light'] .premium-coupon {
+  background:
+    radial-gradient(ellipse at 12% 0%, rgba(220, 38, 38, 0.1), transparent 62%),
+    linear-gradient(160deg, #fff7f7, #ffffff 70%);
+  border-color: rgba(185, 28, 28, 0.22);
+}
+body[data-theme='light'] .premium-coupon__input {
+  background: #fff;
+  color: #18181b;
+}
+body[data-theme='light'] .premium-coupon__msg {
+  background: rgba(24, 24, 27, 0.04);
+}
+body[data-theme='light'] .premium-coupon__msg.is-ok {
+  color: #166534;
+  background: rgba(22, 163, 74, 0.1);
+}
+body[data-theme='light'] .premium-coupon__msg.is-error {
+  color: #991b1b;
+  background: rgba(185, 28, 28, 0.08);
+}
+body[data-theme='light'] .premium-coupon__msg.is-info {
+  color: #854d0e;
+  background: rgba(250, 204, 21, 0.14);
+}
 .premium-promo {
   display: flex;
   align-items: center;
@@ -5591,15 +5792,23 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
 p.premium-promo__badge[data-premium-discount-badge] {
   display: inline-flex;
   align-items: center;
-  margin: 0 0 0.65rem;
+  justify-content: center;
+  margin: 0 auto 0.15rem;
   width: fit-content;
+  max-width: 100%;
+  padding: 0.28rem 0.7rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  box-sizing: border-box;
 }
 .premium-card__was {
   margin-inline: 0.2rem;
   color: var(--fog-3, #94a3b8);
-  font-size: 0.85em;
-  font-weight: 500;
+  font-size: 0.88em;
+  font-weight: 550;
   text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  opacity: 0.9;
 }
 .premium-cta {
   display: inline-flex;
@@ -8314,6 +8523,11 @@ body.browse-layout [role="button"] {
 .sheet--top3 .hb-censor--inline {
   display: flex;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  border-radius: 11px;
+  box-sizing: border-box;
 }
 #top3 .card-tip__primary,
 #aciertos .aciertos-row__tip {
@@ -8329,6 +8543,16 @@ body.browse-layout [role="button"] {
 .hb-censor--inline .hb-censor__veil {
   max-width: 100%;
   min-width: 0;
+  flex: 1 1 auto;
+}
+/* Scale on veil can clip / overflow tip strips — keep compact */
+#top3 .hb-censor--inline .hb-censor__veil,
+#aciertos .hb-censor--inline .hb-censor__veil,
+.sheet--top3 .hb-censor--inline .hb-censor__veil {
+  transform: none;
+  width: 100%;
+  padding: 0.22rem 0.5rem;
+  box-sizing: border-box;
 }
 .hb-censor--inline .hb-censor__lock-title,
 .hb-censor--inline .hb-censor__lock-sub {
@@ -8338,6 +8562,11 @@ body.browse-layout [role="button"] {
   gap: 0.28rem;
   padding: 0.2rem 0.48rem;
   flex-direction: row;
+  justify-content: flex-end;
+  background:
+    linear-gradient(90deg, transparent 0%, rgba(15, 15, 18, 0.35) 42%, rgba(15, 15, 18, 0.55) 100%);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 .hb-censor--inline .hb-censor__lock-icon {
   width: 0.95rem;

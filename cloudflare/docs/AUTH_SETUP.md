@@ -35,6 +35,7 @@ Includes `0029_users_auth.sql` (users + sessions) and `0030_users_username.sql` 
 - Login accepts **username or email** in `identifier` (legacy body `email` still accepted).
 - Password managers: `autocomplete="username"` on ID / login identifier; `new-password` / `current-password` on passwords.
 - After email register: welcome banner ~3s, then centered Premium upsell modal (`POST /api/v1/premium/session`).
+- Stripe subscriptions (Mensual/Trimestral/Anual): see [`STRIPE_SETUP.md`](./STRIPE_SETUP.md).
 
 ## Smoke
 

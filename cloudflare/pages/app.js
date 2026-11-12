@@ -616,8 +616,6 @@ let hoyMarketTab = 'top';
 /** Soft-gate caps (ignored while PREMIUM_UNLOCKED). */
 const FREE_TOP_CAP = 10;
 const FREE_VALOR_CAP = 5;
-/** Free Aciertos: first N tip rows shown; tip text still censored except free daily tip. */
-const FREE_ACIERTOS_CAP = 3;
 /**
  * Legacy soft-caps flag (Top10 caps etc.). Content paywall is now
  * `contentUnlocked()` = premiumState.premium (even while this is true).
@@ -693,7 +691,7 @@ function hbCensorWrap(html, { block = false } = {}) {
   )}">
     <div class="hb-censor__veil" aria-hidden="true">${html}</div>
     <div class="hb-censor__lock" aria-hidden="true">
-      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb179" width="16" height="16" alt="" decoding="async" />
+      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb180" width="16" height="16" alt="" decoding="async" />
       <span class="hb-censor__lock-title">${escapeHtml(t('censor.title'))}</span>
       <span class="hb-censor__lock-sub">${escapeHtml(t('censor.sub'))}</span>
     </div>
@@ -1856,7 +1854,7 @@ function mpVsMidLabel(m, live) {
 }
 
 function mpVsBrandMarkHtml() {
-  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb179" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
+  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb180" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
 }
 
 function mpVsMidHtml(m, live) {
@@ -2151,7 +2149,7 @@ function sumRecentAvg(recentAvgs, key) {
   return Number(((Number(h) || 0) + (Number(a) || 0)).toFixed(2));
 }
 
-const UI_ICON_V = 'hb179';
+const UI_ICON_V = 'hb180';
 const MP_STAT_ICON_PX = 20;
 const mpStatImg = (file) =>
   `<img class="mp-stat__icon mp-stat__icon--img" src="/icons/ui/${file}?v=${UI_ICON_V}" width="${MP_STAT_ICON_PX}" height="${MP_STAT_ICON_PX}" alt="" aria-hidden="true" decoding="async" />`;
@@ -3778,14 +3776,99 @@ const premiumState = {
   pendingPromoCode: null,
 };
 
-/** List prices for Premium UI (Stripe price IDs for quarterly/annual later). */
+/** Session-scoped applied promo (guest preview or post-redeem discount). */
+const PROMO_SESSION_KEY = 'hb_applied_promo_v1';
+
+/** List prices for Premium UI (must match Stripe recurring Prices). */
 const PREMIUM_LIST_PRICES = {
-  monthlyIntro: 4.99,
-  monthly: 8.99,
+  monthly: 7.99,
   quarterly: 19.99,
   annual: 69.99,
   weekly: 9.99,
 };
+
+function readSessionPromo() {
+  try {
+    const raw = sessionStorage.getItem(PROMO_SESSION_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (!data || typeof data !== 'object') return null;
+    const code = String(data.code || '').trim().toUpperCase();
+    if (!code) return null;
+    return {
+      code,
+      type: data.type ? String(data.type) : null,
+      kind: data.kind ? String(data.kind) : null,
+      percentOff:
+        data.percentOff != null && Number.isFinite(Number(data.percentOff))
+          ? Number(data.percentOff)
+          : null,
+      days: data.days != null && Number.isFinite(Number(data.days)) ? Number(data.days) : null,
+    };
+  } catch (_) {
+    return null;
+  }
+}
+
+function writeSessionPromo(payload) {
+  try {
+    if (!payload?.code) {
+      sessionStorage.removeItem(PROMO_SESSION_KEY);
+      return;
+    }
+    sessionStorage.setItem(
+      PROMO_SESSION_KEY,
+      JSON.stringify({
+        code: String(payload.code).trim().toUpperCase(),
+        type: payload.type || null,
+        kind: payload.kind || null,
+        percentOff: payload.percentOff != null ? Number(payload.percentOff) : null,
+        days: payload.days != null ? Number(payload.days) : null,
+      })
+    );
+  } catch (_) {
+    /* private mode / quota */
+  }
+}
+
+function clearSessionPromo() {
+  try {
+    sessionStorage.removeItem(PROMO_SESSION_KEY);
+  } catch (_) {
+    /* ignore */
+  }
+}
+
+/** Server pending discount wins; else session preview/applied discount. */
+function effectivePromoPercent() {
+  const server = Number(premiumState.pendingPromoPercent);
+  if (Number.isFinite(server) && server > 0) return server;
+  const session = Number(readSessionPromo()?.percentOff);
+  if (Number.isFinite(session) && session > 0) return session;
+  return 0;
+}
+
+function effectivePromoCode() {
+  if (premiumState.pendingPromoCode) return String(premiumState.pendingPromoCode);
+  return readSessionPromo()?.code || '';
+}
+
+function setPremiumCouponMsg(text, tone = '') {
+  const msg = document.getElementById('premium-promo-msg');
+  if (!msg) return;
+  const value = String(text || '').trim();
+  msg.classList.remove('is-ok', 'is-error', 'is-info');
+  if (!value) {
+    msg.hidden = true;
+    msg.textContent = '';
+    return;
+  }
+  msg.hidden = false;
+  msg.textContent = value;
+  if (tone === 'ok' || tone === 'error' || tone === 'info') {
+    msg.classList.add(`is-${tone}`);
+  }
+}
 
 function formatEuroPrice(n) {
   const v = Number(n);
@@ -3805,22 +3888,9 @@ function applyPromoPrice(base, percent) {
   return discounted != null ? discounted : Number(base);
 }
 
-/** Rich plan price HTML for Premium landing (intro / savings / equiv). */
+/** Rich plan price HTML for Premium landing (flat monthly / savings / equiv). */
 function premiumPlanPriceHtml(plan, percent) {
   const pct = Number(percent) || 0;
-  if (plan === 'monthly') {
-    const intro = applyPromoPrice(PREMIUM_LIST_PRICES.monthlyIntro, pct);
-    const then = applyPromoPrice(PREMIUM_LIST_PRICES.monthly, pct);
-    const was =
-      pct > 0
-        ? ` <span class="premium-card__was">${escapeHtml(formatEuroPrice(PREMIUM_LIST_PRICES.monthlyIntro))}</span>`
-        : '';
-    return `<strong>${escapeHtml(formatEuroPrice(intro))}</strong>${was} <span>${escapeHtml(
-      t('premium.firstMonth')
-    )}</span><span class="premium-plan__then">${escapeHtml(
-      t('premium.thenMonthly', { price: formatEuroPrice(then) })
-    )}</span>`;
-  }
   if (plan === 'quarterly') {
     const base = PREMIUM_LIST_PRICES.quarterly;
     const price = applyPromoPrice(base, pct);
@@ -3873,6 +3943,15 @@ async function loadPremiumState() {
     premiumState.pendingPromoPercent =
       data.pendingPromoPercent != null ? Number(data.pendingPromoPercent) : null;
     premiumState.pendingPromoCode = data.pendingPromoCode || null;
+    if (premiumState.pendingPromoPercent && premiumState.pendingPromoCode) {
+      writeSessionPromo({
+        code: premiumState.pendingPromoCode,
+        type: null,
+        kind: 'discount',
+        percentOff: premiumState.pendingPromoPercent,
+        days: null,
+      });
+    }
   } catch (_) {
     premiumState.stripeConfigured = false;
     premiumState.pendingPromoPercent = null;
@@ -3890,19 +3969,27 @@ async function startPremiumCheckout(plan = 'monthly') {
     showBanner(t('toast.payUnconfigured'), 'info');
     return;
   }
-  /* quarterly/annual UI now; Stripe price IDs later — server falls back to monthly. */
   const allowed = new Set(['weekly', 'monthly', 'quarterly', 'annual']);
   const chosen = allowed.has(String(plan || '')) ? String(plan) : 'monthly';
+  const promoCode = effectivePromoCode();
   try {
+    const body = { plan: chosen };
+    if (promoCode) body.promoCode = promoCode;
     const data = await api(`/api/v1/premium/session`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plan: chosen }),
+      body: JSON.stringify(body),
     });
     if (data.checkoutUrl) {
       window.location.href = data.checkoutUrl;
     } else {
-      showBanner(t('toast.payOpenFail'), 'error');
+      const detail = data.checkoutError || data.checkoutDetail || '';
+      showBanner(
+        detail
+          ? t('toast.payStartFail', { msg: String(detail).slice(0, 120) })
+          : t('toast.payOpenFail'),
+        'error'
+      );
     }
   } catch (err) {
     showBanner(t('toast.payStartFail', { msg: err.message || '' }), 'error');
@@ -3972,12 +4059,19 @@ function syncPremiumView() {
   }
   const plans = root.querySelector('.premium-plans');
   if (plans) plans.hidden = unlocked;
+  const coupon = root.querySelector('[data-premium-coupon]');
+  if (coupon) coupon.hidden = unlocked;
   const feat = root.querySelector('.premium-features-line');
   if (feat) feat.hidden = unlocked;
   const note = root.querySelector('.premium-note');
   if (note) note.hidden = unlocked;
   syncPremiumTipsChrome();
-  const pct = Number(premiumState.pendingPromoPercent) || 0;
+  const pct = effectivePromoPercent();
+  const sessionPromo = readSessionPromo();
+  const input = document.getElementById('premium-promo-input');
+  if (input && !input.value && sessionPromo?.code) {
+    input.value = sessionPromo.code;
+  }
   root.querySelectorAll('[data-premium-price]').forEach((el) => {
     const plan = el.getAttribute('data-premium-price');
     const html = premiumPlanPriceHtml(plan, pct);
@@ -3997,6 +4091,7 @@ function syncPremiumView() {
     badge.textContent = t('premium.discountBadge', { pct: String(pct) });
   } else if (badge) {
     badge.hidden = true;
+    badge.textContent = '';
   }
   root.querySelectorAll('[data-premium-activate]').forEach((btn) => {
     btn.disabled = unlocked;
@@ -4032,9 +4127,15 @@ const I18N = {
     'perfil.promoUsed': 'Ya has usado este código',
     'perfil.promoExpired': 'Código agotado o caducado',
     'perfil.promoNeedAuth': 'Inicia sesión para canjear',
+    'premium.couponLabel': 'Código promocional',
+    'premium.couponApply': 'Aplicar',
+    'premium.couponPlaceholder': 'Código',
+    'premium.couponDiscountOk': 'Descuento {pct}% aplicado · se usa al pagar',
+    'premium.couponFreeNeedAuth': 'Inicia sesión para canjear y activar Premium gratis',
+    'premium.couponFreeDaysOk': 'Premium activado · {days} días',
+    'premium.couponFreeMonthOk': 'Premium activado · 1 mes',
     'premium.priceWeek': '9,99 €',
-    'premium.priceMonth': '8,99 €',
-    'premium.priceMonthIntro': '4,99 €',
+    'premium.priceMonth': '7,99 €',
     'premium.priceQuarter': '19,99 €',
     'premium.priceAnnual': '69,99 €',
     'premium.discountBadge': '-{pct}% promo',
@@ -4215,8 +4316,6 @@ const I18N = {
     'premium.perMonth': '/ mes',
     'premium.perQuarter': '/ 3 meses',
     'premium.perYear': '/ año',
-    'premium.firstMonth': '1.er mes',
-    'premium.thenMonthly': 'Luego {price}/mes',
     'premium.equivMonth': '~{price}/mes',
     'premium.saveVsMonthly': 'Ahorras {amount}',
     'premium.popular': 'Más popular',
@@ -4442,9 +4541,15 @@ const I18N = {
     'perfil.promoUsed': 'You already used this code',
     'perfil.promoExpired': 'Code exhausted or expired',
     'perfil.promoNeedAuth': 'Sign in to redeem',
+    'premium.couponLabel': 'Promo code',
+    'premium.couponApply': 'Apply',
+    'premium.couponPlaceholder': 'Code',
+    'premium.couponDiscountOk': '{pct}% off applied · used at checkout',
+    'premium.couponFreeNeedAuth': 'Sign in to redeem and unlock free Premium',
+    'premium.couponFreeDaysOk': 'Premium unlocked · {days} days',
+    'premium.couponFreeMonthOk': 'Premium unlocked · 1 month',
     'premium.priceWeek': '€9.99',
-    'premium.priceMonth': '€8.99',
-    'premium.priceMonthIntro': '€4.99',
+    'premium.priceMonth': '€7.99',
     'premium.priceQuarter': '€19.99',
     'premium.priceAnnual': '€69.99',
     'premium.discountBadge': '-{pct}% promo',
@@ -4625,8 +4730,6 @@ const I18N = {
     'premium.perMonth': '/ month',
     'premium.perQuarter': '/ 3 months',
     'premium.perYear': '/ year',
-    'premium.firstMonth': '1st month',
-    'premium.thenMonthly': 'Then {price}/mo',
     'premium.equivMonth': '~{price}/mo',
     'premium.saveVsMonthly': 'Save {amount}',
     'premium.popular': 'Most popular',
@@ -6035,7 +6138,8 @@ function aciertosRowHtml(item, rankFallback, { freeDay = '' } = {}) {
 
 /**
  * Aciertos = Top del día (resultado). Same day + Top 10 universe as `#top3`.
- * One API call; free sees summary tease + first 3 tips, rest censored.
+ * One API call; all tips as individual cards. Free: tip-only inline censor
+ * (except free daily tip); summary hit-rate stays block-censored. No list blob.
  */
 async function renderAciertos() {
   bindAciertosControls();
@@ -6064,19 +6168,7 @@ async function renderAciertos() {
         tipMarketProb: it.tipMarketProb,
       }))
     );
-    const unlocked = contentUnlocked();
-    const visible = unlocked ? items : items.slice(0, FREE_ACIERTOS_CAP);
-    const locked = unlocked ? [] : items.slice(FREE_ACIERTOS_CAP);
-    let html = visible.map((it, i) => aciertosRowHtml(it, i, { freeDay: date })).join('');
-    if (locked.length) {
-      html += hbCensorWrap(
-        locked.map((it, i) => aciertosRowHtml(it, FREE_ACIERTOS_CAP + i, { freeDay: date })).join(''),
-        {
-          block: true,
-        }
-      );
-    }
-    list.innerHTML = html;
+    list.innerHTML = items.map((it, i) => aciertosRowHtml(it, i, { freeDay: date })).join('');
     bindAnalyze(list);
   } catch (err) {
     if (seq !== aciertosLoadSeq) return;
@@ -6754,7 +6846,7 @@ function perfTipDisplayHtml(tip) {
   )}">
     <span class="perf-row__tip-blur" aria-hidden="true">${tip}</span>
     <span class="perf-row__tip-premium" aria-hidden="true">
-      <img src="/icons/ui/premium-crown.png?v=hb179" width="13" height="13" alt="" />
+      <img src="/icons/ui/premium-crown.png?v=hb180" width="13" height="13" alt="" />
       Premium
     </span>
   </span>`;
@@ -9360,6 +9452,16 @@ document.getElementById('account-ajustes')?.addEventListener('click', (e) => {
   closeAccountMenu();
   navigateAppHash('#ajustes');
 });
+function promoErrorMessage(err) {
+  const codeErr = err?.code || '';
+  if (codeErr === 'already_used') return t('perfil.promoUsed');
+  if (codeErr === 'expired' || codeErr === 'exhausted') return t('perfil.promoExpired');
+  if (codeErr === 'auth_required' || err?.message?.includes?.('autentic')) {
+    return t('perfil.promoNeedAuth');
+  }
+  return err?.message || t('perfil.promoBad');
+}
+
 async function redeemPerfilPromo() {
   if (!authUser) {
     showBanner(t('perfil.promoNeedAuth'), 'error');
@@ -9380,6 +9482,17 @@ async function redeemPerfilPromo() {
       body: JSON.stringify({ code }),
     });
     if (input) input.value = '';
+    if (data.kind === 'discount' || data.percentOff) {
+      writeSessionPromo({
+        code: data.code || code,
+        type: data.type || null,
+        kind: 'discount',
+        percentOff: data.percentOff,
+        days: null,
+      });
+    } else {
+      clearSessionPromo();
+    }
     await loadPremiumState();
     syncPerfilView();
     syncPremiumView();
@@ -9395,18 +9508,99 @@ async function redeemPerfilPromo() {
     }
     showBanner(okMsg, 'ok');
   } catch (err) {
-    const codeErr = err?.code || '';
-    let msg = t('perfil.promoBad');
-    if (codeErr === 'already_used') msg = t('perfil.promoUsed');
-    else if (codeErr === 'expired' || codeErr === 'exhausted') msg = t('perfil.promoExpired');
-    else if (codeErr === 'auth_required' || err?.message?.includes?.('autentic')) {
-      msg = t('perfil.promoNeedAuth');
-    } else if (err?.message) msg = err.message;
-    showBanner(msg, 'error');
+    showBanner(promoErrorMessage(err), 'error');
   } finally {
     if (btn) btn.disabled = false;
   }
 }
+
+/**
+ * Premium landing coupon: logged-in redeems; guests preview (discount UI only).
+ * free_* never invents price math — grant needs auth or shows login hint.
+ */
+async function applyPremiumPromo() {
+  const input = document.getElementById('premium-promo-input');
+  const btn = document.getElementById('premium-promo-btn');
+  const code = String(input?.value || '').trim();
+  if (!code) {
+    setPremiumCouponMsg(t('perfil.promoBad'), 'error');
+    return;
+  }
+  if (btn) btn.disabled = true;
+  try {
+    if (authUser) {
+      const data = await api('/api/v1/premium/promo', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+      if (data.kind === 'discount' || data.percentOff) {
+        writeSessionPromo({
+          code: data.code || code,
+          type: data.type || null,
+          kind: 'discount',
+          percentOff: data.percentOff,
+          days: null,
+        });
+        await loadPremiumState();
+        setPremiumCouponMsg(
+          t('premium.couponDiscountOk', { pct: String(data.percentOff || '') }),
+          'ok'
+        );
+      } else if (data.type === 'free_month') {
+        clearSessionPromo();
+        await loadPremiumState();
+        refreshTipsLockedViews();
+        setPremiumCouponMsg(t('premium.couponFreeMonthOk'), 'ok');
+      } else {
+        clearSessionPromo();
+        await loadPremiumState();
+        refreshTipsLockedViews();
+        setPremiumCouponMsg(
+          t('premium.couponFreeDaysOk', { days: String(data.days || '') }),
+          'ok'
+        );
+      }
+      syncPremiumView();
+      syncPerfilView();
+      return;
+    }
+
+    const data = await api('/api/v1/premium/promo/preview', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    if (data.kind === 'discount' || data.percentOff) {
+      writeSessionPromo({
+        code: data.code || code,
+        type: data.type || null,
+        kind: 'discount',
+        percentOff: data.percentOff,
+        days: null,
+      });
+      syncPremiumView();
+      setPremiumCouponMsg(
+        t('premium.couponDiscountOk', { pct: String(data.percentOff || '') }),
+        'ok'
+      );
+      return;
+    }
+    writeSessionPromo({
+      code: data.code || code,
+      type: data.type || null,
+      kind: 'grant',
+      percentOff: null,
+      days: data.days ?? null,
+    });
+    setPremiumCouponMsg(t('premium.couponFreeNeedAuth'), 'info');
+  } catch (err) {
+    setPremiumCouponMsg(promoErrorMessage(err), 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 document.getElementById('perfil-promo-btn')?.addEventListener('click', () => {
   redeemPerfilPromo();
 });
@@ -9414,6 +9608,15 @@ document.getElementById('perfil-promo-input')?.addEventListener('keydown', (e) =
   if (e.key === 'Enter') {
     e.preventDefault();
     redeemPerfilPromo();
+  }
+});
+document.getElementById('premium-promo-btn')?.addEventListener('click', () => {
+  applyPremiumPromo();
+});
+document.getElementById('premium-promo-input')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    applyPremiumPromo();
   }
 });
 document.getElementById('perfil-logout')?.addEventListener('click', () => {

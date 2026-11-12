@@ -37,6 +37,20 @@ check('pages synced with renderAciertos', PAGES_APP.includes('async function ren
 check('no Próximamente placeholder in public shell', !APP.includes("aciertos.soonTitle"));
 check('Aciertos rows omit tipOdds display', !/function aciertosRowHtml[\s\S]*?tipOddsDisplay\(item\.tipOdds\)/.test(APP));
 check('Aciertos summary omits yield', !APP.includes("t('aciertos.yield')") && !APP.includes('formatAciertosYield'));
+check('no FREE_ACIERTOS_CAP list blob', !APP.includes('FREE_ACIERTOS_CAP') && !PAGES_APP.includes('FREE_ACIERTOS_CAP'));
+check(
+  'Aciertos renders all tip cards (no block wrap of locked rows)',
+  /list\.innerHTML = items\.map\(\(it, i\) => aciertosRowHtml\(it, i, \{ freeDay: date \}\)\)\.join\(''\)/.test(
+    APP
+  ) &&
+    /list\.innerHTML = items\.map\(\(it, i\) => aciertosRowHtml\(it, i, \{ freeDay: date \}\)\)\.join\(''\)/.test(
+      PAGES_APP
+    )
+);
+check(
+  'Aciertos tip-only inline censor in rows',
+  /const tipBlock = contentUnlocked\(\) \|\| unlockFree \? tipMeta : hbCensorWrap\(tipMeta\)/.test(APP)
+);
 check('tab enter helper present', APP.includes('function triggerViewEnter'));
 check('SHOTS rejected as trivial', isTrivialTop10Label('SHOTS_OVER_225'));
 check('OVER_05 trivial', isTrivialTop10Label('OVER_05'));

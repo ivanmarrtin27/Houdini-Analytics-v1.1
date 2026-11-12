@@ -18,7 +18,7 @@
 - Premium tabs Oddster-style (rojo): summary + trend Metric|H|A|Partido; free = `lockedTrendTableHtml`; goles + scoregrid debajo
 - Promo (0036+0037): types `free_days`|`free_month`|`discount_20`|`discount_40`; soft-delete `active=0`; discount → `users.pending_promo_*` + Stripe `%_off` en checkout; admin create/list/delete
 - Badge unificado `.plan-badge` «Premium»/«Gratuito»; settings sin tema (dark forzado); `#ajustes` ✕ → `#partidos`
-- Planes UI: Weekly 9,99 € / Monthly 19,90 € → Stripe o toast «Pago no configurado»
+- Planes UI: Mensual **7,99 €/mes** flat / Trimestral 19,99 / Anual 69,99 → Stripe Checkout **subscription** (`STRIPE_PRICE_ID_{MONTHLY,QUARTERLY,ANNUAL}`); sin intro 4,99; docs `cloudflare/docs/STRIPE_SETUP.md`
 - Display ES: `countryLabel` + `leagueLabelEs`; Panel General Media liga n≥20
 - Crests: contain + caja fija, sin `border-radius: 50%` en lista; móvil ~1.6rem / panel ~2.9rem; FotMob PSG/Elche/Deportivo/Leverkusen/Schalke/Racing/Paris FC + BL; AF broken list
 - Dominio: **pages.dev** día a día; **no** pagar `houdini-bet.dev` hasta producto listo
@@ -35,12 +35,12 @@
 - Free General key cards + icons; tabs Tiros; i18n P0+P1; SOT/córners ranges; promo types+delete; admin Stats cards homogéneas; tip sync Top10=panel; Under tables + BTTS block; Tiros 14.5–24.5
 - Full restore to v1.0 + Analytics brand/UI icons; Aciertos + free censor chrome from Analytics
 - Match list/hero + logos; tip universe P-only (no cuota) + Top 10/Aciertos fill ≤10; Stats layout+model + Ligas chrome; General icons; Aciertos Top del día (`/tips/day-results`, sin cuotas, fill ≤10); splash `#000` + OG framed; Segunda FotMob; escudos homogéneos; Premium UX + i18n; mobile header row ~52px homogéneo; header icon transparente; shell `hb164`; repo GitHub `Houdini-Analytics-v1.1`
-- Admin home: Stats tips preview (`/tips/performance`) + Códigos promo CRUD (parity Analytics); cache `adm4`; Pages `houdini-bet-admin` (+ also pushed to `houdini-analytics-admin`)
+- Admin: Tips `#tips` (`/tips/performance`) separado de Stats públicos `#stats`; Cupones Premium CRUD; cache `adm11`; Pages canónico `houdini-analytics-admin` (`houdini-bet-admin` = legacy)
 
 ## Pendiente
 ### Lanzamiento público / dominio
 - Aciertos v2: rachas / calibración / ledger personal (out of day-board v1)
-- Stripe real + webhook + price weekly/monthly
+- Stripe Phase 2: secrets + webhook + migrate `0041` + deploy/test (código Phase 1 listo)
 - Auth en dominio custom + Google OAuth redirects
 - DNS Pages + cookies/success_url Stripe al dominio
 - API_FOOTBALL_KEY válida
@@ -50,4 +50,4 @@
 - App Pages: `npx wrangler pages deploy pages --project-name houdini-analytics --branch main`
 - Worker: `cd cloudflare; npx wrangler deploy`
 - Migrate: `npx wrangler d1 migrations apply houdini-bet-db --remote`
-- Admin: `npx wrangler pages deploy admin-pages --project-name houdini-bet-admin --branch main`
+- Admin: `npx wrangler pages deploy admin-pages --project-name houdini-analytics-admin --branch main` (legacy: `houdini-bet-admin`)

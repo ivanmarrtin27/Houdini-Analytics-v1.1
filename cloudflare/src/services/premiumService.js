@@ -3,8 +3,8 @@
  *
  *  - Browser gets HttpOnly cookie (`hb_prem` = `<id>.<secret>`).
  *  - When a user logs in, the active premium session is attached via `user_id`.
- *  - Stripe Checkout: `client_reference_id` = session id; webhook sets
- *    `premium_until` (+ optional `premium_started_at`).
+ *  - Stripe Checkout Subscriptions: `client_reference_id` = session id;
+ *    webhook syncs `premium_until` from subscription period (renewals too).
  *  - Admin list joins the latest active premium row per user.
  */
 
@@ -12,6 +12,16 @@ const COOKIE_NAME = 'hb_prem';
 const SESSION_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 const DEFAULT_PREMIUM_DAYS = 30;
 const SIGNATURE_TOLERANCE_SECONDS = 300;
+
+/** UI / Checkout plan keys → approximate period days (fallback if Stripe period missing). */
+export const PLAN_PERIOD_DAYS = Object.freeze({
+  weekly: 7,
+  monthly: 31,
+  quarterly: 92,
+  annual: 366,
+});
+
+export const STRIPE_PLAN_KEYS = Object.freeze(['weekly', 'monthly', 'quarterly', 'annual']);
 
 function nowIso() {
   return new Date().toISOString();
@@ -191,6 +201,42 @@ export async function grantPremium(db, id, { days = DEFAULT_PREMIUM_DAYS, at = n
   return premiumUntil;
 }
 
+/** Set absolute premium_until (subscription period sync — does not stack). */
+export async function setPremiumUntil(db, id, untilIso) {
+  const until = untilIso ? String(untilIso) : null;
+  if (!until) return null;
+  const row = await db.first(`SELECT * FROM premium_sessions WHERE id = ?1`, id);
+  if (!row) return null;
+  await db.run(
+    `UPDATE premium_sessions
+     SET premium_until = ?2,
+         premium_started_at = COALESCE(premium_started_at, ?3)
+     WHERE id = ?1`,
+    id,
+    until,
+    nowIso()
+  );
+  return until;
+}
+
+export function normalizeStripePlan(raw, fallback = 'monthly') {
+  const plan = String(raw || '')
+    .trim()
+    .toLowerCase();
+  return STRIPE_PLAN_KEYS.includes(plan) ? plan : fallback;
+}
+
+export function planPeriodDays(plan, env = null) {
+  const key = normalizeStripePlan(plan);
+  if (key === 'monthly' && env?.PREMIUM_DAYS != null) {
+    const override = Number(env.PREMIUM_DAYS);
+    if (Number.isFinite(override) && override > 0) {
+      return Math.max(1, Math.min(366, Math.round(override)));
+    }
+  }
+  return PLAN_PERIOD_DAYS[key] || DEFAULT_PREMIUM_DAYS;
+}
+
 /** Grant / extend premium for a user account (creates a linked session if needed). */
 export async function grantPremiumForUser(db, userId, { days = DEFAULT_PREMIUM_DAYS } = {}) {
   const uid = String(userId);
@@ -223,38 +269,65 @@ export function stripeConfigured(env) {
   return Boolean(
     env &&
       String(env.STRIPE_SECRET_KEY || '').trim() &&
-      (String(env.STRIPE_PRICE_ID || '').trim() ||
-        String(env.STRIPE_PRICE_ID_MONTHLY || '').trim() ||
+      (String(env.STRIPE_PRICE_ID_MONTHLY || '').trim() ||
+        String(env.STRIPE_PRICE_ID_QUARTERLY || '').trim() ||
+        String(env.STRIPE_PRICE_ID_ANNUAL || '').trim() ||
+        String(env.STRIPE_PRICE_ID || '').trim() ||
         String(env.STRIPE_PRICE_ID_WEEKLY || '').trim())
   );
 }
 
-/** Resolve Stripe price for weekly|monthly with fallback to STRIPE_PRICE_ID. */
+/**
+ * Resolve Stripe Price ID for monthly|quarterly|annual (weekly legacy).
+ * Prefer dedicated env vars; fall back to STRIPE_PRICE_ID then monthly.
+ */
 export function resolveStripePriceId(env, plan = 'monthly') {
+  const key = normalizeStripePlan(plan);
   const monthly = String(env?.STRIPE_PRICE_ID_MONTHLY || '').trim();
+  const quarterly = String(env?.STRIPE_PRICE_ID_QUARTERLY || '').trim();
+  const annual = String(env?.STRIPE_PRICE_ID_ANNUAL || '').trim();
   const weekly = String(env?.STRIPE_PRICE_ID_WEEKLY || '').trim();
   const fallback = String(env?.STRIPE_PRICE_ID || '').trim();
-  if (plan === 'weekly') return weekly || fallback || monthly;
+  if (key === 'quarterly') return quarterly || fallback || monthly;
+  if (key === 'annual') return annual || fallback || monthly;
+  if (key === 'weekly') return weekly || fallback || monthly;
   return monthly || fallback || weekly;
 }
 
-/** Form-encoded body for the Checkout Sessions API (no SDK needed). */
+/**
+ * Form-encoded body for Checkout Sessions API (subscription mode).
+ * Flat monthly list price 7,99 € — no first-month intro.
+ * Optional `couponId` (Houdini promo % discount) applies as discounts[0].
+ */
 export function checkoutFormBody({
   clientReferenceId,
   origin,
   priceId,
   couponId = null,
   percentOff = null,
+  plan = 'monthly',
+  mode = 'subscription',
 }) {
   const successBase = `${origin}/?premium=ok`;
   const cancelBase = `${origin}/?premium=cancel`;
   const params = new URLSearchParams();
-  params.set('mode', 'payment');
+  const checkoutMode = mode === 'payment' ? 'payment' : 'subscription';
+  const planKey = normalizeStripePlan(plan);
+  params.set('mode', checkoutMode);
+  // Managed Payments is on by default for some Stripe accounts and requires a
+  // product tax_code; Premium prices don't have one yet → disable for checkout.
+  params.set('managed_payments[enabled]', 'false');
   params.set('client_reference_id', clientReferenceId);
   params.set('line_items[0][price]', priceId);
   params.set('line_items[0][quantity]', '1');
   params.set('success_url', successBase);
   params.set('cancel_url', cancelBase);
+  params.set('metadata[plan]', planKey);
+  params.set('metadata[houdini_session]', String(clientReferenceId));
+  if (checkoutMode === 'subscription') {
+    params.set('subscription_data[metadata][plan]', planKey);
+    params.set('subscription_data[metadata][houdini_session]', String(clientReferenceId));
+  }
   if (couponId) {
     params.set('discounts[0][coupon]', String(couponId));
   } else {
@@ -266,11 +339,50 @@ export function checkoutFormBody({
   return params.toString();
 }
 
-/** One-shot Stripe coupon for percent_off checkout discounts. */
-async function createStripePercentCoupon(env, percentOff, { fetchImpl = fetch } = {}) {
+/** Prefer env-mapped coupons for known Houdini promo percents. */
+function envCouponIdForPercent(env, percentOff) {
+  const pct = Math.round(Number(percentOff) || 0);
+  if (pct === 20) return String(env?.STRIPE_COUPON_DISCOUNT_20 || '').trim() || null;
+  if (pct === 40) return String(env?.STRIPE_COUPON_DISCOUNT_40 || '').trim() || null;
+  return null;
+}
+
+/** Stable Stripe coupon id for a given percent (idempotent create). */
+export function houdiniPercentCouponId(percentOff) {
+  const pct = Math.max(1, Math.min(100, Math.round(Number(percentOff) || 0)));
+  return `houdini_pct_${pct}_once`;
+}
+
+async function fetchStripeCoupon(env, couponId, { fetchImpl = fetch } = {}) {
+  const id = String(couponId || '').trim();
+  if (!id) return null;
+  const res = await fetchImpl(`https://api.stripe.com/v1/coupons/${encodeURIComponent(id)}`, {
+    method: 'GET',
+    headers: { authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
+  });
+  if (!res.ok) return null;
+  const data = await res.json().catch(() => null);
+  return data?.id ? data : null;
+}
+
+/**
+ * Resolve a Stripe Coupon for Houdini percent promos (subscription-safe).
+ * Order: env map → existing stable id → create percent_off duration=once.
+ * Never overrides line_items amounts (invalid for recurring Prices).
+ */
+async function resolveStripePercentCoupon(env, percentOff, { fetchImpl = fetch } = {}) {
   const pct = Math.max(1, Math.min(100, Math.round(Number(percentOff) || 0)));
   if (!pct) return { error: 'invalid_percent' };
+
+  const mapped = envCouponIdForPercent(env, pct);
+  if (mapped) return { id: mapped, percentOff: pct, source: 'env' };
+
+  const stableId = houdiniPercentCouponId(pct);
+  const existing = await fetchStripeCoupon(env, stableId, { fetchImpl });
+  if (existing?.id) return { id: existing.id, percentOff: pct, source: 'existing' };
+
   const body = new URLSearchParams();
+  body.set('id', stableId);
   body.set('percent_off', String(pct));
   body.set('duration', 'once');
   body.set('name', `Houdini ${pct}%`);
@@ -282,12 +394,39 @@ async function createStripePercentCoupon(env, percentOff, { fetchImpl = fetch } 
     },
     body: body.toString(),
   });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    return { error: `stripe_coupon_${res.status}`, detail: detail.slice(0, 300) };
+  if (res.ok) {
+    const data = await res.json();
+    return { id: data.id || stableId, percentOff: pct, source: 'created' };
   }
-  const data = await res.json();
-  return { id: data.id, percentOff: pct };
+  const detail = await res.text().catch(() => '');
+  // Race / already exists → fetch stable id
+  if (res.status === 400 && /already exists|resource_already_exists/i.test(detail)) {
+    const again = await fetchStripeCoupon(env, stableId, { fetchImpl });
+    if (again?.id) return { id: again.id, percentOff: pct, source: 'existing' };
+  }
+  return { error: `stripe_coupon_${res.status}`, detail: detail.slice(0, 300) };
+}
+
+function stripeAuthHeaders(env) {
+  return {
+    authorization: `Bearer ${env.STRIPE_SECRET_KEY}`,
+    'content-type': 'application/x-www-form-urlencoded',
+  };
+}
+
+/** Fetch subscription.current_period_end as ISO, or null. */
+export async function fetchSubscriptionPeriodEnd(env, subscriptionId, { fetchImpl = fetch } = {}) {
+  const subId = String(subscriptionId || '').trim();
+  if (!subId || !env?.STRIPE_SECRET_KEY) return null;
+  const res = await fetchImpl(`https://api.stripe.com/v1/subscriptions/${encodeURIComponent(subId)}`, {
+    method: 'GET',
+    headers: { authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
+  });
+  if (!res.ok) return null;
+  const data = await res.json().catch(() => null);
+  const end = data?.current_period_end;
+  if (end == null || !Number.isFinite(Number(end))) return null;
+  return new Date(Number(end) * 1000).toISOString();
 }
 
 export async function createStripeCheckout(
@@ -300,27 +439,29 @@ export async function createStripeCheckout(
     String(originOpt || '').trim() ||
     String(env.PREMIUM_SUCCESS_URL || '').trim() ||
     'https://houdini-analytics.pages.dev';
-  const priceId = resolveStripePriceId(env, plan);
+  const planKey = normalizeStripePlan(plan);
+  const priceId = resolveStripePriceId(env, planKey);
   if (!priceId) return { error: 'stripe_price_missing' };
   let couponId = null;
   const pct = percentOff != null ? Math.round(Number(percentOff) || 0) : 0;
   if (pct > 0) {
-    const coupon = await createStripePercentCoupon(env, pct, { fetchImpl });
+    // Subscription Checkout: discounts[0][coupon] only — no price_data/unit_amount overrides.
+    const coupon = await resolveStripePercentCoupon(env, pct, { fetchImpl });
     if (!coupon.id) return coupon;
     couponId = coupon.id;
   }
+  // STRIPE_COUPON_FIRST_MONTH unused with flat 7,99 € monthly (no intro offer).
   const res = await fetchImpl('https://api.stripe.com/v1/checkout/sessions', {
     method: 'POST',
-    headers: {
-      authorization: `Bearer ${env.STRIPE_SECRET_KEY}`,
-      'content-type': 'application/x-www-form-urlencoded',
-    },
+    headers: stripeAuthHeaders(env),
     body: checkoutFormBody({
       clientReferenceId,
       origin,
       priceId,
       couponId,
       percentOff: pct > 0 ? pct : null,
+      plan: planKey,
+      mode: 'subscription',
     }),
   });
   if (!res.ok) {
@@ -328,7 +469,7 @@ export async function createStripeCheckout(
     return { error: `stripe_${res.status}`, detail: detail.slice(0, 300) };
   }
   const data = await res.json();
-  return { url: data.url, sessionId: data.id, percentOff: pct > 0 ? pct : null };
+  return { url: data.url, sessionId: data.id, percentOff: pct > 0 ? pct : null, plan: planKey };
 }
 
 /**
@@ -367,54 +508,212 @@ async function hmacHex(payload, secret) {
   return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+function validSessionId(value) {
+  return /^[0-9a-f]{32}$/.test(String(value || '')) ? String(value) : null;
+}
+
+function unixToIso(sec) {
+  const n = Number(sec);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return new Date(n * 1000).toISOString();
+}
+
+async function findPremiumIdByStripe(db, { subscriptionId = null, customerId = null, sessionId = null } = {}) {
+  if (subscriptionId) {
+    const row = await db.first(
+      `SELECT id FROM premium_sessions WHERE stripe_subscription_id = ?1 LIMIT 1`,
+      String(subscriptionId)
+    );
+    if (row?.id) return String(row.id);
+  }
+  if (sessionId) {
+    const row = await db.first(
+      `SELECT id FROM premium_sessions WHERE stripe_session_id = ?1 LIMIT 1`,
+      String(sessionId)
+    );
+    if (row?.id) return String(row.id);
+  }
+  if (customerId) {
+    const row = await db.first(
+      `SELECT id FROM premium_sessions
+       WHERE stripe_customer_id = ?1 AND active = 1
+       ORDER BY COALESCE(premium_until, created_at) DESC
+       LIMIT 1`,
+      String(customerId)
+    );
+    if (row?.id) return String(row.id);
+  }
+  return null;
+}
+
+async function persistStripeIds(
+  db,
+  id,
+  { sessionId = null, customerId = null, subscriptionId = null, amountTotal = null, currency = null } = {}
+) {
+  await db.run(
+    `UPDATE premium_sessions
+      SET stripe_session_id = COALESCE(?2, stripe_session_id),
+          stripe_customer_id = COALESCE(?3, stripe_customer_id),
+          stripe_subscription_id = COALESCE(?4, stripe_subscription_id),
+          amount_total = COALESCE(?5, amount_total),
+          currency = COALESCE(?6, currency)
+    WHERE id = ?1`,
+    id,
+    sessionId,
+    customerId,
+    subscriptionId,
+    amountTotal,
+    currency
+  );
+}
+
+async function clearPromoAfterGrant(db, premiumSessionId) {
+  const premRow = await db.first(`SELECT user_id FROM premium_sessions WHERE id = ?1`, premiumSessionId);
+  if (premRow?.user_id) {
+    await clearPendingPromoDiscount(db, premRow.user_id).catch(() => {});
+  }
+}
+
 /**
  * Apply a signed Stripe event to D1. Returns `{ applied, kind }`.
- * `checkout.session.completed` grants the days; `charge.refunded` revokes.
+ * Subscriptions: sync `premium_until` from `current_period_end` (checkout + renewals).
+ * Cancel / refund: clear `premium_until`.
  */
-export async function applyStripeEvent(db, env, event) {
+export async function applyStripeEvent(db, env, event, { fetchImpl = fetch } = {}) {
   const type = String(event?.type || '');
-  const days = Math.max(1, Math.min(365, Number(env.PREMIUM_DAYS) || DEFAULT_PREMIUM_DAYS));
+
   if (type === 'checkout.session.completed') {
     const session = event?.data?.object || {};
-    const ref = String(session.client_reference_id || session.metadata?.token || '');
+    const ref = String(
+      session.client_reference_id ||
+        session.metadata?.houdini_session ||
+        session.metadata?.token ||
+        ''
+    );
     const id = validSessionId(ref);
     if (!id) return { applied: false, kind: 'no_session_ref' };
-    const until = await grantPremium(db, id, { days, at: new Date(session.created ? session.created * 1000 : Date.now()) });
-    if (!until) return { applied: false, kind: 'unknown_session' };
-    await db.run(
-      `UPDATE premium_sessions
-        SET stripe_session_id = ?2,
-            stripe_customer_id = ?3,
-            amount_total = ?4,
-            currency = ?5
-      WHERE id = ?1`,
-      id,
-      session.id ? String(session.id) : null,
-      session.customer ? String(session.customer) : null,
-      session.amount_total != null ? Number(session.amount_total) : null,
-      session.currency ? String(session.currency) : null
-    );
-    const premRow = await db.first(`SELECT user_id FROM premium_sessions WHERE id = ?1`, id);
-    if (premRow?.user_id) {
-      await clearPendingPromoDiscount(db, premRow.user_id).catch(() => {});
+
+    const plan = normalizeStripePlan(session.metadata?.plan || 'monthly');
+    const mode = String(session.mode || 'subscription');
+    const subId = session.subscription ? String(session.subscription) : null;
+    const at = new Date(session.created ? session.created * 1000 : Date.now());
+
+    let until = null;
+    if (mode === 'subscription') {
+      let periodEnd = null;
+      if (subId) {
+        periodEnd = await fetchSubscriptionPeriodEnd(env, subId, { fetchImpl });
+      }
+      if (periodEnd) {
+        until = await setPremiumUntil(db, id, periodEnd);
+      } else {
+        until = await grantPremium(db, id, { days: planPeriodDays(plan, env), at });
+      }
+    } else {
+      // Legacy one-shot Checkout (mode=payment) — keep days grant.
+      const days = Math.max(1, Math.min(365, Number(env.PREMIUM_DAYS) || planPeriodDays(plan, env)));
+      until = await grantPremium(db, id, { days, at });
     }
-    return { applied: true, kind: 'granted', until, id };
+    if (!until) return { applied: false, kind: 'unknown_session' };
+
+    await persistStripeIds(db, id, {
+      sessionId: session.id ? String(session.id) : null,
+      customerId: session.customer ? String(session.customer) : null,
+      subscriptionId: subId,
+      amountTotal: session.amount_total != null ? Number(session.amount_total) : null,
+      currency: session.currency ? String(session.currency) : null,
+    });
+    await clearPromoAfterGrant(db, id);
+    return { applied: true, kind: 'granted', until, id, plan, mode };
   }
+
+  if (type === 'invoice.paid' || type === 'customer.subscription.updated') {
+    const obj = event?.data?.object || {};
+    const subId =
+      type === 'invoice.paid'
+        ? obj.subscription
+          ? String(obj.subscription)
+          : null
+        : obj.id
+          ? String(obj.id)
+          : null;
+    const customerId = obj.customer ? String(obj.customer) : null;
+    const metaSession = validSessionId(obj.metadata?.houdini_session);
+    let id =
+      metaSession ||
+      (await findPremiumIdByStripe(db, { subscriptionId: subId, customerId }));
+    if (!id) return { applied: false, kind: 'no_session_ref' };
+
+    if (type === 'customer.subscription.updated') {
+      const status = String(obj.status || '');
+      if (status === 'canceled' || status === 'unpaid' || status === 'incomplete_expired') {
+        // Keep access until period end when Stripe still reports one; else revoke.
+        const endIso = unixToIso(obj.current_period_end);
+        if (endIso && Date.parse(endIso) > Date.now() && status !== 'incomplete_expired') {
+          const until = await setPremiumUntil(db, id, endIso);
+          await persistStripeIds(db, id, { subscriptionId: subId, customerId });
+          return { applied: true, kind: 'synced', until, id };
+        }
+        await db.run(`UPDATE premium_sessions SET premium_until = NULL WHERE id = ?1`, id);
+        return { applied: true, kind: 'revoked', id, status };
+      }
+    }
+
+    let periodEnd = unixToIso(obj.current_period_end);
+    if (!periodEnd && type === 'invoice.paid') {
+      const lineEnd = obj.lines?.data?.[0]?.period?.end;
+      periodEnd = unixToIso(lineEnd);
+    }
+    if (!periodEnd && subId) {
+      periodEnd = await fetchSubscriptionPeriodEnd(env, subId, { fetchImpl });
+    }
+    if (!periodEnd) {
+      const plan = normalizeStripePlan(obj.metadata?.plan || 'monthly');
+      periodEnd = await grantPremium(db, id, { days: planPeriodDays(plan, env) });
+    } else {
+      periodEnd = await setPremiumUntil(db, id, periodEnd);
+    }
+    if (!periodEnd) return { applied: false, kind: 'unknown_session' };
+    await persistStripeIds(db, id, { subscriptionId: subId, customerId });
+    return { applied: true, kind: 'synced', until: periodEnd, id };
+  }
+
+  if (type === 'customer.subscription.deleted') {
+    const sub = event?.data?.object || {};
+    const subId = sub.id ? String(sub.id) : null;
+    const customerId = sub.customer ? String(sub.customer) : null;
+    const metaSession = validSessionId(sub.metadata?.houdini_session);
+    const id =
+      metaSession ||
+      (await findPremiumIdByStripe(db, { subscriptionId: subId, customerId }));
+    if (!id) return { applied: false, kind: 'no_session_ref' };
+    await db.run(`UPDATE premium_sessions SET premium_until = NULL WHERE id = ?1`, id);
+    return { applied: true, kind: 'revoked', id, subscriptionId: subId };
+  }
+
   if (type === 'charge.refunded') {
     const charge = event?.data?.object || {};
     const sessionId = charge.checkout?.session ? String(charge.checkout.session) : null;
-    if (!sessionId) return { applied: false, kind: 'no_session_id' };
-    await db.run(
-      `UPDATE premium_sessions SET premium_until = NULL WHERE stripe_session_id = ?1`,
-      sessionId
-    );
-    return { applied: true, kind: 'revoked', sessionId };
+    if (sessionId) {
+      await db.run(
+        `UPDATE premium_sessions SET premium_until = NULL WHERE stripe_session_id = ?1`,
+        sessionId
+      );
+      return { applied: true, kind: 'revoked', sessionId };
+    }
+    const customerId = charge.customer ? String(charge.customer) : null;
+    if (customerId) {
+      await db.run(
+        `UPDATE premium_sessions SET premium_until = NULL WHERE stripe_customer_id = ?1`,
+        customerId
+      );
+      return { applied: true, kind: 'revoked', customerId };
+    }
+    return { applied: false, kind: 'no_session_id' };
   }
-  return { applied: false, kind: 'ignored', type };
-}
 
-function validSessionId(value) {
-  return /^[0-9a-f]{32}$/.test(String(value || '')) ? String(value) : null;
+  return { applied: false, kind: 'ignored', type };
 }
 
 /* ------------------------------------------------------------------ *
@@ -568,15 +867,11 @@ export async function deletePromoCode(db, rawCode) {
 }
 
 /**
- * Redeem a promo code for a logged-in user.
- * free_days / free_month → grantPremiumForUser
- * discount_* → pending checkout discount on user
- * @returns {{ ok: true, ... } | { error, message }}
+ * Shared promo validity checks (no writes). Used by redeem + guest preview.
+ * @returns {{ ok: true, row, type } | { error, message }}
  */
-export async function redeemPromoCode(db, userId, rawCode) {
-  const uid = String(userId || '');
+async function loadValidPromoRow(db, rawCode, { userId = null } = {}) {
   const code = normalizePromoCode(rawCode);
-  if (!uid) return { error: 'auth_required', message: 'Inicia sesión para canjear' };
   if (!code) return { error: 'invalid_code', message: 'Código no válido' };
 
   const row = await db.first(`SELECT * FROM promo_codes WHERE code = ?1`, code);
@@ -593,14 +888,71 @@ export async function redeemPromoCode(db, userId, rawCode) {
     return { error: 'exhausted', message: 'Código agotado o caducado' };
   }
 
-  const prior = await db.first(
-    `SELECT id FROM promo_redemptions WHERE code = ?1 AND user_id = ?2`,
-    code,
-    uid
-  );
-  if (prior) return { error: 'already_used', message: 'Ya has usado este código' };
+  const uid = userId ? String(userId) : '';
+  if (uid) {
+    const prior = await db.first(
+      `SELECT id FROM promo_redemptions WHERE code = ?1 AND user_id = ?2`,
+      code,
+      uid
+    );
+    if (prior) return { error: 'already_used', message: 'Ya has usado este código' };
+  }
 
   const type = normalizePromoType(row.type) || PROMO_TYPES.FREE_DAYS;
+  return { ok: true, row, type, code };
+}
+
+/**
+ * Preview a promo without redeeming (guests + pre-checkout).
+ * discount_* → percentOff for UI/checkout; free_* → days + needsAuth hint.
+ */
+export async function previewPromoCode(db, rawCode, { userId = null } = {}) {
+  const loaded = await loadValidPromoRow(db, rawCode, { userId });
+  if (!loaded.ok) return { error: loaded.error, message: loaded.message };
+
+  const { type, code, row } = loaded;
+  if (isDiscountPromoType(type)) {
+    const percent = promoPercentForType(type);
+    return {
+      ok: true,
+      code,
+      type,
+      kind: 'discount',
+      percentOff: percent,
+      days: null,
+      needsAuth: false,
+    };
+  }
+
+  const days =
+    type === PROMO_TYPES.FREE_MONTH
+      ? FREE_MONTH_DAYS
+      : Math.max(1, Math.min(365, Number(row.days) || 1));
+  return {
+    ok: true,
+    code,
+    type,
+    kind: 'grant',
+    percentOff: null,
+    days,
+    needsAuth: !userId,
+  };
+}
+
+/**
+ * Redeem a promo code for a logged-in user.
+ * free_days / free_month → grantPremiumForUser
+ * discount_* → pending checkout discount on user
+ * @returns {{ ok: true, ... } | { error, message }}
+ */
+export async function redeemPromoCode(db, userId, rawCode) {
+  const uid = String(userId || '');
+  if (!uid) return { error: 'auth_required', message: 'Inicia sesión para canjear' };
+
+  const loaded = await loadValidPromoRow(db, rawCode, { userId: uid });
+  if (!loaded.ok) return { error: loaded.error, message: loaded.message };
+
+  const { type, code, row } = loaded;
   const redemptionId = randomHex(16);
   await db.run(
     `INSERT INTO promo_redemptions (id, code, user_id, created_at) VALUES (?1, ?2, ?3, ?4)`,

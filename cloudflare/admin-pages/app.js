@@ -16,6 +16,11 @@ const hitsFullCount = document.getElementById('hits-full-count');
 const hitsSearch = document.getElementById('hits-search');
 const statsPanel = document.getElementById('stats-panel');
 const statsMeta = document.getElementById('stats-meta');
+const tipsPanel = document.getElementById('tips-panel');
+const tipsMeta = document.getElementById('tips-meta');
+const tipsFullPanel = document.getElementById('tips-full-panel');
+const tipsFullCount = document.getElementById('tips-full-count');
+const tipsSearch = document.getElementById('tips-search');
 const usersBody = document.getElementById('users-body');
 const usersCards = document.getElementById('users-cards');
 const usersCount = document.getElementById('users-count');
@@ -24,6 +29,7 @@ const toastEl = document.getElementById('toast');
 const mainEl = document.getElementById('main');
 const screenHome = document.getElementById('screen-home');
 const screenHits = document.getElementById('screen-hits');
+const screenTips = document.getElementById('screen-tips');
 const screenStats = document.getElementById('screen-stats');
 const deleteModal = document.getElementById('delete-modal');
 const deleteModalBody = document.getElementById('delete-modal-body');
@@ -43,6 +49,11 @@ let usersQuery = '';
 let allHits = [];
 let hitsQuery = '';
 let hitsUniqueToday = 0;
+/** @type {Record<string, unknown> | null} */
+let tipsPerf = null;
+/** @type {Array<Record<string, unknown>>} */
+let allTipsRecent = [];
+let tipsQuery = '';
 /** @type {{ id: string, label: string } | null} */
 let pendingDelete = null;
 /** @type {{ id: string, label: string } | null} */
@@ -50,6 +61,68 @@ let pendingRevokePremium = null;
 
 const HITS_PREVIEW = 3;
 const HITS_HISTORY_LIMIT = 500;
+const TIPS_PREVIEW = 3;
+const TIPS_RECENT_LIMIT = 80;
+
+const BET_LABELS = {
+  HOME_WIN: 'Victoria local',
+  DRAW: 'Empate',
+  AWAY_WIN: 'Victoria visitante',
+  DC_1X: 'Doble oportunidad 1X',
+  DC_X2: 'Doble oportunidad X2',
+  DNB_HOME: 'Empate no válido · local',
+  DNB_AWAY: 'Empate no válido · visitante',
+  OVER_05: 'Más de 0,5 goles',
+  UNDER_05: 'Menos de 0,5 goles',
+  OVER_15: 'Más de 1,5 goles',
+  UNDER_15: 'Menos de 1,5 goles',
+  OVER_25: 'Más de 2,5 goles',
+  UNDER_25: 'Menos de 2,5 goles',
+  OVER_35: 'Más de 3,5 goles',
+  UNDER_35: 'Menos de 3,5 goles',
+  OVER_45: 'Más de 4,5 goles',
+  UNDER_45: 'Menos de 4,5 goles',
+  BTTS_YES: 'Ambos marcan — Sí',
+  BTTS_NO: 'Ambos marcan — No',
+  HOME_OVER_05: 'Local · Más de 0,5 goles',
+  HOME_UNDER_05: 'Local · Menos de 0,5 goles',
+  HOME_OVER_15: 'Local · Más de 1,5 goles',
+  HOME_UNDER_15: 'Local · Menos de 1,5 goles',
+  HOME_OVER_25: 'Local · Más de 2,5 goles',
+  HOME_UNDER_25: 'Local · Menos de 2,5 goles',
+  HOME_OVER_35: 'Local · Más de 3,5 goles',
+  HOME_UNDER_35: 'Local · Menos de 3,5 goles',
+  AWAY_OVER_05: 'Visitante · Más de 0,5 goles',
+  AWAY_UNDER_05: 'Visitante · Menos de 0,5 goles',
+  AWAY_OVER_15: 'Visitante · Más de 1,5 goles',
+  AWAY_UNDER_15: 'Visitante · Menos de 1,5 goles',
+  AWAY_OVER_25: 'Visitante · Más de 2,5 goles',
+  AWAY_UNDER_25: 'Visitante · Menos de 2,5 goles',
+  AWAY_OVER_35: 'Visitante · Más de 3,5 goles',
+  AWAY_UNDER_35: 'Visitante · Menos de 3,5 goles',
+  CORNERS_OVER_75: 'Más de 7,5 córners',
+  CORNERS_UNDER_75: 'Menos de 7,5 córners',
+  CORNERS_OVER_85: 'Más de 8,5 córners',
+  CORNERS_UNDER_85: 'Menos de 8,5 córners',
+  CORNERS_OVER_95: 'Más de 9,5 córners',
+  CORNERS_UNDER_95: 'Menos de 9,5 córners',
+  CORNERS_OVER_105: 'Más de 10,5 córners',
+  CORNERS_UNDER_105: 'Menos de 10,5 córners',
+  SHOTS_OVER_225: 'Más de 22,5 tiros',
+  SHOTS_UNDER_225: 'Menos de 22,5 tiros',
+  SHOTS_OVER_255: 'Más de 25,5 tiros',
+  SHOTS_UNDER_255: 'Menos de 25,5 tiros',
+  SOT_OVER_75: 'Más de 7,5 tiros a puerta',
+  SOT_UNDER_75: 'Menos de 7,5 tiros a puerta',
+  SOT_OVER_85: 'Más de 8,5 tiros a puerta',
+  SOT_UNDER_85: 'Menos de 8,5 tiros a puerta',
+  SOT_OVER_95: 'Más de 9,5 tiros a puerta',
+  SOT_UNDER_95: 'Menos de 9,5 tiros a puerta',
+  CARDS_OVER_35: 'Más de 3,5 amarillas',
+  CARDS_UNDER_35: 'Menos de 3,5 amarillas',
+  CARDS_OVER_45: 'Más de 4,5 amarillas',
+  CARDS_UNDER_45: 'Menos de 4,5 amarillas',
+};
 
 function getSecret() {
   try {
@@ -341,20 +414,301 @@ function renderHitsFull() {
   hitsFullPanel.innerHTML = hitsTableBlock(list);
 }
 
+/** "15" → "1,5" ; "105" → "10,5" */
+function lineFromSuffix(suffix) {
+  const s = String(suffix || '');
+  if (!/^\d+$/.test(s)) return s.replace('.', ',');
+  if (s.length === 1) return s;
+  return `${s.slice(0, -1)},${s.slice(-1)}`;
+}
+
+function labelBetFallback(code, homeName, awayName) {
+  const raw = String(code || '').toUpperCase();
+  if (!raw) return '—';
+  const home = String(homeName || '').trim();
+  const away = String(awayName || '').trim();
+  if (raw === 'HOME_WIN') return home ? `Victoria ${home}` : 'Victoria local';
+  if (raw === 'AWAY_WIN') return away ? `Victoria ${away}` : 'Victoria visitante';
+  if (raw === 'DRAW') return 'Empate';
+  if (raw === 'BTTS_YES') return 'Ambos marcan — Sí';
+  if (raw === 'BTTS_NO') return 'Ambos marcan — No';
+
+  const m = raw.match(/^(HOME_|AWAY_|CORNERS_|CARDS_|SHOTS_|SOT_)?(OVER|UNDER)_(\d+)$/);
+  if (!m) return String(code).replace(/_/g, ' ');
+  const scope = m[1] || '';
+  const side = m[2] === 'OVER' ? 'Más de' : 'Menos de';
+  const line = lineFromSuffix(m[3]);
+  let unit = 'goles';
+  let who = '';
+  if (scope === 'HOME_') who = home ? `${home} · ` : 'Local · ';
+  else if (scope === 'AWAY_') who = away ? `${away} · ` : 'Visitante · ';
+  else if (scope === 'CORNERS_') unit = 'córners';
+  else if (scope === 'CARDS_') unit = 'amarillas';
+  else if (scope === 'SHOTS_') unit = 'tiros';
+  else if (scope === 'SOT_') unit = 'tiros a puerta';
+  return `${who}${side} ${line} ${unit}`;
+}
+
+function labelBetEs(code, homeName, awayName) {
+  if (!code) return '—';
+  const home = String(homeName || '').trim();
+  const away = String(awayName || '').trim();
+  const raw = String(code).toUpperCase();
+  if (raw === 'HOME_WIN') return home ? `Victoria ${home}` : BET_LABELS.HOME_WIN;
+  if (raw === 'AWAY_WIN') return away ? `Victoria ${away}` : BET_LABELS.AWAY_WIN;
+  if (raw.startsWith('HOME_') && home) return labelBetFallback(raw, home, away);
+  if (raw.startsWith('AWAY_') && away) return labelBetFallback(raw, home, away);
+  return BET_LABELS[code] || BET_LABELS[raw] || labelBetFallback(code, home, away);
+}
+
+function tipCode(r) {
+  return r?.suggestedBet || r?.label || null;
+}
+
+function tipLabelText(r) {
+  return labelBetEs(tipCode(r), r.homeName, r.awayName);
+}
+
+function tipLabelHtml(r) {
+  return `<span class="tip-accent">${escapeHtml(tipLabelText(r))}</span>`;
+}
+
+function tipOddsLabel(r) {
+  const n = Number(r?.tipOdds);
+  if (!Number.isFinite(n) || n <= 1) return '';
+  return `${n.toFixed(2)} €`;
+}
+
+function tipOutcomeBadge(outcome) {
+  const o = String(outcome || '').toLowerCase();
+  if (o === 'hit') return '<span class="badge badge--ok">Acertó</span>';
+  if (o === 'miss') return '<span class="badge badge--off">Falló</span>';
+  if (o === 'void') return '<span class="badge">Nulo</span>';
+  if (o === 'pending') return '<span class="badge">Pendiente</span>';
+  return `<span class="badge">${escapeHtml(outcome || '—')}</span>`;
+}
+
+function crestImg(name, logoUrl) {
+  const alt = escapeHtml(String(name || '').trim() || 'Equipo');
+  const src = String(logoUrl || '').trim();
+  if (!src) return '';
+  return `<img class="stat-crest" src="${escapeHtml(src)}" alt="${alt}" width="18" height="18" loading="lazy" decoding="async" onerror="this.style.display='none'" />`;
+}
+
+function matchLine(r) {
+  const home = String(r.homeName || '—').trim() || '—';
+  const away = String(r.awayName || '—').trim() || '—';
+  const hg = r.homeGoals;
+  const ag = r.awayGoals;
+  const score =
+    hg != null && ag != null && Number.isFinite(Number(hg)) && Number.isFinite(Number(ag))
+      ? `${Number(hg)}-${Number(ag)}`
+      : null;
+  return score ? `${home} – ${away} · ${score}` : `${home} – ${away}`;
+}
+
+function matchCellHtml(r) {
+  const home = String(r.homeName || '—').trim() || '—';
+  const away = String(r.awayName || '—').trim() || '—';
+  const hg = r.homeGoals;
+  const ag = r.awayGoals;
+  const score =
+    hg != null && ag != null && Number.isFinite(Number(hg)) && Number.isFinite(Number(ag))
+      ? `${Number(hg)}-${Number(ag)}`
+      : null;
+  const homeCrest = crestImg(home, r.homeLogo);
+  const awayCrest = crestImg(away, r.awayLogo);
+  const midHtml = score
+    ? `<span class="stat-match__score">${escapeHtml(score)}</span>`
+    : `<span class="stat-match__sep">–</span>`;
+  return `<span class="stat-match">
+    <span class="stat-match__side stat-match__side--home">${homeCrest}<span class="stat-match__name">${escapeHtml(home)}</span></span>
+    ${midHtml}
+    <span class="stat-match__side stat-match__side--away">${awayCrest}<span class="stat-match__name">${escapeHtml(away)}</span></span>
+  </span>`;
+}
+
+function tipsSearchBlob(r) {
+  return [matchLine(r), tipLabelText(r), r.leagueName || r.league, r.outcome, formatDate(r.matchDate || r.settledAt)]
+    .map((x) => String(x || '').toLowerCase())
+    .join(' ');
+}
+
+function filteredTips() {
+  const q = String(tipsQuery || '')
+    .trim()
+    .toLowerCase();
+  if (!q) return allTipsRecent;
+  return allTipsRecent.filter((r) => tipsSearchBlob(r).includes(q));
+}
+
+function tipsBoardHtml(perf) {
+  const hits = Number(perf?.hits || 0);
+  const misses = Number(perf?.misses || 0);
+  const pending = Number(perf?.pending || 0);
+  const decided = Number(perf?.decided || hits + misses);
+  const rate =
+    perf?.hitRate != null && decided > 0
+      ? `${(Number(perf.hitRate) * 100).toFixed(0)}%`
+      : decided > 0
+        ? `${Math.round((hits / decided) * 100)}%`
+        : '—';
+  return `
+    <div class="stats-board">
+      <div class="stats-board__hero">
+        <p class="stats-board__rate">${escapeHtml(rate)}</p>
+        <p class="stats-board__label">Aciertos</p>
+      </div>
+      <div class="stats-board__grid">
+        <div class="stats-board__cell"><strong>${hits.toLocaleString('es-ES')}</strong><span>Aciertos</span></div>
+        <div class="stats-board__cell"><strong>${misses.toLocaleString('es-ES')}</strong><span>Fallos</span></div>
+        <div class="stats-board__cell"><strong>${pending.toLocaleString('es-ES')}</strong><span>Pendientes</span></div>
+        <div class="stats-board__cell"><strong>${decided.toLocaleString('es-ES')}</strong><span>Cerrados</span></div>
+      </div>
+    </div>`;
+}
+
+function tipsListHtml(list, { title = 'Últimos tips' } = {}) {
+  if (!list.length) {
+    return `<div class="stats-recent">
+      <p class="stats-recent__title">${escapeHtml(title)}</p>
+      <p class="muted">Sin tips.</p>
+    </div>`;
+  }
+  const rows = list
+    .map((r) => {
+      const tip = tipLabelHtml(r);
+      const league = escapeHtml(r.leagueName || r.league || '—');
+      const when = escapeHtml(formatDate(r.matchDate || r.settledAt));
+      const odds = tipOddsLabel(r);
+      const tipCell = odds
+        ? `${tip}<span class="stats-tip__odds muted"> · ${escapeHtml(odds)}</span>`
+        : tip;
+      return `<tr>
+        <td>${matchCellHtml(r)}</td>
+        <td class="stats-tip">${tipCell}</td>
+        <td>${league}</td>
+        <td>${when}</td>
+        <td>${tipOutcomeBadge(r.outcome)}</td>
+      </tr>`;
+    })
+    .join('');
+  const cards = list
+    .map((r) => {
+      const tip = tipLabelHtml(r);
+      const odds = tipOddsLabel(r);
+      const tipRow = odds
+        ? `<p class="stat-card__tip-row">${tip}<span class="stats-tip__odds muted">${escapeHtml(odds)}</span></p>`
+        : `<p class="stat-card__tip">${tip}</p>`;
+      const league = String(r.leagueName || r.league || '—').trim() || '—';
+      const when = formatDate(r.matchDate || r.settledAt);
+      const leagueWhen = escapeHtml(`${league} · ${when}`);
+      return `<article class="stat-card">
+        <header class="stat-card__head">
+          <p class="stat-card__match">${matchCellHtml(r)}</p>
+          ${tipOutcomeBadge(r.outcome)}
+        </header>
+        ${tipRow}
+        <p class="stat-card__meta muted">${leagueWhen}</p>
+      </article>`;
+    })
+    .join('');
+  return `
+    <div class="stats-recent">
+      <p class="stats-recent__title">${escapeHtml(title)}</p>
+      <div class="table-wrap stats-desktop">
+        <table class="hits-table stats-table">
+          <thead>
+            <tr>
+              <th>Partido</th>
+              <th>Tip</th>
+              <th>Liga</th>
+              <th>Fecha</th>
+              <th>Resultado</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div class="stats-cards">${cards}</div>
+    </div>`;
+}
+
+function renderTipsPreview() {
+  if (!tipsPanel) return;
+  if (!tipsPerf) {
+    tipsPanel.innerHTML = '<p class="muted">Sin datos de tips.</p>';
+    return;
+  }
+  const hits = Number(tipsPerf.hits || 0);
+  const misses = Number(tipsPerf.misses || 0);
+  const decided = Number(tipsPerf.decided || hits + misses);
+  if (tipsMeta) {
+    tipsMeta.textContent = tipsPerf.windowLabel
+      ? String(tipsPerf.windowLabel)
+      : decided
+        ? `${decided} cerrados`
+        : '';
+  }
+  const preview = allTipsRecent.slice(0, TIPS_PREVIEW);
+  tipsPanel.innerHTML = `${tipsBoardHtml(tipsPerf)}${tipsListHtml(preview, { title: 'Últimos tips' })}`;
+}
+
+function renderTipsFull() {
+  if (!tipsFullPanel) return;
+  if (!tipsPerf) {
+    tipsFullPanel.innerHTML = '<p class="muted">Sin datos de tips.</p>';
+    return;
+  }
+  const list = filteredTips();
+  const total = allTipsRecent.length;
+  if (tipsFullCount) {
+    if (!total) tipsFullCount.textContent = '';
+    else if (tipsQuery.trim()) tipsFullCount.textContent = `${list.length} / ${total}`;
+    else tipsFullCount.textContent = `${total} tip${total === 1 ? '' : 's'}`;
+  }
+  if (!list.length && tipsQuery.trim()) {
+    tipsFullPanel.innerHTML = `${tipsBoardHtml(tipsPerf)}<div class="stats-recent"><p class="stats-recent__title">Tips</p><p class="muted">Ninguna coincidencia</p></div>`;
+    return;
+  }
+  tipsFullPanel.innerHTML = `${tipsBoardHtml(tipsPerf)}${tipsListHtml(list, { title: 'Tips' })}`;
+}
+
+async function loadTips() {
+  if (tipsPanel) tipsPanel.innerHTML = '<p class="muted">Cargando…</p>';
+  try {
+    const res = await fetch(
+      `${API_BASE}/api/v1/tips/performance?all=1&limit=${TIPS_RECENT_LIMIT}&offset=0`
+    );
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error((data && data.error) || `Error ${res.status}`);
+    tipsPerf = data;
+    allTipsRecent = Array.isArray(data?.recent) ? data.recent : [];
+    renderTipsPreview();
+    if (mainEl?.dataset.screen === 'tips') renderTipsFull();
+  } catch (err) {
+    if (tipsPanel) tipsPanel.innerHTML = `<p class="muted">${escapeHtml(err.message || 'Error')}</p>`;
+  }
+}
+
 function setAdminScreen(name) {
-  const screen = name === 'hits' || name === 'stats' ? name : 'home';
+  const screen = name === 'hits' || name === 'tips' || name === 'stats' ? name : 'home';
   if (mainEl) mainEl.dataset.screen = screen;
   if (screenHome) screenHome.hidden = screen !== 'home';
   if (screenHits) screenHits.hidden = screen !== 'hits';
+  if (screenTips) screenTips.hidden = screen !== 'tips';
   if (screenStats) screenStats.hidden = screen !== 'stats';
 
   if (screen === 'hits') {
     if (location.hash !== '#hits') history.replaceState(null, '', '#hits');
     renderHitsFull();
+  } else if (screen === 'tips') {
+    if (location.hash !== '#tips') history.replaceState(null, '', '#tips');
+    renderTipsFull();
   } else if (screen === 'stats') {
     if (location.hash !== '#stats') history.replaceState(null, '', '#stats');
     loadStats().catch(() => {});
-  } else if (location.hash === '#hits' || location.hash === '#stats') {
+  } else if (location.hash === '#hits' || location.hash === '#tips' || location.hash === '#stats') {
     history.replaceState(null, '', '#');
   }
 }
@@ -596,33 +950,55 @@ function renderUsers() {
 function promoTypeLabel(type) {
   switch (String(type || '')) {
     case 'discount_20':
-      return '−20%';
+      return 'Descuento 20%';
     case 'discount_40':
-      return '−40%';
+      return 'Descuento 40%';
     case 'free_month':
-      return '1 mes';
+      return 'Mes gratis';
     case 'free_days':
-      return 'Días';
+      return 'Días gratis';
     default:
       return String(type || '—');
   }
 }
 
+function promoTypeEffect(type, days) {
+  switch (String(type || '')) {
+    case 'discount_20':
+      return 'Al canjear: −20% en el checkout de Premium (se aplica al pagar).';
+    case 'discount_40':
+      return 'Al canjear: −40% en el checkout de Premium (se aplica al pagar).';
+    case 'free_month':
+      return 'Al canjear: activa 1 mes de Premium gratis (hace falta iniciar sesión).';
+    case 'free_days': {
+      const n = Number(days) || 0;
+      return n
+        ? `Al canjear: activa Premium gratis durante ${n} día${n === 1 ? '' : 's'} (hace falta iniciar sesión).`
+        : 'Al canjear: activa Premium gratis durante N días (elige cuántos abajo; hace falta iniciar sesión).';
+    }
+    default:
+      return 'El usuario introduce el código en Premium → Aplicar cupón.';
+  }
+}
+
 function promoBenefitMeta(c) {
   const type = String(c.type || 'free_days');
-  if (type === 'discount_20') return '<span>Descuento <strong>20%</strong></span>';
-  if (type === 'discount_40') return '<span>Descuento <strong>40%</strong></span>';
-  if (type === 'free_month') return '<span><strong>1 mes</strong> Premium</span>';
-  return `<span><strong>${Number(c.days) || 0}</strong> días</span>`;
+  if (type === 'discount_20') return '<span>Efecto: <strong>−20%</strong> al pagar Premium</span>';
+  if (type === 'discount_40') return '<span>Efecto: <strong>−40%</strong> al pagar Premium</span>';
+  if (type === 'free_month') return '<span>Efecto: <strong>1 mes</strong> Premium gratis</span>';
+  const n = Number(c.days) || 0;
+  return `<span>Efecto: <strong>${n}</strong> día${n === 1 ? '' : 's'} Premium gratis</span>`;
 }
 
 function renderPromoCodes(codes) {
   if (promoMeta) {
-    promoMeta.textContent = codes.length ? `${codes.length} código${codes.length === 1 ? '' : 's'}` : '';
+    promoMeta.textContent = codes.length
+      ? `${codes.length} cupón${codes.length === 1 ? '' : 'es'}`
+      : '';
   }
   if (!promoList) return;
   if (!codes.length) {
-    promoList.innerHTML = '<p class="promo-list__empty">Sin códigos</p>';
+    promoList.innerHTML = '<p class="promo-list__empty">Sin cupones</p>';
     return;
   }
   promoList.innerHTML = `<ul class="promo-list__ul">${codes
@@ -660,16 +1036,21 @@ function renderPromoCodes(codes) {
     .join('')}</ul>`;
 }
 
-function syncPromoDaysVisibility() {
+function syncPromoTypeUi() {
   const typeEl = document.getElementById('promo-type');
   const wrap = document.getElementById('promo-days-wrap');
   const daysEl = document.getElementById('promo-days');
-  if (!typeEl || !wrap) return;
-  const showDays = String(typeEl.value || '') === 'free_days';
-  wrap.hidden = !showDays;
+  const effectEl = document.getElementById('promo-type-effect');
+  if (!typeEl) return;
+  const type = String(typeEl.value || '');
+  const showDays = type === 'free_days';
+  if (wrap) wrap.hidden = !showDays;
   if (daysEl) {
     daysEl.required = showDays;
     if (showDays && !daysEl.value) daysEl.value = '7';
+  }
+  if (effectEl) {
+    effectEl.textContent = promoTypeEffect(type, daysEl?.value);
   }
 }
 
@@ -689,6 +1070,7 @@ async function loadDashboard() {
   usagePanel.innerHTML = '<p class="muted">Cargando…</p>';
   if (hitsPanel) hitsPanel.innerHTML = '<p class="muted">Cargando…</p>';
   if (hitsFullPanel) hitsFullPanel.innerHTML = '<p class="muted">Cargando…</p>';
+  if (tipsPanel) tipsPanel.innerHTML = '<p class="muted">Cargando…</p>';
   usersBody.innerHTML = '<tr><td colspan="9" class="muted">Cargando…</td></tr>';
   if (usersCards) usersCards.innerHTML = '<p class="muted users-cards__empty">Cargando…</p>';
   try {
@@ -708,8 +1090,7 @@ async function loadDashboard() {
     if (mainEl?.dataset.screen === 'hits') renderHitsFull();
     allUsers = Array.isArray(usersRes.users) ? usersRes.users : [];
     renderUsers();
-    await loadStats();
-    await loadPromoCodes();
+    await Promise.all([loadTips(), loadStats(), loadPromoCodes()]);
   } catch (err) {
     const msg = err.message || 'Error al cargar';
     usagePanel.innerHTML = `<p class="muted">${escapeHtml(msg)}</p>`;
@@ -786,6 +1167,7 @@ async function enterWithPin(pin) {
     await playEntryThenReveal();
     await loadDashboard();
     if (location.hash === '#hits') setAdminScreen('hits');
+    else if (location.hash === '#tips') setAdminScreen('tips');
     else if (location.hash === '#stats') setAdminScreen('stats');
   } catch (err) {
     setSecret('');
@@ -871,9 +1253,12 @@ usersSearch?.addEventListener('input', () => {
 });
 
 document.getElementById('promo-type')?.addEventListener('change', () => {
-  syncPromoDaysVisibility();
+  syncPromoTypeUi();
 });
-syncPromoDaysVisibility();
+document.getElementById('promo-days')?.addEventListener('input', () => {
+  syncPromoTypeUi();
+});
+syncPromoTypeUi();
 
 promoForm?.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -891,16 +1276,16 @@ promoForm?.addEventListener('submit', async (e) => {
       method: 'POST',
       body: JSON.stringify(body),
     });
-    showToast(`Código ${code.toUpperCase()} creado`, 'ok');
+    showToast(`Cupón ${code.toUpperCase()} creado`, 'ok');
     promoForm.reset();
     const typeEl = document.getElementById('promo-type');
     if (typeEl) typeEl.value = 'discount_20';
     const daysEl = document.getElementById('promo-days');
     if (daysEl) daysEl.value = '7';
-    syncPromoDaysVisibility();
+    syncPromoTypeUi();
     await loadPromoCodes();
   } catch (err) {
-    showToast(err.message || 'Error al crear código', 'error');
+    showToast(err.message || 'Error al crear cupón', 'error');
   } finally {
     if (submit) submit.disabled = false;
   }
@@ -911,16 +1296,15 @@ promoList?.addEventListener('click', async (e) => {
   if (!(t instanceof HTMLElement)) return;
   const code = t.getAttribute('data-promo-delete');
   if (!code) return;
-  if (!confirm(`¿Desactivar el código «${code}»? Los canjes ya hechos se conservan.`)) return;
+  if (!confirm(`¿Desactivar el cupón «${code}»? Los canjes ya hechos se conservan.`)) return;
   t.disabled = true;
   try {
     await adminFetch(`/api/v1/admin/promo/${encodeURIComponent(code)}`, { method: 'DELETE' });
-    showToast(`Código ${code} desactivado`, 'ok');
+    showToast(`Cupón ${code} desactivado`, 'ok');
     await loadPromoCodes();
   } catch (err) {
     t.disabled = false;
-    showToast(err.message || 'Error al eliminar', 'error');
-  }
+    showToast(err.message || 'Error al eliminar', 'error');  }
 });
 
 hitsSearch?.addEventListener('input', () => {
@@ -934,6 +1318,12 @@ document.getElementById('btn-hits-history')?.addEventListener('click', () => {
 document.getElementById('btn-hits-close')?.addEventListener('click', () => {
   setAdminScreen('home');
 });
+document.getElementById('btn-tips-all')?.addEventListener('click', () => {
+  setAdminScreen('tips');
+});
+document.getElementById('btn-tips-close')?.addEventListener('click', () => {
+  setAdminScreen('home');
+});
 document.getElementById('btn-stats-all')?.addEventListener('click', () => {
   setAdminScreen('stats');
 });
@@ -941,10 +1331,21 @@ document.getElementById('btn-stats-close')?.addEventListener('click', () => {
   setAdminScreen('home');
 });
 
+tipsSearch?.addEventListener('input', () => {
+  tipsQuery = String(tipsSearch.value || '');
+  renderTipsFull();
+});
+
 hitsPanel?.addEventListener('click', (e) => {
   const t = e.target instanceof Element ? e.target.closest('tr, .hit-card') : null;
   if (!t) return;
   setAdminScreen('hits');
+});
+
+tipsPanel?.addEventListener('click', (e) => {
+  const t = e.target instanceof Element ? e.target.closest('tr, .stat-card') : null;
+  if (!t) return;
+  setAdminScreen('tips');
 });
 
 statsPanel?.addEventListener('click', () => {
@@ -979,8 +1380,13 @@ document.addEventListener('keydown', (e) => {
 window.addEventListener('hashchange', () => {
   if (appEl?.hidden) return;
   if (location.hash === '#hits') setAdminScreen('hits');
+  else if (location.hash === '#tips') setAdminScreen('tips');
   else if (location.hash === '#stats') setAdminScreen('stats');
-  else if (mainEl?.dataset.screen === 'hits' || mainEl?.dataset.screen === 'stats') {
+  else if (
+    mainEl?.dataset.screen === 'hits' ||
+    mainEl?.dataset.screen === 'tips' ||
+    mainEl?.dataset.screen === 'stats'
+  ) {
     setAdminScreen('home');
   }
 });
@@ -999,6 +1405,7 @@ window.addEventListener('hashchange', () => {
     appEl.classList.add('is-revealed');
     await loadDashboard();
     if (location.hash === '#hits') setAdminScreen('hits');
+    else if (location.hash === '#tips') setAdminScreen('tips');
     else if (location.hash === '#stats') setAdminScreen('stats');
   } catch {
     setSecret('');

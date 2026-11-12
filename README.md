@@ -5,7 +5,7 @@
 <h1 align="center">Houdini Analytics v1.1</h1>
 
 <p align="center">
-  <strong>Predicciones de fútbol con modelo Poisson</strong> (shrinkage + Dixon–Coles) · Worker + D1 en Cloudflare · PWA estática
+  <strong>Predicciones de fútbol con modelo Poisson</strong> (shrinkage + Dixon–Coles) · Cloudflare Pages + Worker + D1 · PWA
 </p>
 
 <p align="center">
@@ -18,7 +18,9 @@
 <p align="center">
   <a href="https://houdini-analytics.pages.dev">Abrir app</a>
   ·
-  <a href="#desarrollo">Desarrollo local</a>
+  <a href="#desarrollo">Desarrollo</a>
+  ·
+  <a href="#deploy">Deploy</a>
   ·
   <a href="#api-resumen">API</a>
 </p>
@@ -30,53 +32,67 @@
 | | URL |
 |---|---|
 | **App (día a día)** | https://houdini-analytics.pages.dev |
+| **Admin (canónico)** | https://houdini-analytics-admin.pages.dev |
 | **Worker / API** | https://houdini-bet.ivanmarrtin2703.workers.dev |
 | **Repo** | https://github.com/ivanmarrtin27/Houdini-Analytics-v1.1 |
 | **Health** | `/health` |
 | **REST** | `/api/v1/...` |
 
-Dominio custom `houdini-bet.dev` — previsto cuando auth y Premium pago estén listos para producción.
+Admin legacy `houdini-bet-admin.pages.dev` — no usar día a día. Docs: [`cloudflare/docs/ADMIN_PANEL.md`](./cloudflare/docs/ADMIN_PANEL.md).
+
+Dominio custom `houdini-bet.dev` — opcional más adelante (auth + Premium en prod).
+
+## Modelo (una línea)
+
+Poisson por equipo (ataque/defensa con shrinkage) + ajuste Dixon–Coles → probabilidades de goles y mercados derivados; tips se rankean por **P del modelo** (banda playable **78–95%**).
 
 ## Características
 
-- **Partidos** — ventana hoy + 14 días; ligas top europeas, Segunda y competiciones UEFA; live con refresco y proyección en tiempo real
-- **Mercados** — 1X2 · doble oportunidad / DNB · over/under · BTTS · córners, tarjetas y tiros a puerta (sin mercados `SHOTS_*`)
-- **Top 10 del día** — tip primary con P **78–95%** (desc), cuota máx. 3.50, diversidad por familia; sin backfill low-P
-- **Aciertos** — mismo universo Top del día (`/tips/day-results`) con ✓/✗/pendiente (sin cuotas/yield en UI)
+- **Partidos** — ventana hoy + 14 días; top5 + Segunda + UNL/UCL/UEL; live (refresh + proyección)
+- **Top 10** — tip primary allowlist, P **78–95%** desc (sin gate de cuotas en ranking; sin cuota en UI)
+- **Aciertos** — Top del día (`/tips/day-results`): hit / miss / void / pending
 - **Stats** — medias por partido/día (`/stats/match-averages`)
-- **Ligas** — explorador por país, clasificación y próximo partido del equipo
-- **Auth / Premium** — registro, login y Google OAuth; free censor hacia `#premium` (pago Stripe pendiente de lanzamiento formal)
-- **UI** — PWA móvil (isotipo Analytics, tabbar tap-only, panel de análisis)
-- **Datos** — sync programado (FixtureDownload + FotMob; enriquecimiento opcional vía API-Football)
+- **Ligas** — catálogo + tabla + próximo partido (`#ligas/<apiId>`)
+- **Panel análisis** — 1X2, DC/DNB, O/U, BTTS, córners/tarjetas/SOT (sin tips `SHOTS_*`)
+- **Auth** — registro / login / Google OAuth; cookie `hb_auth`; consent v2 obligatorio
+- **Premium (Stripe)** — suscripciones **Mensual 7,99 €** · **Trimestral 19,99 €** · **Anual 69,99 €**; free censor → `#premium`; promos admin (`free_days` / `free_month` / `discount_20|40`)
+- **Admin** — usage, Web Analytics, tips performance, Stats públicos, promos, usuarios (PIN = `SYNC_SECRET`)
+- **Datos** — cron sync FixtureDownload + FotMob; enrich opcional API-Football
+
+Setup Stripe (Test → Live): [`cloudflare/docs/STRIPE_SETUP.md`](./cloudflare/docs/STRIPE_SETUP.md). Auth: [`cloudflare/docs/AUTH_SETUP.md`](./cloudflare/docs/AUTH_SETUP.md).
 
 ## Aviso
 
-Los pronósticos y tips son **informativos y orientativos**. No constituyen asesoramiento financiero ni garantizan resultados. Juega con responsabilidad y dentro de tus límites.
+Los pronósticos y tips son **informativos y orientativos**. No constituyen asesoramiento financiero ni garantizan resultados. Juega con responsabilidad.
 
 ## Stack
 
 | Pieza | Detalle |
 |-------|---------|
-| Runtime | Cloudflare Worker `houdini-bet` |
-| Base de datos | D1 `houdini-bet-db` |
-| Frontend | `cloudflare/public` — HTML, CSS, JS (sin framework) |
-| Cron | sync `0 6 * * *` · enrich `30 6 * * *` (con clave API) |
-| Ligas allowlist | `LEAGUE_IDS=140,141,39,135,78,61,5,2,3` |
+| Frontend | Cloudflare Pages `houdini-analytics` (`cloudflare/public` → deploy via `pages/`) |
+| API | Worker `houdini-bet` |
+| DB | D1 `houdini-bet-db` (aislado; no mezclar con otros proyectos) |
+| Admin | Pages `houdini-analytics-admin` (`cloudflare/admin-pages/`) |
+| Cron | sync `0 6 * * *` · enrich `30 6 * * *` (si hay `API_FOOTBALL_KEY`) |
+| Ligas | `LEAGUE_IDS=140,141,39,135,78,61,5,2,3` |
 
-Código de producción: [`cloudflare/`](./cloudflare). Backend Express + MySQL archivado en [`legacy/`](./legacy/).
+Código de producción: [`cloudflare/`](./cloudflare). Express + MySQL archivado en [`legacy/`](./legacy/). (Histórico: producto renombrado desde HoudiniBet v1.0.)
 
-## Estructura del proyecto
+## Estructura
 
 ```
 Houdini-Analytics-v1.1/
-├── cloudflare/          # Worker, D1, UI estática, scripts de test
-│   ├── public/          # PWA (app.js, styles, brand, icons)
-│   ├── pages/           # alias deploy Pages (sync desde public)
-│   ├── src/             # index.js, servicios, modelo live
-│   └── migrations/      # esquema D1
+├── cloudflare/
+│   ├── public/          # PWA (fuente UI)
+│   ├── pages/           # alias deploy Pages
+│   ├── admin-pages/     # microsite admin
+│   ├── src/             # Worker, servicios, liveModel
+│   ├── migrations/      # D1
+│   ├── docs/            # ADMIN_PANEL, AUTH_SETUP, STRIPE_SETUP
+│   └── scripts/         # tests / utilidades
 ├── legacy/              # CLI / backend local (referencia)
-├── AGENTS.md            # guía para agentes de código
-└── Memory.md            # notas internas del proyecto
+├── AGENTS.md
+└── Memory.md
 ```
 
 ## Desarrollo
@@ -91,28 +107,41 @@ npm run dev
 # o: npx wrangler dev
 ```
 
-**Deploy Worker:**
+```bash
+cd cloudflare && npm test
+```
+
+## Deploy
 
 ```bash
 cd cloudflare
-npm run deploy
-# alias Pages (proxy estático):
+npx wrangler deploy
+# App Pages:
 npx wrangler pages deploy pages --project-name houdini-analytics --branch main
+# Admin (canónico; no houdini-bet-admin):
+npx wrangler pages deploy admin-pages --project-name houdini-analytics-admin --branch main
 ```
 
-**Migraciones remotas:**
+Migraciones remotas:
 
 ```bash
 npx wrangler d1 migrations apply houdini-bet-db --remote
 ```
 
-**Secrets (Wrangler):** `SYNC_SECRET` (sync manual); opcional `API_FOOTBALL_KEY` (cuotas/stats); auth `AUTH_SECRET` + Google.
+### Env / secrets (alto nivel)
 
-**Tests:**
+Poner con `npx wrangler secret put …` (nunca en git):
 
-```bash
-cd cloudflare && npm test
-```
+| Secret / var | Uso |
+|---|---|
+| `SYNC_SECRET` | sync manual + PIN admin |
+| `AUTH_SECRET` | sesiones |
+| Google OAuth | login social |
+| `API_FOOTBALL_KEY` | enrich odds/stats (opcional) |
+| `STRIPE_SECRET_KEY` · `STRIPE_WEBHOOK_SECRET` · `STRIPE_PRICE_ID_{MONTHLY,QUARTERLY,ANNUAL}` | Premium |
+| `CF_ACCOUNT_ID` / `CF_API_TOKEN` | admin Web Analytics (opcional) |
+
+Vars de producto: `LEAGUE_IDS=…`. Detalle Stripe: [`STRIPE_SETUP.md`](./cloudflare/docs/STRIPE_SETUP.md).
 
 ## API (resumen)
 
@@ -126,6 +155,7 @@ cd cloudflare && npm test
 | GET | `/api/v1/matches/:id/prediction` |
 | GET | `/api/v1/leagues/:apiId/table` |
 | POST | `/api/v1/sync/manual` (header `x-sync-secret`) |
+| POST | `/api/v1/premium/checkout` · webhook Stripe |
 
 ## CLI opcional (legacy)
 
@@ -135,13 +165,13 @@ cd legacy/backend
 npm install && npm run cli
 ```
 
-Sin `API_BASE_URL` apunta a MySQL local (solo desarrollo legacy).
+Sin `API_BASE_URL` apunta a MySQL local (solo legacy).
 
 ## Roadmap
 
-1. Stripe real (weekly/monthly) + webhook en dominio custom
-2. Auth OAuth redirects al dominio de producto
-3. Dominio custom opcional (`houdini-bet.dev`)
+1. Dominio custom + OAuth redirects de producto
+2. Stripe Live estable (tras validar Test)
+3. Pulido UI (design guidelines)
 
 ## Autor
 
