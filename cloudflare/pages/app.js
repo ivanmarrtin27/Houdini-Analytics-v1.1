@@ -691,7 +691,7 @@ function hbCensorWrap(html, { block = false } = {}) {
   )}">
     <div class="hb-censor__veil" aria-hidden="true">${html}</div>
     <div class="hb-censor__lock" aria-hidden="true">
-      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb181" width="16" height="16" alt="" decoding="async" />
+      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb182" width="16" height="16" alt="" decoding="async" />
       <span class="hb-censor__lock-title">${escapeHtml(t('censor.title'))}</span>
       <span class="hb-censor__lock-sub">${escapeHtml(t('censor.sub'))}</span>
     </div>
@@ -1854,7 +1854,7 @@ function mpVsMidLabel(m, live) {
 }
 
 function mpVsBrandMarkHtml() {
-  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb181" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
+  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb182" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
 }
 
 function mpVsMidHtml(m, live) {
@@ -2149,7 +2149,7 @@ function sumRecentAvg(recentAvgs, key) {
   return Number(((Number(h) || 0) + (Number(a) || 0)).toFixed(2));
 }
 
-const UI_ICON_V = 'hb181';
+const UI_ICON_V = 'hb182';
 const MP_STAT_ICON_PX = 20;
 const mpStatImg = (file) =>
   `<img class="mp-stat__icon mp-stat__icon--img" src="/icons/ui/${file}?v=${UI_ICON_V}" width="${MP_STAT_ICON_PX}" height="${MP_STAT_ICON_PX}" alt="" aria-hidden="true" decoding="async" />`;
@@ -3018,6 +3018,167 @@ function formHtml(form, side = 'home') {
       return `<span class="badge ${escapeHtml(mapped.cls)}" title="${escapeHtml(mapped.title)}">${escapeHtml(mapped.letter)}</span>`;
     })
     .join('');
+}
+
+/** Normalize API form letter to W|D|L (ignores display-letter variants). */
+function normalizeFormResult(raw) {
+  const u = String(raw || '').toUpperCase();
+  if (u === 'W' || u === 'V') return 'W';
+  if (u === 'L') return 'L';
+  if (u === 'D' || u === 'E') return 'D';
+  return null;
+}
+
+/** Last N results → tone + W/D/L counts. Needs ≥3 samples or null. */
+function summarizeRecentForm(form, maxN = 5) {
+  const results = [];
+  for (const raw of form || []) {
+    const letter = normalizeFormResult(raw);
+    if (!letter) continue;
+    results.push(letter);
+    if (results.length >= maxN) break;
+  }
+  if (results.length < 3) return null;
+  const wins = results.filter((r) => r === 'W').length;
+  const draws = results.filter((r) => r === 'D').length;
+  const losses = results.filter((r) => r === 'L').length;
+  let streakType = results[0];
+  let streakN = 1;
+  for (let i = 1; i < results.length; i++) {
+    if (results[i] !== streakType) break;
+    streakN += 1;
+  }
+  let tone = 'mixed';
+  if (wins >= 3 || (streakType === 'W' && streakN >= 3)) tone = 'hot';
+  else if (losses >= 3 || (streakType === 'L' && streakN >= 3)) tone = 'cold';
+  return { wins, draws, losses, n: results.length, tone, streakType, streakN };
+}
+
+function formatFormRecord(summary) {
+  if (!summary) return '';
+  const key = getUiLang() === 'en' ? 'panel.blurb.recordEn' : 'panel.blurb.recordEs';
+  return t(key, { w: summary.wins, d: summary.draws, l: summary.losses });
+}
+
+function formToneKey(tone) {
+  if (tone === 'hot') return 'panel.blurb.formHot';
+  if (tone === 'cold') return 'panel.blurb.formCold';
+  return 'panel.blurb.formMixed';
+}
+
+function buildFormBlurbSentence(homeName, awayName, homeForm, awayForm) {
+  const homeSum = summarizeRecentForm(homeForm);
+  const awaySum = summarizeRecentForm(awayForm);
+  const parts = [];
+  if (homeSum) {
+    parts.push(
+      t(formToneKey(homeSum.tone), {
+        team: homeName || t('panel.home'),
+        record: formatFormRecord(homeSum),
+      })
+    );
+  }
+  if (awaySum) {
+    parts.push(
+      t(formToneKey(awaySum.tone), {
+        team: awayName || t('panel.awayShort'),
+        record: formatFormRecord(awaySum),
+      })
+    );
+  }
+  if (!parts.length) return '';
+  if (parts.length === 1) return `${parts[0]}.`;
+  return `${parts[0]}; ${parts[1]}.`;
+}
+
+/** Matchup line from xG + O/U/BTTS only (never 1X2 tip). */
+function buildMatchupBlurbSentence(pred = {}, xg = null) {
+  const o25 = pct(pred.over25_prob);
+  const btts = pct(pred.btts_yes_prob);
+  const homeXg = xg?.home != null ? Number(xg.home) : null;
+  const awayXg = xg?.away != null ? Number(xg.away) : null;
+  const goalsAvg =
+    homeXg != null && awayXg != null && Number.isFinite(homeXg) && Number.isFinite(awayXg)
+      ? Number((homeXg + awayXg).toFixed(1))
+      : null;
+  if (o25 == null && btts == null && goalsAvg == null) return '';
+
+  let shape = 'balanced';
+  if ((goalsAvg != null && goalsAvg >= 2.8) || (o25 != null && o25 >= 0.58)) shape = 'open';
+  else if ((goalsAvg != null && goalsAvg <= 2.1) || (o25 != null && o25 <= 0.42)) shape = 'tight';
+
+  const xgLabel = goalsAvg != null ? String(goalsAvg) : '';
+  let key;
+  if (goalsAvg != null) {
+    key =
+      shape === 'open'
+        ? 'panel.blurb.matchOpenXg'
+        : shape === 'tight'
+          ? 'panel.blurb.matchTightXg'
+          : 'panel.blurb.matchBalancedXg';
+  } else {
+    key =
+      shape === 'open'
+        ? 'panel.blurb.matchOpen'
+        : shape === 'tight'
+          ? 'panel.blurb.matchTight'
+          : 'panel.blurb.matchBalanced';
+  }
+  let sentence = t(key, { xg: xgLabel });
+  if (o25 != null) sentence += t('panel.blurb.tailO25', { pct: Math.round(o25 * 100) });
+  if (btts != null) sentence += t('panel.blurb.tailBtts', { pct: Math.round(btts * 100) });
+  return `${sentence}.`;
+}
+
+function buildH2hBlurbSentence(h2h) {
+  const rows = (h2h || [])
+    .filter((r) => r && r.homeGoals != null && r.awayGoals != null)
+    .slice(0, 5);
+  if (rows.length < 3) return '';
+  const total = rows.reduce((sum, r) => sum + Number(r.homeGoals) + Number(r.awayGoals), 0);
+  const avg = total / rows.length;
+  if (!Number.isFinite(avg)) return '';
+  return t('panel.blurb.h2h', { n: rows.length, avg: avg.toFixed(1) });
+}
+
+/**
+ * Compact General-tab note: recent form + matchup templates.
+ * Free-tier safe (no 1X2 tip). Never throws — empty string on failure.
+ */
+function matchBlurbHtml(bundle, homeName, awayName) {
+  try {
+    const sentences = [];
+    const formSent = buildFormBlurbSentence(
+      homeName,
+      awayName,
+      bundle?.form?.home,
+      bundle?.form?.away
+    );
+    if (formSent) sentences.push(formSent);
+
+    const matchSent = buildMatchupBlurbSentence(bundle?.prediction || {}, bundle?.xg);
+    if (matchSent) sentences.push(matchSent);
+
+    if (sentences.length < 3) {
+      const h2hSent = buildH2hBlurbSentence(bundle?.h2h);
+      if (h2hSent) sentences.push(h2hSent);
+    }
+
+    if (!sentences.length) {
+      if (bundle?.dataQuality === 'low') sentences.push(t('panel.blurb.lowSample'));
+      else sentences.push(t('panel.blurb.fallback'));
+    } else if (bundle?.dataQuality === 'low' && !formSent) {
+      sentences.push(t('panel.blurb.lowSample'));
+    }
+
+    const text = sentences.slice(0, 4).join(' ');
+    if (!text) return '';
+    return `<aside class="mp-blurb" aria-label="${escapeHtml(t('panel.blurb.aria'))}"><p class="mp-blurb__text">${escapeHtml(
+      text
+    )}</p></aside>`;
+  } catch (_) {
+    return '';
+  }
 }
 
 function isInternationalMatch(item) {
@@ -4505,6 +4666,23 @@ const I18N = {
     'panel.cardsTitle': 'tarjetas',
     'panel.cardsExpected': 'Tarjetas esperadas',
     'panel.offTarget': 'Est. fuera ≈ {h} / {a} / {m}',
+    'panel.blurb.aria': 'Forma y choque',
+    'panel.blurb.recordEs': '{w}V-{d}E-{l}D',
+    'panel.blurb.recordEn': '{w}W-{d}D-{l}L',
+    'panel.blurb.formHot': '{team} llega con buen ritmo ({record})',
+    'panel.blurb.formCold': '{team} llega en mala racha ({record})',
+    'panel.blurb.formMixed': '{team} llega irregular ({record})',
+    'panel.blurb.matchOpenXg': 'El modelo apunta a un choque abierto (~{xg} goles esperados',
+    'panel.blurb.matchTightXg': 'El modelo apunta a un choque contenido (~{xg} goles esperados',
+    'panel.blurb.matchBalancedXg': 'El modelo apunta a un choque equilibrado (~{xg} goles esperados',
+    'panel.blurb.matchOpen': 'El modelo apunta a un choque abierto',
+    'panel.blurb.matchTight': 'El modelo apunta a un choque contenido',
+    'panel.blurb.matchBalanced': 'El modelo apunta a un choque equilibrado',
+    'panel.blurb.tailO25': '; Más de 2,5 al {pct}%',
+    'panel.blurb.tailBtts': '; ambos marcan al {pct}%',
+    'panel.blurb.h2h': 'En los {n} H2H recientes hubo una media de {avg} goles.',
+    'panel.blurb.lowSample': 'Muestra reciente limitada; interpreta la lectura con cautela.',
+    'panel.blurb.fallback': 'Sin suficiente forma reciente; el panel se apoya en las medias del modelo.',
     'censor.aria': 'Solo suscriptores — desbloquea con Houdini Premium',
     'censor.title': 'Solo suscriptores',
     'censor.sub': 'Desbloquea las estadísticas con Houdini Premium',
@@ -4919,6 +5097,23 @@ const I18N = {
     'panel.cardsTitle': 'cards',
     'panel.cardsExpected': 'Expected cards',
     'panel.offTarget': 'Est. off target ≈ {h} / {a} / {m}',
+    'panel.blurb.aria': 'Form and matchup',
+    'panel.blurb.recordEs': '{w}V-{d}E-{l}D',
+    'panel.blurb.recordEn': '{w}W-{d}D-{l}L',
+    'panel.blurb.formHot': '{team} is in strong form ({record})',
+    'panel.blurb.formCold': '{team} is on a poor run ({record})',
+    'panel.blurb.formMixed': '{team} looks mixed ({record})',
+    'panel.blurb.matchOpenXg': 'The model points to an open contest (~{xg} expected goals',
+    'panel.blurb.matchTightXg': 'The model points to a tight contest (~{xg} expected goals',
+    'panel.blurb.matchBalancedXg': 'The model points to a balanced contest (~{xg} expected goals',
+    'panel.blurb.matchOpen': 'The model points to an open contest',
+    'panel.blurb.matchTight': 'The model points to a tight contest',
+    'panel.blurb.matchBalanced': 'The model points to a balanced contest',
+    'panel.blurb.tailO25': '; Over 2.5 at {pct}%',
+    'panel.blurb.tailBtts': '; both teams to score at {pct}%',
+    'panel.blurb.h2h': 'Across the last {n} H2H meetings, goals averaged {avg}.',
+    'panel.blurb.lowSample': 'Limited recent sample; treat the read with caution.',
+    'panel.blurb.fallback': 'Not enough recent form; the panel leans on model averages.',
     'censor.aria': 'Subscribers only — unlock with Houdini Premium',
     'censor.title': 'Subscribers only',
     'censor.sub': 'Unlock stats with Houdini Premium',
@@ -6848,7 +7043,7 @@ function perfTipDisplayHtml(tip) {
   )}">
     <span class="perf-row__tip-blur" aria-hidden="true">${tip}</span>
     <span class="perf-row__tip-premium" aria-hidden="true">
-      <img src="/icons/ui/premium-crown.png?v=hb181" width="13" height="13" alt="" />
+      <img src="/icons/ui/premium-crown.png?v=hb182" width="13" height="13" alt="" />
       Premium
     </span>
   </span>`;
@@ -8597,6 +8792,7 @@ async function openPrediction(id) {
         <div class="mp-panels">
           <div class="mp-panel is-active" data-mp-panel="general" role="tabpanel">
             ${winProbBar(p)}
+            ${matchBlurbHtml(bundle, homeName, awayName)}
             <h3 class="mp-section-title">${escapeHtml(t('panel.keyProbs'))}</h3>
             <div class="mp-grid">${keyCards}</div>
             ${h2hHtml(bundle.h2h, homeName)}

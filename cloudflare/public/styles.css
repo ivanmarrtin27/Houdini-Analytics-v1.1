@@ -4796,6 +4796,7 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
 .mp--enter .panel-suggest,
 .mp--enter .mp-live,
 .mp--enter .mp-win,
+.mp--enter .mp-blurb,
 .mp--enter .mp-tabs,
 .mp--enter .mp-grid,
 .mp--enter .ladder-expected,
@@ -4808,6 +4809,7 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
 .mp--enter .panel-suggest { animation-delay: 0.1s; }
 .mp--enter .mp-live { animation-delay: 0.14s; }
 .mp--enter .mp-win { animation-delay: 0.16s; }
+.mp--enter .mp-blurb { animation-delay: 0.18s; }
 .mp--enter .mp-tabs { animation-delay: 0.2s; }
 .mp--enter .mp-grid { animation-delay: 0.24s; }
 .mp--enter .mp-stat {
@@ -4832,6 +4834,7 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
   .mp--enter .mp-teams,
   .mp--enter .panel-suggest,
   .mp--enter .mp-win,
+  .mp--enter .mp-blurb,
   .mp--enter .mp-tabs,
   .mp--enter .mp-grid,
   .mp--enter .mp-stat,
@@ -4951,6 +4954,18 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; }
   white-space: nowrap;
 }
 .mp-note { font-size: var(--type-meta); margin: 0.15rem 0; }
+.mp-blurb {
+  margin: 0.1rem 0 0.45rem;
+  padding: 0.2rem 0 0.15rem 0.65rem;
+  border-left: 2px solid var(--accent);
+}
+.mp-blurb__text {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--type-meta);
+  line-height: 1.45;
+  color: var(--fog-2);
+}
 .mp-tabs {
   display: flex;
   width: 100%;
