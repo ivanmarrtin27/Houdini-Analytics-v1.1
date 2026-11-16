@@ -275,6 +275,30 @@ function lineupShirt(p) {
   return Number.isFinite(num) && num > 0 ? num : null;
 }
 
+/** Normalize 0–1 pitch coords; prefer verticalLayout (own goal ≈ top). */
+function lineupCoords(p) {
+  if (!p || typeof p !== 'object') return { x: null, y: null };
+  const asPair = (layout, swap = false) => {
+    if (!layout || typeof layout !== 'object') return null;
+    const rawX = Number(layout.x);
+    const rawY = Number(layout.y);
+    if (!Number.isFinite(rawX) || !Number.isFinite(rawY)) return null;
+    const x = swap ? rawY : rawX;
+    const y = swap ? rawX : rawY;
+    if (x < -0.05 || x > 1.05 || y < -0.05 || y > 1.05) return null;
+    return {
+      x: Math.min(1, Math.max(0, x)),
+      y: Math.min(1, Math.max(0, y)),
+    };
+  };
+  return (
+    asPair(p.verticalLayout) ||
+    asPair(p.horizontalLayout, true) ||
+    asPair(p.layout) ||
+    { x: null, y: null }
+  );
+}
+
 function parseLineupSide(side) {
   if (!side || typeof side !== 'object') return null;
   const startersRaw =
@@ -289,7 +313,8 @@ function parseLineupSide(side) {
     .map((p) => {
       const name = lineupPlayerName(p);
       if (!name) return null;
-      return { name: String(name), shirt: lineupShirt(p) };
+      const { x, y } = lineupCoords(p);
+      return { name: String(name), shirt: lineupShirt(p), x, y };
     })
     .filter(Boolean)
     .slice(0, 11);
@@ -302,9 +327,50 @@ function parseLineupSide(side) {
   };
 }
 
+function pickColor(v) {
+  if (v == null) return null;
+  const s = String(v).trim();
+  if (!s) return null;
+  // Allow #hex and rgba()/rgb() from FotMob font* fields.
+  if (/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(s)) return s;
+  if (/^rgba?\(/i.test(s)) return s;
+  return null;
+}
+
+/**
+ * Kit hex from matchDetails.general.teamColors (prefer darkMode for our UI).
+ * @returns {{ home: string|null, away: string|null, fontHome: string|null, fontAway: string|null }|null}
+ */
+function parseFotmobKitColors(details) {
+  if (!details || typeof details !== 'object') return null;
+  const general = details.general || details.content?.matchFacts?.general || {};
+  const tc =
+    general.teamColors ||
+    details.teamColors ||
+    details.content?.stats?.Periods?.All?.teamColors ||
+    null;
+  if (!tc || typeof tc !== 'object') return null;
+
+  const dark = tc.darkMode && typeof tc.darkMode === 'object' ? tc.darkMode : null;
+  const light = tc.lightMode && typeof tc.lightMode === 'object' ? tc.lightMode : null;
+  const fontDark =
+    tc.fontDarkMode && typeof tc.fontDarkMode === 'object' ? tc.fontDarkMode : null;
+  const fontLight =
+    tc.fontLightMode && typeof tc.fontLightMode === 'object' ? tc.fontLightMode : null;
+
+  // Legacy flat shape: { home, away }
+  const home = pickColor(dark?.home ?? light?.home ?? tc.home);
+  const away = pickColor(dark?.away ?? light?.away ?? tc.away);
+  const fontHome = pickColor(fontDark?.home ?? fontLight?.home ?? tc.fontHome);
+  const fontAway = pickColor(fontDark?.away ?? fontLight?.away ?? tc.fontAway);
+  if (!home && !away && !fontHome && !fontAway) return null;
+  return { home, away, fontHome, fontAway };
+}
+
 /**
  * Best-effort XI from FotMob matchDetails (shapes vary by season/UI).
- * @returns {{ home: { formation: string|null, starters: object[] }|null, away: object|null }|null}
+ * Additive fields: starter x/y, top-level kit colors. Existing name/shirt/formation kept.
+ * @returns {{ home: object|null, away: object|null, kit: object|null }|null}
  */
 export function parseFotmobLineups(details) {
   if (!details || typeof details !== 'object') return null;
@@ -332,7 +398,8 @@ export function parseFotmobLineups(details) {
   const home = parseLineupSide(homeSide);
   const away = parseLineupSide(awaySide);
   if (!home && !away) return null;
-  return { home, away };
+  const kit = parseFotmobKitColors(details);
+  return { home, away, kit: kit || null };
 }
 
 export function parseEventsJson(raw) {

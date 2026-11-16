@@ -691,7 +691,7 @@ function hbCensorWrap(html, { block = false } = {}) {
   )}">
     <div class="hb-censor__veil" aria-hidden="true">${html}</div>
     <div class="hb-censor__lock" aria-hidden="true">
-      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb182" width="16" height="16" alt="" decoding="async" />
+      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb183" width="16" height="16" alt="" decoding="async" />
       <span class="hb-censor__lock-title">${escapeHtml(t('censor.title'))}</span>
       <span class="hb-censor__lock-sub">${escapeHtml(t('censor.sub'))}</span>
     </div>
@@ -1854,7 +1854,7 @@ function mpVsMidLabel(m, live) {
 }
 
 function mpVsBrandMarkHtml() {
-  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb182" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
+  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb183" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
 }
 
 function mpVsMidHtml(m, live) {
@@ -2149,7 +2149,7 @@ function sumRecentAvg(recentAvgs, key) {
   return Number(((Number(h) || 0) + (Number(a) || 0)).toFixed(2));
 }
 
-const UI_ICON_V = 'hb182';
+const UI_ICON_V = 'hb183';
 const MP_STAT_ICON_PX = 20;
 const mpStatImg = (file) =>
   `<img class="mp-stat__icon mp-stat__icon--img" src="/icons/ui/${file}?v=${UI_ICON_V}" width="${MP_STAT_ICON_PX}" height="${MP_STAT_ICON_PX}" alt="" aria-hidden="true" decoding="async" />`;
@@ -2645,6 +2645,111 @@ function h2hHtml(h2h, homeName) {
     </section>`;
 }
 
+function lineupShortName(name) {
+  const s = String(name || '').trim();
+  if (!s) return '';
+  if (s.length <= 10) return s;
+  const parts = s.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return parts[parts.length - 1];
+  return `${s.slice(0, 9)}…`;
+}
+
+function lineupKitForSide(kit, isHome) {
+  if (!kit || typeof kit !== 'object') return { shirt: null, font: null };
+  return isHome
+    ? { shirt: kit.home || null, font: kit.fontHome || null }
+    : { shirt: kit.away || null, font: kit.fontAway || null };
+}
+
+/** Formation string → row sizes GK → attack (e.g. 4-3-3 → [1,4,3,3]). */
+function lineupRowsForFormation(formation) {
+  const parts = String(formation || '')
+    .split(/[-–]/)
+    .map((n) => Number(n))
+    .filter((n) => Number.isFinite(n) && n > 0);
+  if (!parts.length) return [1, 4, 3, 3];
+  return [1, ...parts];
+}
+
+function lineupPlayerNodeHtml(p, kit) {
+  const shirt = kit?.shirt ? escapeHtml(String(kit.shirt)) : '';
+  const font = kit?.font ? escapeHtml(String(kit.font)) : '';
+  const style =
+    shirt
+      ? ` style="--kit:${shirt};--kit-ink:${font || '#fff'}"`
+      : '';
+  const num = p.shirt != null ? escapeHtml(String(p.shirt)) : '—';
+  const full = escapeHtml(p.name || '');
+  const short = escapeHtml(lineupShortName(p.name));
+  return `<div class="mp-pitch__player" title="${full}">
+    <span class="mp-pitch__shirt"${style}>${num}</span>
+    <span class="mp-pitch__name">${short}</span>
+  </div>`;
+}
+
+/** Absolute coords when enough starters expose x/y; else formation rows. */
+function lineupPitchPlayersHtml(side, kit) {
+  const starters = Array.isArray(side?.starters) ? side.starters.slice(0, 11) : [];
+  if (!starters.length) return '';
+  const withCoords = starters.filter(
+    (p) => Number.isFinite(Number(p.x)) && Number.isFinite(Number(p.y))
+  );
+  if (withCoords.length >= Math.min(8, starters.length)) {
+    return withCoords
+      .map((p) => {
+        const left = Math.min(92, Math.max(8, Number(p.x) * 100));
+        const top = Math.min(92, Math.max(8, Number(p.y) * 100));
+        return `<div class="mp-pitch__pos" style="left:${left}%;top:${top}%">${lineupPlayerNodeHtml(
+          p,
+          kit
+        )}</div>`;
+      })
+      .join('');
+  }
+  const rows = lineupRowsForFormation(side.formation);
+  const rowCount = rows.length;
+  const topPct = (i) => {
+    if (rowCount <= 1) return 14;
+    const first = 12;
+    const last = 86;
+    return first + (i * (last - first)) / (rowCount - 1);
+  };
+  let idx = 0;
+  return rows
+    .map((count, rowIndex) => {
+      const cells = [];
+      for (let i = 0; i < count && idx < starters.length; i += 1, idx += 1) {
+        cells.push(lineupPlayerNodeHtml(starters[idx], kit));
+      }
+      if (!cells.length) return '';
+      return `<div class="mp-pitch__row" style="top:${topPct(rowIndex)}%">${cells.join('')}</div>`;
+    })
+    .join('');
+}
+
+function lineupPitchPaneHtml(side, label, kit, sideKey, active) {
+  const formation = side?.formation ? escapeHtml(side.formation) : '';
+  const players = lineupPitchPlayersHtml(side, kit);
+  return `<div class="mp-pitch-pane${active ? ' is-active' : ''}" data-pitch-side="${escapeHtml(
+    sideKey
+  )}" role="tabpanel"${active ? '' : ' hidden'}>
+    <div class="mp-pitch-wrap">
+      <div class="mp-pitch" aria-label="${escapeHtml(label)}${formation ? ` · ${formation}` : ''}">
+        ${formation ? `<div class="mp-pitch__badge">${formation}</div>` : ''}
+        <div class="mp-pitch__mark mp-pitch__mark--mid" aria-hidden="true"></div>
+        <div class="mp-pitch__mark mp-pitch__mark--circle" aria-hidden="true"></div>
+        <div class="mp-pitch__mark mp-pitch__mark--spot" aria-hidden="true"></div>
+        <div class="mp-pitch__mark mp-pitch__mark--box-top" aria-hidden="true"></div>
+        <div class="mp-pitch__mark mp-pitch__mark--box-bot" aria-hidden="true"></div>
+        <div class="mp-pitch__mark mp-pitch__mark--six-top" aria-hidden="true"></div>
+        <div class="mp-pitch__mark mp-pitch__mark--six-bot" aria-hidden="true"></div>
+        <div class="mp-pitch__players">${players}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/** Legacy two-column list (kept for unexpected shapes / debugging). */
 function lineupSideHtml(side, label) {
   if (!side?.starters?.length) return '';
   const formation = side.formation
@@ -2666,10 +2771,33 @@ function lineupSideHtml(side, label) {
   </div>`;
 }
 
-/** XI above the table; muted empty state when FotMob has no lineup yet. */
+function wireLineupPitchTabs(section) {
+  if (!section) return;
+  const tabs = [...section.querySelectorAll('[data-pitch-tab]')];
+  const panes = [...section.querySelectorAll('[data-pitch-side]')];
+  if (tabs.length < 2 || panes.length < 2) return;
+  tabs.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const side = btn.getAttribute('data-pitch-tab');
+      tabs.forEach((b) => {
+        const on = b === btn;
+        b.classList.toggle('is-active', on);
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      panes.forEach((pane) => {
+        const on = pane.getAttribute('data-pitch-side') === side;
+        pane.classList.toggle('is-active', on);
+        pane.hidden = !on;
+      });
+    });
+  });
+}
+
+/** XI above the blurb/table; muted empty state when FotMob has no lineup yet. */
 function lineupsHtml(lineups, homeName, awayName) {
   const home = lineups?.home || null;
   const away = lineups?.away || null;
+  const kit = lineups?.kit || null;
   const hasAny = Boolean(home?.starters?.length || away?.starters?.length);
   const title = escapeHtml(t('panel.lineups'));
   if (!hasAny) {
@@ -2678,12 +2806,39 @@ function lineupsHtml(lineups, homeName, awayName) {
       <p class="mp-lineups__empty muted">${escapeHtml(t('panel.lineupsPending'))}</p>
     </section>`;
   }
+  const homeLabel = homeName || 'Local';
+  const awayLabel = awayName || 'Visitante';
+  const homeKit = lineupKitForSide(kit, true);
+  const awayKit = lineupKitForSide(kit, false);
+  const preferHome = Boolean(home?.starters?.length);
+  const homeForm = home?.formation ? escapeHtml(home.formation) : '';
+  const awayForm = away?.formation ? escapeHtml(away.formation) : '';
   return `<section class="mp-lineups">
     <div class="mp-section-title">${title}</div>
-    <div class="mp-lineups__cols">
-      ${lineupSideHtml(home, homeName || 'Local') || '<div class="mp-lineups__side muted">—</div>'}
-      ${lineupSideHtml(away, awayName || 'Visitante') || '<div class="mp-lineups__side muted">—</div>'}
+    <div class="mp-lineups__tabs" role="tablist" aria-label="${title}">
+      <button type="button" class="mp-lineups__tab${preferHome ? ' is-active' : ''}" role="tab" aria-selected="${
+        preferHome ? 'true' : 'false'
+      }" data-pitch-tab="home"${home?.starters?.length ? '' : ' disabled'}>
+        <span class="mp-lineups__tab-name">${escapeHtml(homeLabel)}</span>
+        ${homeForm ? `<span class="mp-lineups__tab-form">${homeForm}</span>` : ''}
+      </button>
+      <button type="button" class="mp-lineups__tab${!preferHome ? ' is-active' : ''}" role="tab" aria-selected="${
+        preferHome ? 'false' : 'true'
+      }" data-pitch-tab="away"${away?.starters?.length ? '' : ' disabled'}>
+        <span class="mp-lineups__tab-name">${escapeHtml(awayLabel)}</span>
+        ${awayForm ? `<span class="mp-lineups__tab-form">${awayForm}</span>` : ''}
+      </button>
     </div>
+    ${
+      home?.starters?.length
+        ? lineupPitchPaneHtml(home, homeLabel, homeKit, 'home', preferHome)
+        : ''
+    }
+    ${
+      away?.starters?.length
+        ? lineupPitchPaneHtml(away, awayLabel, awayKit, 'away', !preferHome)
+        : ''
+    }
   </section>`;
 }
 
@@ -2702,7 +2857,10 @@ async function loadPanelLineups(matchId, homeName, awayName, root) {
     const tmp = document.createElement('div');
     tmp.innerHTML = lineupsHtml(data.lineups, homeName, awayName);
     const next = tmp.firstElementChild;
-    if (next) el.replaceWith(next);
+    if (next) {
+      el.replaceWith(next);
+      wireLineupPitchTabs(next);
+    }
   } catch (_) {
     /* keep pending / empty state */
   }
@@ -7043,7 +7201,7 @@ function perfTipDisplayHtml(tip) {
   )}">
     <span class="perf-row__tip-blur" aria-hidden="true">${tip}</span>
     <span class="perf-row__tip-premium" aria-hidden="true">
-      <img src="/icons/ui/premium-crown.png?v=hb182" width="13" height="13" alt="" />
+      <img src="/icons/ui/premium-crown.png?v=hb183" width="13" height="13" alt="" />
       Premium
     </span>
   </span>`;
@@ -8792,11 +8950,11 @@ async function openPrediction(id) {
         <div class="mp-panels">
           <div class="mp-panel is-active" data-mp-panel="general" role="tabpanel">
             ${winProbBar(p)}
-            ${matchBlurbHtml(bundle, homeName, awayName)}
             <h3 class="mp-section-title">${escapeHtml(t('panel.keyProbs'))}</h3>
             <div class="mp-grid">${keyCards}</div>
             ${h2hHtml(bundle.h2h, homeName)}
             ${lineupsHtml(null, homeName, awayName)}
+            ${matchBlurbHtml(bundle, homeName, awayName)}
             ${leagueTableHtml(bundle.leagueTable, homeName, awayName)}
           </div>
           <div class="mp-panel" data-mp-panel="goles" role="tabpanel" hidden>${goalsPanel}</div>
