@@ -49,6 +49,11 @@ html {
   text-size-adjust: 100%;
   touch-action: manipulation;
   background: #0a0a0a;
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
 }
 
 body {
@@ -56,14 +61,29 @@ body {
   font-family: var(--font-body);
   background: #0a0a0a;
   color: var(--chalk);
+  width: 100%;
+  max-width: 100%;
   min-height: 100vh;
   min-height: 100dvh;
+  min-height: -webkit-fill-available;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+  overscroll-behavior-x: none;
   padding-top: var(--v2-header-h);
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* Android / iOS A2HS standalone: lock shell to the visual viewport */
+@media (display-mode: standalone), (display-mode: fullscreen) {
+  html,
+  body {
+    height: 100%;
+    height: 100dvh;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
+  }
 }
 
 body.panel-open { overflow: hidden; }
@@ -1200,12 +1220,17 @@ main.v2-main {
 main.v2-main.shell {
   max-width: min(1240px, 100%);
   width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .views-track {
   display: flex;
   align-items: flex-start;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   transition: transform var(--motion-panel) cubic-bezier(0.22, 1, 0.36, 1);
   will-change: transform;
 }
@@ -1376,6 +1401,8 @@ main.v2-main.shell {
   flex: 0 0 100%;
   width: 100%;
   min-width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   padding: 0.85rem var(--page-pad) 1rem;
   margin: 0;
   scroll-margin-top: 0;
@@ -1970,6 +1997,22 @@ h2 {
   display: grid;
   gap: 0.18rem;
 }
+/* Tip/% + rank on one row so free censor never covers #N */
+.card-tip__head {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+.card-tip__head > .card-tip__primary,
+.card-tip__head > .hb-censor--inline {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+  max-width: 100%;
+}
 .card-tip__primary {
   display: flex;
   flex-wrap: wrap;
@@ -2238,21 +2281,58 @@ h2 {
   }
 }
 @media (min-width: 720px) {
+  /* One band like Stats `.match-stats__date-sort`: date left, presets right */
   .aciertos-board__date {
-    padding: 0.25rem 0 0.95rem;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    padding: 0.35rem 0 0.95rem;
+  }
+  .aciertos-board__date-nav {
+    width: auto;
+    flex: 0 1 auto;
+    justify-content: flex-start;
   }
   .aciertos-board__date-chip {
     min-width: 11rem;
     max-width: none;
     font-size: 1rem;
+    padding: 0.35rem 0.65rem;
   }
   .aciertos-board__presets {
-    max-width: 24rem;
-    gap: 0.5rem;
+    display: inline-flex;
+    width: auto;
+    max-width: none;
+    flex: 0 0 auto;
+    justify-content: flex-end;
+    align-items: stretch;
+    gap: 0;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.28);
   }
   .aciertos-board__preset {
-    padding-inline: 0.85rem;
+    flex: 0 0 auto;
+    min-width: 7.25rem;
+    padding-inline: 1.1rem;
     font-size: 0.84rem;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  .aciertos-board__preset.is-active {
+    border-color: transparent;
+    background: var(--accent);
+  }
+  .aciertos-board__preset:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+  .aciertos-board__preset.is-active:hover {
+    background: var(--accent-soft);
   }
 }
 
@@ -6796,8 +6876,6 @@ body.tipster .market-tabs__btn.is-active {
     width: 100%;
   }
   #premium .top3-rank {
-    top: 0.5rem;
-    right: 0.55rem;
     font-size: 0.82rem;
   }
   #premium .hb-censor__veil {
@@ -6885,6 +6963,8 @@ body.browse-layout {
   left: 0;
   right: 0;
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   z-index: 40;
   background: rgba(10, 10, 10, 0.92);
   backdrop-filter: blur(10px);
@@ -8157,15 +8237,30 @@ body.tipster .v2-header .search-field {
 }
 .card--top3 {
   position: relative;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: hidden;
   animation: aciertos-row-in 0.35s ease both;
 }
+.sheet--top3,
+.sheet--aciertos {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
 .top3-rank {
-  position: absolute;
-  top: 0.65rem;
-  right: 0.75rem;
+  position: static;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0;
   font-weight: 800;
   font-size: 0.9rem;
+  line-height: 1;
   color: var(--accent);
+  z-index: 1;
 }
 .top3-metrics {
   display: flex;
@@ -8350,6 +8445,9 @@ body.browse-layout [role="button"] {
     left: 0;
     right: 0;
     bottom: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     z-index: 38;
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -8528,6 +8626,14 @@ body.browse-layout [role="button"] {
   min-height: 32px;
   border-radius: 11px;
   box-sizing: border-box;
+}
+/* Inside tip head: shrink to leave room for #N (not full-card over rank) */
+#top3 .card-tip__head > .hb-censor--inline,
+.sheet--top3 .card-tip__head > .hb-censor--inline,
+#premium .card-tip__head > .hb-censor--inline {
+  width: auto;
+  flex: 1 1 auto;
+  max-width: 100%;
 }
 #top3 .card-tip__primary,
 #aciertos .aciertos-row__tip {

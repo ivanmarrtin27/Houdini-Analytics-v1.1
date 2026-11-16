@@ -691,7 +691,7 @@ function hbCensorWrap(html, { block = false } = {}) {
   )}">
     <div class="hb-censor__veil" aria-hidden="true">${html}</div>
     <div class="hb-censor__lock" aria-hidden="true">
-      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb180" width="16" height="16" alt="" decoding="async" />
+      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb181" width="16" height="16" alt="" decoding="async" />
       <span class="hb-censor__lock-title">${escapeHtml(t('censor.title'))}</span>
       <span class="hb-censor__lock-sub">${escapeHtml(t('censor.sub'))}</span>
     </div>
@@ -1854,7 +1854,7 @@ function mpVsMidLabel(m, live) {
 }
 
 function mpVsBrandMarkHtml() {
-  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb180" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
+  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb181" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
 }
 
 function mpVsMidHtml(m, live) {
@@ -2149,7 +2149,7 @@ function sumRecentAvg(recentAvgs, key) {
   return Number(((Number(h) || 0) + (Number(a) || 0)).toFixed(2));
 }
 
-const UI_ICON_V = 'hb180';
+const UI_ICON_V = 'hb181';
 const MP_STAT_ICON_PX = 20;
 const mpStatImg = (file) =>
   `<img class="mp-stat__icon mp-stat__icon--img" src="/icons/ui/${file}?v=${UI_ICON_V}" width="${MP_STAT_ICON_PX}" height="${MP_STAT_ICON_PX}" alt="" aria-hidden="true" decoding="async" />`;
@@ -5899,8 +5899,10 @@ function paintTop10List(el, matches) {
       return `
       <article class="card card--tip card--row card--top3" data-analyze="${matchId}" style="animation-delay:${delay}ms">
         <div class="card-tip__body">
-          <div class="top3-rank">#${rank}</div>
-          ${tipPrimary}
+          <div class="card-tip__head">
+            ${tipPrimary}
+            <div class="top3-rank">#${rank}</div>
+          </div>
           ${liveStrip}
           ${crestsRowHtml(home, bet.homeTeam?.logo, away, bet.awayTeam?.logo)}
           <p class="card-tip__match">${escapeHtml(home)} vs ${escapeHtml(away)}</p>
@@ -6846,7 +6848,7 @@ function perfTipDisplayHtml(tip) {
   )}">
     <span class="perf-row__tip-blur" aria-hidden="true">${tip}</span>
     <span class="perf-row__tip-premium" aria-hidden="true">
-      <img src="/icons/ui/premium-crown.png?v=hb180" width="13" height="13" alt="" />
+      <img src="/icons/ui/premium-crown.png?v=hb181" width="13" height="13" alt="" />
       Premium
     </span>
   </span>`;
