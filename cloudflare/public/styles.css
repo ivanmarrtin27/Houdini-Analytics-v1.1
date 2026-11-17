@@ -3045,6 +3045,24 @@ h2 {
 .mp-pitch-pane[hidden] {
   display: none !important;
 }
+.mp-pitch-pane.is-enter .mp-pitch-wrap {
+  animation: mpPitchPaneIn 0.22s ease both;
+}
+@keyframes mpPitchPaneIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mp-pitch-pane.is-enter .mp-pitch-wrap {
+    animation: none;
+  }
+}
 .mp-pitch-wrap {
   position: relative;
   border-radius: 12px;

@@ -333,7 +333,7 @@ check(
 check('tipFamilyUi maps DC_1X to dc', tipFamilyUi('DC_1X') === 'dc');
 check('tipFamilyUi maps BTTS_YES to btts', tipFamilyUi('BTTS_YES') === 'btts');
 check('tipFamilyUi maps CORNERS_OVER_75 to corners', tipFamilyUi('CORNERS_OVER_75') === 'corners');
-check('shell bumped to hb163', src.includes("UI_ICON_V = 'hb163'") || src.includes('hb163'));
+check('shell bumped to hb188', src.includes("UI_ICON_V = 'hb188'") || src.includes('hb188'));
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

@@ -691,7 +691,7 @@ function hbCensorWrap(html, { block = false } = {}) {
   )}">
     <div class="hb-censor__veil" aria-hidden="true">${html}</div>
     <div class="hb-censor__lock" aria-hidden="true">
-      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb187" width="16" height="16" alt="" decoding="async" />
+      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb188" width="16" height="16" alt="" decoding="async" />
       <span class="hb-censor__lock-title">${escapeHtml(t('censor.title'))}</span>
       <span class="hb-censor__lock-sub">${escapeHtml(t('censor.sub'))}</span>
     </div>
@@ -1854,7 +1854,7 @@ function mpVsMidLabel(m, live) {
 }
 
 function mpVsBrandMarkHtml() {
-  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb187" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
+  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb188" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
 }
 
 function mpVsMidHtml(m, live) {
@@ -2149,7 +2149,7 @@ function sumRecentAvg(recentAvgs, key) {
   return Number(((Number(h) || 0) + (Number(a) || 0)).toFixed(2));
 }
 
-const UI_ICON_V = 'hb187';
+const UI_ICON_V = 'hb188';
 const MP_STAT_ICON_PX = 20;
 const mpStatImg = (file) =>
   `<img class="mp-stat__icon mp-stat__icon--img" src="/icons/ui/${file}?v=${UI_ICON_V}" width="${MP_STAT_ICON_PX}" height="${MP_STAT_ICON_PX}" alt="" aria-hidden="true" decoding="async" />`;
@@ -2794,19 +2794,43 @@ function wireLineupPitchTabs(section) {
   const tabs = [...section.querySelectorAll('[data-pitch-tab]')];
   const panes = [...section.querySelectorAll('[data-pitch-side]')];
   if (tabs.length < 2 || panes.length < 2) return;
+  let switching = false;
+  const reduceMotion =
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const activateSide = (side, animate) => {
+    tabs.forEach((b) => {
+      const on = b.getAttribute('data-pitch-tab') === side;
+      b.classList.toggle('is-active', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    panes.forEach((pane) => {
+      const on = pane.getAttribute('data-pitch-side') === side;
+      pane.classList.toggle('is-active', on);
+      pane.classList.remove('is-enter');
+      pane.hidden = !on;
+      if (on && animate) pane.classList.add('is-enter');
+    });
+  };
+
   tabs.forEach((btn) => {
     btn.addEventListener('click', () => {
       const side = btn.getAttribute('data-pitch-tab');
-      tabs.forEach((b) => {
-        const on = b === btn;
-        b.classList.toggle('is-active', on);
-        b.setAttribute('aria-selected', on ? 'true' : 'false');
-      });
-      panes.forEach((pane) => {
-        const on = pane.getAttribute('data-pitch-side') === side;
-        pane.classList.toggle('is-active', on);
-        pane.hidden = !on;
-      });
+      const next = panes.find((p) => p.getAttribute('data-pitch-side') === side);
+      const prev = panes.find((p) => p.classList.contains('is-active'));
+      if (!next || next === prev || switching) return;
+
+      const animate = !reduceMotion;
+      activateSide(side, animate);
+      if (!animate) return;
+
+      switching = true;
+      const finish = () => {
+        next.classList.remove('is-enter');
+        switching = false;
+      };
+      window.setTimeout(finish, 220);
     });
   });
 }
@@ -3242,29 +3266,48 @@ function formToneKey(tone) {
   return 'panel.blurb.formMixed';
 }
 
+function formStreakKey(streakType) {
+  if (streakType === 'W') return 'panel.blurb.streakWin';
+  if (streakType === 'L') return 'panel.blurb.streakLoss';
+  if (streakType === 'D') return 'panel.blurb.streakDraw';
+  return null;
+}
+
+function formTeamBlurbParts(teamName, summary) {
+  if (!summary) return [];
+  const parts = [
+    t(formToneKey(summary.tone), {
+      team: teamName,
+      record: formatFormRecord(summary),
+      n: summary.n,
+    }),
+  ];
+  const streakKey = formStreakKey(summary.streakType);
+  if (streakKey && summary.streakN >= 2) {
+    parts.push(t(streakKey, { team: teamName, n: summary.streakN }));
+  }
+  return parts;
+}
+
 function buildFormBlurbSentence(homeName, awayName, homeForm, awayForm) {
   const homeSum = summarizeRecentForm(homeForm);
   const awaySum = summarizeRecentForm(awayForm);
-  const parts = [];
-  if (homeSum) {
-    parts.push(
-      t(formToneKey(homeSum.tone), {
-        team: homeName || t('panel.home'),
-        record: formatFormRecord(homeSum),
-      })
-    );
-  }
-  if (awaySum) {
-    parts.push(
-      t(formToneKey(awaySum.tone), {
-        team: awayName || t('panel.awayShort'),
-        record: formatFormRecord(awaySum),
-      })
-    );
+  const homeLabel = homeName || t('panel.home');
+  const awayLabel = awayName || t('panel.awayShort');
+  const parts = [...formTeamBlurbParts(homeLabel, homeSum), ...formTeamBlurbParts(awayLabel, awaySum)];
+  if (homeSum && awaySum) {
+    if (homeSum.tone === 'hot' && awaySum.tone === 'cold') {
+      parts.push(t('panel.blurb.formContrastHotCold', { hot: homeLabel, cold: awayLabel }));
+    } else if (homeSum.tone === 'cold' && awaySum.tone === 'hot') {
+      parts.push(t('panel.blurb.formContrastHotCold', { hot: awayLabel, cold: homeLabel }));
+    } else if (homeSum.tone === 'hot' && awaySum.tone === 'hot') {
+      parts.push(t('panel.blurb.formBothHot'));
+    } else if (homeSum.tone === 'cold' && awaySum.tone === 'cold') {
+      parts.push(t('panel.blurb.formBothCold'));
+    }
   }
   if (!parts.length) return '';
-  if (parts.length === 1) return `${parts[0]}.`;
-  return `${parts[0]}. ${parts[1]}.`;
+  return `${parts.join('. ')}.`;
 }
 
 /** Match character from xG / openness — narrative, not tip-shop language. */
@@ -3312,6 +3355,20 @@ function buildMatchupBlurbSentence(pred = {}, xg = null) {
   } else {
     sentence += ` ${t('panel.blurb.intensityMid')}`;
   }
+
+  if (homeXg != null && awayXg != null && Number.isFinite(homeXg) && Number.isFinite(awayXg)) {
+    const gap = Math.abs(homeXg - awayXg);
+    if (gap >= 0.55) {
+      const stronger = homeXg > awayXg ? 'home' : 'away';
+      sentence += ` ${t('panel.blurb.xgLean', {
+        side: stronger === 'home' ? t('panel.home') : t('panel.awayShort'),
+        h: homeXg.toFixed(1),
+        a: awayXg.toFixed(1),
+      })}`;
+    } else {
+      sentence += ` ${t('panel.blurb.xgEven', { h: homeXg.toFixed(1), a: awayXg.toFixed(1) })}`;
+    }
+  }
   return sentence;
 }
 
@@ -3354,7 +3411,7 @@ function matchBlurbHtml(bundle, homeName, awayName) {
       sentences.push(t('panel.blurb.lowSample'));
     }
 
-    const text = sentences.slice(0, 4).join(' ');
+    const text = sentences.slice(0, 5).join(' ');
     if (!text) return '';
     return `<aside class="mp-blurb" aria-label="${escapeHtml(t('panel.blurb.aria'))}"><p class="mp-blurb__text">${escapeHtml(
       text
@@ -4853,21 +4910,29 @@ const I18N = {
     'panel.blurb.aria': 'Forma y choque',
     'panel.blurb.recordEs': '{w}V-{d}E-{l}D',
     'panel.blurb.recordEn': '{w}W-{d}D-{l}L',
-    'panel.blurb.formHot': '{team} llega con buen ritmo y confianza ({record} en los últimos partidos)',
-    'panel.blurb.formCold': '{team} encadena una mala racha ({record}) y necesita reaccionar',
-    'panel.blurb.formMixed': '{team} llega irregular ({record}), sin una lectura clara de forma',
-    'panel.blurb.matchOpenXg': 'El modelo dibuja un choque abierto, con ~{xg} goles esperados y espacios para atacar.',
-    'panel.blurb.matchTightXg': 'El modelo dibuja un choque contenido, con ~{xg} goles esperados y poco margen de error.',
-    'panel.blurb.matchBalancedXg': 'El modelo dibuja un choque equilibrado, con ~{xg} goles esperados y fases de ida y vuelta.',
-    'panel.blurb.matchOpen': 'El modelo dibuja un choque abierto, con ritmo alto y ocasiones en ambos lados.',
-    'panel.blurb.matchTight': 'El modelo dibuja un choque contenido, más trabado y de pocos espacios.',
-    'panel.blurb.matchBalanced': 'El modelo dibuja un choque equilibrado, sin un dominio claro de estilos.',
-    'panel.blurb.intensityHigh': 'La intensidad prevista es alta: partido de ida y vuelta más que de control.',
-    'panel.blurb.intensityLow': 'La intensidad ofensiva se ve más baja: duelo de paciencia y orden.',
-    'panel.blurb.intensityCagey': 'El perfil es más cauteloso, con menos amenaza cruzada de lo habitual.',
-    'panel.blurb.intensityMid': 'La intensidad se mantiene en un punto medio, sin extremos claros.',
-    'panel.blurb.h2h': 'En los {n} H2H recientes la media fue de {avg} goles, un eco útil del tipo de duelo.',
-    'panel.blurb.lowSample': 'Muestra reciente limitada; interpreta la lectura con cautela.',
+    'panel.blurb.formHot': '{team} llega con buen ritmo y confianza ({record} en los últimos {n} partidos), sosteniendo una lectura ofensiva favorable',
+    'panel.blurb.formCold': '{team} encadena una mala racha ({record} en {n}) y necesita reaccionar para no llegar frágil al choque',
+    'panel.blurb.formMixed': '{team} llega irregular ({record} en {n}), sin una lectura clara de forma ni un impulso definido',
+    'panel.blurb.streakWin': '{team} suma {n} seguidas sin perder el hilo ganador',
+    'panel.blurb.streakLoss': '{team} encadena {n} derrotas seguidas y busca cortar la caída',
+    'panel.blurb.streakDraw': '{team} acumula {n} empates seguidos, con poco desenlace reciente',
+    'panel.blurb.formContrastHotCold': 'El contraste de forma favorece a {hot} frente a un {cold} que llega más tocado',
+    'panel.blurb.formBothHot': 'Ambos llegan en buena dinámica: el choque puede ir de menos a más si se abren espacios',
+    'panel.blurb.formBothCold': 'Los dos cargan con forma floja: el partido pide más orden que lucimiento',
+    'panel.blurb.matchOpenXg': 'El modelo dibuja un choque abierto, con ~{xg} goles esperados entre ambos y espacios para atacar en transición.',
+    'panel.blurb.matchTightXg': 'El modelo dibuja un choque contenido, con ~{xg} goles esperados y poco margen de error en cada pérdida.',
+    'panel.blurb.matchBalancedXg': 'El modelo dibuja un choque equilibrado, con ~{xg} goles esperados y fases de ida y vuelta sin un dueño claro.',
+    'panel.blurb.matchOpen': 'El modelo dibuja un choque abierto, con ritmo alto, ocasiones en ambos lados y menos control posicional.',
+    'panel.blurb.matchTight': 'El modelo dibuja un choque contenido, más trabado, de pocos espacios y disputas en zona media.',
+    'panel.blurb.matchBalanced': 'El modelo dibuja un choque equilibrado, sin un dominio claro de estilos ni un sesgo extremo de ritmo.',
+    'panel.blurb.intensityHigh': 'La intensidad prevista es alta: partido de ida y vuelta más que de control largo.',
+    'panel.blurb.intensityLow': 'La intensidad ofensiva se ve más baja: duelo de paciencia, bloque bajo y orden.',
+    'panel.blurb.intensityCagey': 'El perfil es más cauteloso, con menos amenaza cruzada de lo habitual y más gestión del ritmo.',
+    'panel.blurb.intensityMid': 'La intensidad se mantiene en un punto medio, sin extremos claros de apertura o bloqueo.',
+    'panel.blurb.xgLean': 'El reparto de xG (~{h}–{a}) inclina un poco más la iniciativa hacia {side}.',
+    'panel.blurb.xgEven': 'El reparto de xG (~{h}–{a}) queda casi parejo, sin un desequilibrio fuerte de amenaza.',
+    'panel.blurb.h2h': 'En los {n} H2H recientes la media fue de {avg} goles, un eco útil del tipo de duelo que suelen armar.',
+    'panel.blurb.lowSample': 'Muestra reciente limitada; interpreta la lectura de forma y choque con cautela.',
     'panel.blurb.fallback': 'Sin suficiente forma reciente; el panel se apoya en las medias del modelo para leer el choque.',
     'censor.aria': 'Solo suscriptores — desbloquea con Houdini Premium',
     'censor.title': 'Solo suscriptores',
@@ -5287,21 +5352,29 @@ const I18N = {
     'panel.blurb.aria': 'Form and matchup',
     'panel.blurb.recordEs': '{w}V-{d}E-{l}D',
     'panel.blurb.recordEn': '{w}W-{d}D-{l}L',
-    'panel.blurb.formHot': '{team} arrives in strong form and confidence ({record} in recent matches)',
-    'panel.blurb.formCold': '{team} is on a poor run ({record}) and needs a response',
-    'panel.blurb.formMixed': '{team} looks mixed ({record}), without a clear form signal',
-    'panel.blurb.matchOpenXg': 'The model paints an open contest, with ~{xg} expected goals and room to attack.',
-    'panel.blurb.matchTightXg': 'The model paints a tight contest, with ~{xg} expected goals and little margin for error.',
-    'panel.blurb.matchBalancedXg': 'The model paints a balanced contest, with ~{xg} expected goals and phases both ways.',
-    'panel.blurb.matchOpen': 'The model paints an open contest, with a high tempo and chances at both ends.',
-    'panel.blurb.matchTight': 'The model paints a tight contest, more clogged and short on space.',
-    'panel.blurb.matchBalanced': 'The model paints a balanced contest, without a clear stylistic edge.',
-    'panel.blurb.intensityHigh': 'Expected intensity is high: an end-to-end game more than a control job.',
-    'panel.blurb.intensityLow': 'Attacking intensity looks lower: a patience-and-shape duel.',
-    'panel.blurb.intensityCagey': 'The profile is more cautious, with less two-way threat than usual.',
-    'panel.blurb.intensityMid': 'Intensity sits in the middle, without clear extremes.',
-    'panel.blurb.h2h': 'Across the last {n} H2H meetings goals averaged {avg}, a useful echo of the match type.',
-    'panel.blurb.lowSample': 'Limited recent sample; treat the read with caution.',
+    'panel.blurb.formHot': '{team} arrives in strong form and confidence ({record} in the last {n}), carrying a favorable attacking read',
+    'panel.blurb.formCold': '{team} is on a poor run ({record} in {n}) and needs a response so the clash does not start fragile',
+    'panel.blurb.formMixed': '{team} looks mixed ({record} in {n}), without a clear form signal or defined momentum',
+    'panel.blurb.streakWin': '{team} has strung together {n} straight results on a winning thread',
+    'panel.blurb.streakLoss': '{team} is on {n} straight defeats and looking to stop the slide',
+    'panel.blurb.streakDraw': '{team} has {n} straight draws, with little recent resolution',
+    'panel.blurb.formContrastHotCold': 'The form contrast favors {hot} against a {cold} side arriving more fragile',
+    'panel.blurb.formBothHot': 'Both arrive in good rhythm: the clash can open up if spaces appear',
+    'panel.blurb.formBothCold': 'Both carry soft form: the match asks for shape more than sparkle',
+    'panel.blurb.matchOpenXg': 'The model paints an open contest, with ~{xg} expected goals between the sides and room to attack in transition.',
+    'panel.blurb.matchTightXg': 'The model paints a tight contest, with ~{xg} expected goals and little margin for error on each turnover.',
+    'panel.blurb.matchBalancedXg': 'The model paints a balanced contest, with ~{xg} expected goals and phases both ways without a clear owner.',
+    'panel.blurb.matchOpen': 'The model paints an open contest, with a high tempo, chances at both ends, and less positional control.',
+    'panel.blurb.matchTight': 'The model paints a tight contest, more clogged, short on space, and contested through midfield.',
+    'panel.blurb.matchBalanced': 'The model paints a balanced contest, without a clear stylistic edge or extreme tempo bias.',
+    'panel.blurb.intensityHigh': 'Expected intensity is high: an end-to-end game more than a long control job.',
+    'panel.blurb.intensityLow': 'Attacking intensity looks lower: a patience, low-block, and shape duel.',
+    'panel.blurb.intensityCagey': 'The profile is more cautious, with less two-way threat than usual and more tempo management.',
+    'panel.blurb.intensityMid': 'Intensity sits in the middle, without clear extremes of openness or lock-down.',
+    'panel.blurb.xgLean': 'The xG split (~{h}–{a}) leans a little more initiative toward {side}.',
+    'panel.blurb.xgEven': 'The xG split (~{h}–{a}) stays nearly even, without a strong threat imbalance.',
+    'panel.blurb.h2h': 'Across the last {n} H2H meetings goals averaged {avg}, a useful echo of the kind of duel they tend to build.',
+    'panel.blurb.lowSample': 'Limited recent sample; treat the form and matchup read with caution.',
     'panel.blurb.fallback': 'Not enough recent form; the panel leans on model averages to read the clash.',
     'censor.aria': 'Subscribers only — unlock with Houdini Premium',
     'censor.title': 'Subscribers only',
@@ -7235,7 +7308,7 @@ function perfTipDisplayHtml(tip) {
   )}">
     <span class="perf-row__tip-blur" aria-hidden="true">${tip}</span>
     <span class="perf-row__tip-premium" aria-hidden="true">
-      <img src="/icons/ui/premium-crown.png?v=hb187" width="13" height="13" alt="" />
+      <img src="/icons/ui/premium-crown.png?v=hb188" width="13" height="13" alt="" />
       Premium
     </span>
   </span>`;
