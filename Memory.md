@@ -17,6 +17,7 @@
 - SOT Overs 0.5–11.5; córners 1.5–11.5; totalShots display degraded si n<4; FotMob stats prioriza equipos ventana
 - Premium tabs Oddster-style (rojo): summary + trend Metric|H|A|Partido; free = `lockedTrendTableHtml`; goles + scoregrid debajo
 - Promo (0036+0037): types `free_days`|`free_month`|`discount_20`|`discount_40`; soft-delete `active=0`; discount → `users.pending_promo_*` + Stripe `%_off` en checkout; admin create/list/delete
+- **Producto cupones %:** descuento **solo 1er cobro** (Stripe coupon `duration=once` / `houdini_pct_*_once`); renovaciones a precio lleno; promo one-shot (`promo_redemptions` + clear `pending_promo_*` tras checkout)
 - Badge unificado `.plan-badge` «Premium»/«Gratuito»; settings sin tema (dark forzado); `#ajustes` ✕ → `#partidos`
 - Planes UI: Mensual **7,99 €/mes** flat / Trimestral 19,99 / Anual 69,99 → Stripe Checkout **subscription** (`STRIPE_PRICE_ID_{MONTHLY,QUARTERLY,ANNUAL}`); sin intro 4,99; docs `cloudflare/docs/STRIPE_SETUP.md`
 - Display ES: `countryLabel` + `leagueLabelEs`; Panel General Media liga n≥20
@@ -44,7 +45,8 @@
 - Auth en dominio custom + Google OAuth redirects
 - DNS Pages + cookies/success_url Stripe al dominio
 - API_FOOTBALL_KEY válida
-- Pase ES/EN móvil; PWA/splash coherente; legales al día
+- Pase ES/EN móvil; PWA/splash coherente
+- Legales v2 listos en repo (shell hb186): auth requerida, Stripe Premium, page_hits/IP, CIF pendiente — **deploy Pages pendiente OK usuario**
 
 ## Deploy
 - App Pages: `npx wrangler pages deploy pages --project-name houdini-analytics --branch main`

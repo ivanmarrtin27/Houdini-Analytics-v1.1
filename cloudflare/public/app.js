@@ -691,7 +691,7 @@ function hbCensorWrap(html, { block = false } = {}) {
   )}">
     <div class="hb-censor__veil" aria-hidden="true">${html}</div>
     <div class="hb-censor__lock" aria-hidden="true">
-      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb183" width="16" height="16" alt="" decoding="async" />
+      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb186" width="16" height="16" alt="" decoding="async" />
       <span class="hb-censor__lock-title">${escapeHtml(t('censor.title'))}</span>
       <span class="hb-censor__lock-sub">${escapeHtml(t('censor.sub'))}</span>
     </div>
@@ -1854,7 +1854,7 @@ function mpVsMidLabel(m, live) {
 }
 
 function mpVsBrandMarkHtml() {
-  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb183" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
+  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb186" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
 }
 
 function mpVsMidHtml(m, live) {
@@ -2149,7 +2149,7 @@ function sumRecentAvg(recentAvgs, key) {
   return Number(((Number(h) || 0) + (Number(a) || 0)).toFixed(2));
 }
 
-const UI_ICON_V = 'hb183';
+const UI_ICON_V = 'hb186';
 const MP_STAT_ICON_PX = 20;
 const mpStatImg = (file) =>
   `<img class="mp-stat__icon mp-stat__icon--img" src="/icons/ui/${file}?v=${UI_ICON_V}" width="${MP_STAT_ICON_PX}" height="${MP_STAT_ICON_PX}" alt="" aria-hidden="true" decoding="async" />`;
@@ -2640,18 +2640,28 @@ function h2hHtml(h2h, homeName) {
     .join('');
   return `
     <section class="mp-h2h">
-      <div class="mp-section-title">Úúúúúltimos enfrentamientos</div>
+      <div class="mp-section-title">${escapeHtml(t('panel.h2hTitle'))}</div>
       <ul class="mp-h2h__list">${list}</ul>
     </section>`;
 }
 
+/** Pitch label: prefer surname / shortName; keep readable length (not 1-char). */
 function lineupShortName(name) {
   const s = String(name || '').trim();
   if (!s) return '';
-  if (s.length <= 10) return s;
   const parts = s.split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) return parts[parts.length - 1];
-  return `${s.slice(0, 9)}…`;
+  const isInitial = (p) => /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]\.?$/.test(p);
+  let display = s;
+  if (parts.length >= 2) {
+    const last = parts[parts.length - 1];
+    if (last && !isInitial(last) && last.length > 1) display = last;
+    else {
+      const prev = parts[parts.length - 2];
+      display = prev && !isInitial(prev) ? prev : last || s;
+    }
+  }
+  if (display.length <= 16) return display;
+  return `${display.slice(0, 15)}…`;
 }
 
 function lineupKitForSide(kit, isHome) {
@@ -2679,8 +2689,9 @@ function lineupPlayerNodeHtml(p, kit) {
       ? ` style="--kit:${shirt};--kit-ink:${font || '#fff'}"`
       : '';
   const num = p.shirt != null ? escapeHtml(String(p.shirt)) : '—';
-  const full = escapeHtml(p.name || '');
-  const short = escapeHtml(lineupShortName(p.name));
+  const rawName = p.lastName || p.shortName || p.name || '';
+  const full = escapeHtml(p.name || rawName);
+  const short = escapeHtml(lineupShortName(rawName));
   return `<div class="mp-pitch__player" title="${full}">
     <span class="mp-pitch__shirt"${style}>${num}</span>
     <span class="mp-pitch__name">${short}</span>
@@ -2697,8 +2708,15 @@ function lineupPitchPlayersHtml(side, kit) {
   if (withCoords.length >= Math.min(8, starters.length)) {
     return withCoords
       .map((p) => {
-        const left = Math.min(92, Math.max(8, Number(p.x) * 100));
-        const top = Math.min(92, Math.max(8, Number(p.y) * 100));
+        // Normalize 0–1 (or 0–100) → %; node is centered via CSS (width:0 + flex).
+        let x = Number(p.x);
+        let y = Number(p.y);
+        if (x > 1.5 || y > 1.5) {
+          x /= 100;
+          y /= 100;
+        }
+        const left = Math.min(94, Math.max(6, x * 100));
+        const top = Math.min(94, Math.max(6, y * 100));
         return `<div class="mp-pitch__pos" style="left:${left}%;top:${top}%">${lineupPlayerNodeHtml(
           p,
           kit
@@ -3246,10 +3264,10 @@ function buildFormBlurbSentence(homeName, awayName, homeForm, awayForm) {
   }
   if (!parts.length) return '';
   if (parts.length === 1) return `${parts[0]}.`;
-  return `${parts[0]}; ${parts[1]}.`;
+  return `${parts[0]}. ${parts[1]}.`;
 }
 
-/** Matchup line from xG + O/U/BTTS only (never 1X2 tip). */
+/** Match character from xG / openness — narrative, not tip-shop language. */
 function buildMatchupBlurbSentence(pred = {}, xg = null) {
   const o25 = pct(pred.over25_prob);
   const btts = pct(pred.btts_yes_prob);
@@ -3283,9 +3301,18 @@ function buildMatchupBlurbSentence(pred = {}, xg = null) {
           : 'panel.blurb.matchBalanced';
   }
   let sentence = t(key, { xg: xgLabel });
-  if (o25 != null) sentence += t('panel.blurb.tailO25', { pct: Math.round(o25 * 100) });
-  if (btts != null) sentence += t('panel.blurb.tailBtts', { pct: Math.round(btts * 100) });
-  return `${sentence}.`;
+
+  // Intensity / both-sides threat as match character (never “bet Over/BTTS”).
+  if (shape === 'open' || (btts != null && btts >= 0.55)) {
+    sentence += ` ${t('panel.blurb.intensityHigh')}`;
+  } else if (shape === 'tight') {
+    sentence += ` ${t('panel.blurb.intensityLow')}`;
+  } else if (btts != null && btts <= 0.42) {
+    sentence += ` ${t('panel.blurb.intensityCagey')}`;
+  } else {
+    sentence += ` ${t('panel.blurb.intensityMid')}`;
+  }
+  return sentence;
 }
 
 function buildH2hBlurbSentence(h2h) {
@@ -3300,8 +3327,8 @@ function buildH2hBlurbSentence(h2h) {
 }
 
 /**
- * Compact General-tab note: recent form + matchup templates.
- * Free-tier safe (no 1X2 tip). Never throws — empty string on failure.
+ * General-tab clash note: form + match character + optional H2H.
+ * Free-tier safe (no 1X2 / tip hard-sell). Never throws — empty string on failure.
  */
 function matchBlurbHtml(bundle, homeName, awayName) {
   try {
@@ -3317,10 +3344,8 @@ function matchBlurbHtml(bundle, homeName, awayName) {
     const matchSent = buildMatchupBlurbSentence(bundle?.prediction || {}, bundle?.xg);
     if (matchSent) sentences.push(matchSent);
 
-    if (sentences.length < 3) {
-      const h2hSent = buildH2hBlurbSentence(bundle?.h2h);
-      if (h2hSent) sentences.push(h2hSent);
-    }
+    const h2hSent = buildH2hBlurbSentence(bundle?.h2h);
+    if (h2hSent) sentences.push(h2hSent);
 
     if (!sentences.length) {
       if (bundle?.dataQuality === 'low') sentences.push(t('panel.blurb.lowSample'));
@@ -3844,7 +3869,7 @@ function renderLigasFolders(catalog) {
   }).filter((f) => f.leagues.length > 0);
 
   if (!folders.length) {
-    listEl.innerHTML = `<p class="ligas-standings__empty">No hay ligas que coincidan con la bsqueda.</p>`;
+    listEl.innerHTML = `<p class="ligas-standings__empty">No hay ligas que coincidan con la búsqueda.</p>`;
     return;
   }
 
@@ -4080,7 +4105,7 @@ function setLoading(containerId, rows = 3) {
 }
 
 /* ------------------------------------------------------------------ *
- * Premium (F8): guest cookie + Stripe checkout. No accounts.
+ * Premium: Stripe subscription checkout + hb_prem cookie (account-linked when logged in).
  * ------------------------------------------------------------------ */
 
 const premiumState = {
@@ -4521,9 +4546,9 @@ const I18N = {
     'consent.acceptAll': 'Aceptar todo',
     'consent.necessary': 'Solo necesarias',
     'consent.customize': 'Personalizar',
-    'consent.back': '? Volver',
+    'consent.back': '← Volver',
     'consent.customLead':
-      'Elige qu guardar en este dispositivo. Necesitas confirmar la mayoría de edad para guardar.',
+      'Elige qué guardar en este dispositivo. Necesitas confirmar la mayoría de edad para guardar.',
     'consent.privacy': 'Privacidad',
     'consent.cookies': 'Cookies',
     'consent.notice': 'Aviso',
@@ -4736,9 +4761,9 @@ const I18N = {
     'privacy.linkTerms': 'Condiciones',
     'privacy.prefsGroup': 'Preferencias locales',
     'privacy.analyticsTitle': 'Analytics / telemetría',
-    'privacy.analyticsHint': 'Stub local (consola). No enviamos telemetría de terceros.',
+    'privacy.analyticsHint': 'Stub local (consola). El registro de visitas con IP se describe en Privacidad.',
     'privacy.searchTitle': 'Guardar búsqueda reciente',
-    'privacy.searchHint': 'Recuerda el úúúltimo equipo buscado en este dispositivo.',
+    'privacy.searchHint': 'Recuerda el último equipo buscado en este dispositivo.',
     'privacy.filtersTitle': 'Recordar filtros',
     'privacy.filtersHint': 'Conserva fecha y ámbito entre sesiones.',
     'privacy.manageCookies': 'Gestionar cookies',
@@ -4749,10 +4774,10 @@ const I18N = {
     'consent.optPrefs': 'Preferencias opcionales',
     'consent.saveCustom': 'Guardar preferencias',
     'consent.docTitle': 'Documento',
-    'consent.backDoc': '? Volver',
+    'consent.backDoc': '← Volver',
     'consent.analyticsHintShort': 'Stub local (consola).',
-    'consent.searchTitle': 'Guardar bsqueda',
-    'consent.searchHintShort': 'Úúúltimo equipo buscado.',
+    'consent.searchTitle': 'Guardar búsqueda',
+    'consent.searchHintShort': 'Último equipo buscado.',
     'consent.filtersHintShort': 'Fecha y ámbito.',
     'auth.deleteConfirm': '¿Eliminar tu cuenta de forma permanente? Se borrarán tu sesión y tus datos de acceso.',
     'toast.apiOffline': 'No hay conexión con la API. Revisa la red e inténtalo de nuevo.',
@@ -4824,23 +4849,26 @@ const I18N = {
     'panel.cardsTitle': 'tarjetas',
     'panel.cardsExpected': 'Tarjetas esperadas',
     'panel.offTarget': 'Est. fuera ≈ {h} / {a} / {m}',
+    'panel.h2hTitle': 'Últimos enfrentamientos',
     'panel.blurb.aria': 'Forma y choque',
     'panel.blurb.recordEs': '{w}V-{d}E-{l}D',
     'panel.blurb.recordEn': '{w}W-{d}D-{l}L',
-    'panel.blurb.formHot': '{team} llega con buen ritmo ({record})',
-    'panel.blurb.formCold': '{team} llega en mala racha ({record})',
-    'panel.blurb.formMixed': '{team} llega irregular ({record})',
-    'panel.blurb.matchOpenXg': 'El modelo apunta a un choque abierto (~{xg} goles esperados',
-    'panel.blurb.matchTightXg': 'El modelo apunta a un choque contenido (~{xg} goles esperados',
-    'panel.blurb.matchBalancedXg': 'El modelo apunta a un choque equilibrado (~{xg} goles esperados',
-    'panel.blurb.matchOpen': 'El modelo apunta a un choque abierto',
-    'panel.blurb.matchTight': 'El modelo apunta a un choque contenido',
-    'panel.blurb.matchBalanced': 'El modelo apunta a un choque equilibrado',
-    'panel.blurb.tailO25': '; Más de 2,5 al {pct}%',
-    'panel.blurb.tailBtts': '; ambos marcan al {pct}%',
-    'panel.blurb.h2h': 'En los {n} H2H recientes hubo una media de {avg} goles.',
+    'panel.blurb.formHot': '{team} llega con buen ritmo y confianza ({record} en los últimos partidos)',
+    'panel.blurb.formCold': '{team} encadena una mala racha ({record}) y necesita reaccionar',
+    'panel.blurb.formMixed': '{team} llega irregular ({record}), sin una lectura clara de forma',
+    'panel.blurb.matchOpenXg': 'El modelo dibuja un choque abierto, con ~{xg} goles esperados y espacios para atacar.',
+    'panel.blurb.matchTightXg': 'El modelo dibuja un choque contenido, con ~{xg} goles esperados y poco margen de error.',
+    'panel.blurb.matchBalancedXg': 'El modelo dibuja un choque equilibrado, con ~{xg} goles esperados y fases de ida y vuelta.',
+    'panel.blurb.matchOpen': 'El modelo dibuja un choque abierto, con ritmo alto y ocasiones en ambos lados.',
+    'panel.blurb.matchTight': 'El modelo dibuja un choque contenido, más trabado y de pocos espacios.',
+    'panel.blurb.matchBalanced': 'El modelo dibuja un choque equilibrado, sin un dominio claro de estilos.',
+    'panel.blurb.intensityHigh': 'La intensidad prevista es alta: partido de ida y vuelta más que de control.',
+    'panel.blurb.intensityLow': 'La intensidad ofensiva se ve más baja: duelo de paciencia y orden.',
+    'panel.blurb.intensityCagey': 'El perfil es más cauteloso, con menos amenaza cruzada de lo habitual.',
+    'panel.blurb.intensityMid': 'La intensidad se mantiene en un punto medio, sin extremos claros.',
+    'panel.blurb.h2h': 'En los {n} H2H recientes la media fue de {avg} goles, un eco útil del tipo de duelo.',
     'panel.blurb.lowSample': 'Muestra reciente limitada; interpreta la lectura con cautela.',
-    'panel.blurb.fallback': 'Sin suficiente forma reciente; el panel se apoya en las medias del modelo.',
+    'panel.blurb.fallback': 'Sin suficiente forma reciente; el panel se apoya en las medias del modelo para leer el choque.',
     'censor.aria': 'Solo suscriptores — desbloquea con Houdini Premium',
     'censor.title': 'Solo suscriptores',
     'censor.sub': 'Desbloquea las estadísticas con Houdini Premium',
@@ -4952,7 +4980,7 @@ const I18N = {
     'consent.acceptAll': 'Accept all',
     'consent.necessary': 'Necessary only',
     'consent.customize': 'Customize',
-    'consent.back': '? Back',
+    'consent.back': '← Back',
     'consent.customLead':
       'Choose what to store on this device. You need to confirm you are of legal age to save.',
     'consent.privacy': 'Privacy',
@@ -5167,7 +5195,7 @@ const I18N = {
     'privacy.linkTerms': 'Terms',
     'privacy.prefsGroup': 'Local preferences',
     'privacy.analyticsTitle': 'Analytics / telemetry',
-    'privacy.analyticsHint': 'Local stub (console). We do not send third-party telemetry.',
+    'privacy.analyticsHint': 'Local stub (console). First-party visit logging (may include IP) is described in Privacy.',
     'privacy.searchTitle': 'Save recent search',
     'privacy.searchHint': 'Remembers the last team searched on this device.',
     'privacy.filtersTitle': 'Remember filters',
@@ -5180,7 +5208,7 @@ const I18N = {
     'consent.optPrefs': 'Optional preferences',
     'consent.saveCustom': 'Save preferences',
     'consent.docTitle': 'Document',
-    'consent.backDoc': '? Back',
+    'consent.backDoc': '← Back',
     'consent.analyticsHintShort': 'Local stub (console).',
     'consent.searchTitle': 'Save search',
     'consent.searchHintShort': 'Last team searched.',
@@ -5255,23 +5283,26 @@ const I18N = {
     'panel.cardsTitle': 'cards',
     'panel.cardsExpected': 'Expected cards',
     'panel.offTarget': 'Est. off target ≈ {h} / {a} / {m}',
+    'panel.h2hTitle': 'Recent meetings',
     'panel.blurb.aria': 'Form and matchup',
     'panel.blurb.recordEs': '{w}V-{d}E-{l}D',
     'panel.blurb.recordEn': '{w}W-{d}D-{l}L',
-    'panel.blurb.formHot': '{team} is in strong form ({record})',
-    'panel.blurb.formCold': '{team} is on a poor run ({record})',
-    'panel.blurb.formMixed': '{team} looks mixed ({record})',
-    'panel.blurb.matchOpenXg': 'The model points to an open contest (~{xg} expected goals',
-    'panel.blurb.matchTightXg': 'The model points to a tight contest (~{xg} expected goals',
-    'panel.blurb.matchBalancedXg': 'The model points to a balanced contest (~{xg} expected goals',
-    'panel.blurb.matchOpen': 'The model points to an open contest',
-    'panel.blurb.matchTight': 'The model points to a tight contest',
-    'panel.blurb.matchBalanced': 'The model points to a balanced contest',
-    'panel.blurb.tailO25': '; Over 2.5 at {pct}%',
-    'panel.blurb.tailBtts': '; both teams to score at {pct}%',
-    'panel.blurb.h2h': 'Across the last {n} H2H meetings, goals averaged {avg}.',
+    'panel.blurb.formHot': '{team} arrives in strong form and confidence ({record} in recent matches)',
+    'panel.blurb.formCold': '{team} is on a poor run ({record}) and needs a response',
+    'panel.blurb.formMixed': '{team} looks mixed ({record}), without a clear form signal',
+    'panel.blurb.matchOpenXg': 'The model paints an open contest, with ~{xg} expected goals and room to attack.',
+    'panel.blurb.matchTightXg': 'The model paints a tight contest, with ~{xg} expected goals and little margin for error.',
+    'panel.blurb.matchBalancedXg': 'The model paints a balanced contest, with ~{xg} expected goals and phases both ways.',
+    'panel.blurb.matchOpen': 'The model paints an open contest, with a high tempo and chances at both ends.',
+    'panel.blurb.matchTight': 'The model paints a tight contest, more clogged and short on space.',
+    'panel.blurb.matchBalanced': 'The model paints a balanced contest, without a clear stylistic edge.',
+    'panel.blurb.intensityHigh': 'Expected intensity is high: an end-to-end game more than a control job.',
+    'panel.blurb.intensityLow': 'Attacking intensity looks lower: a patience-and-shape duel.',
+    'panel.blurb.intensityCagey': 'The profile is more cautious, with less two-way threat than usual.',
+    'panel.blurb.intensityMid': 'Intensity sits in the middle, without clear extremes.',
+    'panel.blurb.h2h': 'Across the last {n} H2H meetings goals averaged {avg}, a useful echo of the match type.',
     'panel.blurb.lowSample': 'Limited recent sample; treat the read with caution.',
-    'panel.blurb.fallback': 'Not enough recent form; the panel leans on model averages.',
+    'panel.blurb.fallback': 'Not enough recent form; the panel leans on model averages to read the clash.',
     'censor.aria': 'Subscribers only — unlock with Houdini Premium',
     'censor.title': 'Subscribers only',
     'censor.sub': 'Unlock stats with Houdini Premium',
@@ -5656,7 +5687,7 @@ function setSyncLabel(status) {
   const hours = Math.max(0, Math.round((Date.now() - t) / 36e5));
   const short =
     hours <= 0 ? 'Sync hace un momento' : hours === 1 ? 'Sync hace 1 h' : `Sync hace ${hours} h`;
-  const full = `Úúúltima sincronización: ${new Date(t).toLocaleString('es-ES')}`;
+  const full = `Última sincronización: ${new Date(t).toLocaleString('es-ES')}`;
   el.hidden = false;
   el.textContent = short;
   el.title = full;
@@ -6236,7 +6267,10 @@ function paintTop10List(el, matches) {
       const prob = tipProbPct(m);
       const rank = i + 1;
       const matchId = Number(item.matchId ?? bet.id ?? bet.matchId);
-      const liveStrip = bet.status === 'live' ? liveStripHtml(m) : '';
+      // Free: never paint liveStrip here — liveProbs + liveTipChip each call
+      // hbCensorWrap and stacked 3 crown bars under the tip. Premium keeps live.
+      const liveStrip =
+        bet.status === 'live' && contentUnlocked() ? liveStripHtml(m) : '';
       const round = formatRoundLabel(m);
       const tipInner = `<div class="card-tip__primary">
             <span class="card-tip__bet tip-accent">${escapeHtml(tipLabel)}</span>
@@ -7201,7 +7235,7 @@ function perfTipDisplayHtml(tip) {
   )}">
     <span class="perf-row__tip-blur" aria-hidden="true">${tip}</span>
     <span class="perf-row__tip-premium" aria-hidden="true">
-      <img src="/icons/ui/premium-crown.png?v=hb183" width="13" height="13" alt="" />
+      <img src="/icons/ui/premium-crown.png?v=hb186" width="13" height="13" alt="" />
       Premium
     </span>
   </span>`;
