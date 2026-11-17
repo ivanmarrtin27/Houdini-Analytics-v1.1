@@ -367,15 +367,21 @@ async function fetchStripeCoupon(env, couponId, { fetchImpl = fetch } = {}) {
 
 /**
  * Resolve a Stripe Coupon for Houdini percent promos (subscription-safe).
- * Order: env map → existing stable id → create percent_off duration=once.
+ * Order: env map (verified) → existing stable id → create percent_off duration=once.
  * Never overrides line_items amounts (invalid for recurring Prices).
+ * Live vs Test: uses env.STRIPE_SECRET_KEY mode; Test coupons do not exist in Live.
  */
-async function resolveStripePercentCoupon(env, percentOff, { fetchImpl = fetch } = {}) {
+export async function resolveStripePercentCoupon(env, percentOff, { fetchImpl = fetch } = {}) {
   const pct = Math.max(1, Math.min(100, Math.round(Number(percentOff) || 0)));
   if (!pct) return { error: 'invalid_percent' };
+  if (!env?.STRIPE_SECRET_KEY) return { error: 'stripe_not_configured' };
 
   const mapped = envCouponIdForPercent(env, pct);
-  if (mapped) return { id: mapped, percentOff: pct, source: 'env' };
+  if (mapped) {
+    const existingMapped = await fetchStripeCoupon(env, mapped, { fetchImpl });
+    if (existingMapped?.id) return { id: existingMapped.id, percentOff: pct, source: 'env' };
+    // Env may point at a Test-mode id while the Worker key is Live — fall through.
+  }
 
   const stableId = houdiniPercentCouponId(pct);
   const existing = await fetchStripeCoupon(env, stableId, { fetchImpl });
@@ -404,7 +410,11 @@ async function resolveStripePercentCoupon(env, percentOff, { fetchImpl = fetch }
     const again = await fetchStripeCoupon(env, stableId, { fetchImpl });
     if (again?.id) return { id: again.id, percentOff: pct, source: 'existing' };
   }
-  return { error: `stripe_coupon_${res.status}`, detail: detail.slice(0, 300) };
+  return {
+    error: `stripe_coupon_${res.status}`,
+    detail: detail.slice(0, 300),
+    message: 'No se pudo crear/obtener el cupón de descuento en Stripe',
+  };
 }
 
 function stripeAuthHeaders(env) {
@@ -443,12 +453,21 @@ export async function createStripeCheckout(
   const priceId = resolveStripePriceId(env, planKey);
   if (!priceId) return { error: 'stripe_price_missing' };
   let couponId = null;
+  let couponSource = null;
   const pct = percentOff != null ? Math.round(Number(percentOff) || 0) : 0;
   if (pct > 0) {
     // Subscription Checkout: discounts[0][coupon] only — no price_data/unit_amount overrides.
+    // Fail closed: never open a full-price session when a percent discount was requested.
     const coupon = await resolveStripePercentCoupon(env, pct, { fetchImpl });
-    if (!coupon.id) return coupon;
+    if (!coupon?.id) {
+      return {
+        error: coupon?.error || 'stripe_coupon_missing',
+        detail: coupon?.detail || null,
+        message: coupon?.message || 'No se pudo aplicar el descuento en Stripe',
+      };
+    }
     couponId = coupon.id;
+    couponSource = coupon.source || null;
   }
   // STRIPE_COUPON_FIRST_MONTH unused with flat 7,99 € monthly (no intro offer).
   const res = await fetchImpl('https://api.stripe.com/v1/checkout/sessions', {
@@ -466,10 +485,27 @@ export async function createStripeCheckout(
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
-    return { error: `stripe_${res.status}`, detail: detail.slice(0, 300) };
+    return {
+      error: `stripe_${res.status}`,
+      detail: detail.slice(0, 300),
+      message:
+        pct > 0
+          ? 'Stripe rechazó el Checkout con el cupón de descuento'
+          : 'Stripe rechazó la sesión de Checkout',
+    };
   }
   const data = await res.json();
-  return { url: data.url, sessionId: data.id, percentOff: pct > 0 ? pct : null, plan: planKey };
+  // If pct>0 we always sent discounts[0][coupon]; Stripe rejects unknown coupons,
+  // so a successful create implies the Live coupon was attached.
+  return {
+    url: data.url,
+    sessionId: data.id,
+    percentOff: pct > 0 ? pct : null,
+    couponId: couponId || null,
+    couponSource,
+    plan: planKey,
+    amountTotal: data.amount_total != null ? Number(data.amount_total) : null,
+  };
 }
 
 /**
@@ -936,6 +972,82 @@ export async function previewPromoCode(db, rawCode, { userId = null } = {}) {
     percentOff: null,
     days,
     needsAuth: !userId,
+  };
+}
+
+/**
+ * Resolve percent-off for Checkout. Fail closed when a promo code was sent but
+ * cannot be applied — never open a full-price session while the UI shows −N%.
+ *
+ * Order: users.pending_promo_* → strict preview → prior discount redemption.
+ */
+export async function resolveCheckoutDiscount(
+  db,
+  { userId = null, promoCode = '', pending = null } = {}
+) {
+  const pendingPct = pending?.percent != null ? Number(pending.percent) : NaN;
+  if (Number.isFinite(pendingPct) && pendingPct > 0) {
+    return {
+      ok: true,
+      percentOff: Math.round(pendingPct),
+      code: pending?.code ? String(pending.code) : null,
+      source: 'pending',
+    };
+  }
+
+  const code = normalizePromoCode(promoCode);
+  if (!code) {
+    return { ok: true, percentOff: null, code: null, source: 'none' };
+  }
+
+  const preview = await previewPromoCode(db, code, { userId });
+  if (preview.ok && preview.percentOff) {
+    return {
+      ok: true,
+      percentOff: Math.round(Number(preview.percentOff)),
+      code: preview.code || code,
+      source: 'preview',
+    };
+  }
+  if (preview.ok && preview.kind === 'grant') {
+    // free_* codes are not Checkout discounts — ignore for Stripe session.
+    return { ok: true, percentOff: null, code: preview.code || code, source: 'grant' };
+  }
+
+  // Already redeemed discount_* still entitles one Checkout attach if pending was cleared early.
+  const uid = userId ? String(userId) : '';
+  if (uid) {
+    const prior = await db
+      .first(
+        `SELECT r.code AS code, p.type AS type
+         FROM promo_redemptions r
+         JOIN promo_codes p ON p.code = r.code
+         WHERE r.user_id = ?1 AND r.code = ?2
+         LIMIT 1`,
+        uid,
+        code
+      )
+      .catch(() => null);
+    if (prior) {
+      const type = normalizePromoType(prior.type);
+      const percent = promoPercentForType(type);
+      if (percent) {
+        return {
+          ok: true,
+          percentOff: percent,
+          code,
+          source: 'redemption',
+        };
+      }
+    }
+  }
+
+  return {
+    ok: false,
+    error: preview?.error || 'promo_not_applied',
+    message: preview?.message || 'No se pudo aplicar el cupón al pago',
+    percentOff: null,
+    code,
   };
 }
 

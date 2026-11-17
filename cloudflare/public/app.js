@@ -4372,6 +4372,7 @@ async function startPremiumCheckout(plan = 'monthly') {
   const allowed = new Set(['weekly', 'monthly', 'quarterly', 'annual']);
   const chosen = allowed.has(String(plan || '')) ? String(plan) : 'monthly';
   const promoCode = effectivePromoCode();
+  const expectedPct = effectivePromoPercent();
   try {
     const body = { plan: chosen };
     if (promoCode) body.promoCode = promoCode;
@@ -4380,6 +4381,20 @@ async function startPremiumCheckout(plan = 'monthly') {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
+    const appliedPct =
+      data.appliedPercentOff != null && Number.isFinite(Number(data.appliedPercentOff))
+        ? Number(data.appliedPercentOff)
+        : 0;
+    // Never open Stripe at full price when the UI is showing a promo discount.
+    if (data.checkoutUrl && expectedPct > 0 && appliedPct !== expectedPct) {
+      showBanner(
+        t('toast.payStartFail', {
+          msg: data.checkoutDetail || data.checkoutError || `descuento ${expectedPct}% no aplicado`,
+        }),
+        'error'
+      );
+      return;
+    }
     if (data.checkoutUrl) {
       window.location.href = data.checkoutUrl;
     } else {

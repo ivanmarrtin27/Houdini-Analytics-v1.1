@@ -13,6 +13,8 @@ import {
   checkoutFormBody,
   houdiniPercentCouponId,
   previewPromoCode,
+  resolveCheckoutDiscount,
+  resolveStripePercentCoupon,
 } from '../src/services/premiumService.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -31,6 +33,8 @@ assert.equal(promoPercentForType(PROMO_TYPES.FREE_MONTH), null);
 assert.equal(isDiscountPromoType(PROMO_TYPES.DISCOUNT_40), true);
 assert.equal(isDiscountPromoType(PROMO_TYPES.FREE_DAYS), false);
 assert.equal(typeof previewPromoCode, 'function');
+assert.equal(typeof resolveCheckoutDiscount, 'function');
+assert.equal(typeof resolveStripePercentCoupon, 'function');
 
 const plain = checkoutFormBody({
   clientReferenceId: 'abc',
@@ -57,11 +61,30 @@ assert.equal(houdiniPercentCouponId(20), 'houdini_pct_20_once');
 
 assert.match(INDEX, /\/api\/v1\/premium\/promo\/preview/);
 assert.match(INDEX, /previewPromoCode/);
+assert.match(INDEX, /resolveCheckoutDiscount/);
+assert.match(INDEX, /promo_not_applied|discount_mismatch/);
 assert.match(HTML, /id="premium-coupon"/);
 assert.match(HTML, /id="premium-promo-btn"/);
 assert.match(APP, /function applyPremiumPromo/);
 assert.match(APP, /PROMO_SESSION_KEY/);
 assert.match(APP, /promoCode/);
+assert.match(APP, /expectedPct/);
+assert.match(APP, /appliedPercentOff/);
 assert.equal(APP.includes('function applyPremiumPromo'), PAGES_APP.includes('function applyPremiumPromo'));
+
+const none = await resolveCheckoutDiscount(
+  { async first() { return null; } },
+  { userId: null, promoCode: '', pending: null }
+);
+assert.equal(none.ok, true);
+assert.equal(none.percentOff, null);
+
+const fromPending = await resolveCheckoutDiscount(
+  { async first() { return null; } },
+  { userId: 'u1', promoCode: '', pending: { percent: 40, code: 'Z40' } }
+);
+assert.equal(fromPending.ok, true);
+assert.equal(fromPending.percentOff, 40);
+assert.equal(fromPending.source, 'pending');
 
 console.log('test-promo-types: ok');

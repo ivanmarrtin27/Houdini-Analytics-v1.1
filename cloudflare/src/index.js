@@ -1396,22 +1396,23 @@ async function handleApi(request, env, ctx) {
     const pending = user?.id
       ? await premiumService.getPendingPromoDiscount(db, user.id)
       : { percent: null, code: null };
-    let percentOff = pending.percent || null;
-    let appliedPromoCode = pending.code || null;
-    if (!percentOff && promoCodeBody) {
-      const preview = await premiumService.previewPromoCode(db, promoCodeBody, {
-        userId: user?.id || null,
-      });
-      if (preview.ok && preview.percentOff) {
-        percentOff = preview.percentOff;
-        appliedPromoCode = preview.code || promoCodeBody;
-      }
-    }
+    const discount = await premiumService.resolveCheckoutDiscount(db, {
+      userId: user?.id || null,
+      promoCode: promoCodeBody,
+      pending,
+    });
+    let percentOff = discount.ok ? discount.percentOff || null : null;
+    let appliedPromoCode = discount.ok ? discount.code || null : null;
     let checkoutUrl = null;
     let appliedPercentOff = null;
     let checkoutError = null;
     let checkoutDetail = null;
-    if (premiumService.stripeConfigured(env)) {
+    if (!discount.ok) {
+      // Promo explicitly requested but not resolvable — never charge full list price.
+      checkoutError = discount.error || 'promo_not_applied';
+      checkoutDetail = discount.message || null;
+      console.error('[premium/session] promo not applied', checkoutError, checkoutDetail);
+    } else if (premiumService.stripeConfigured(env)) {
       const checkout = await premiumService.createStripeCheckout(env, String(session.id), {
         // Pages `_worker.js` proxies /api → workers.dev, so request.url.origin is wrong
         // for Stripe success/cancel. Prefer browser Origin, then AUTH_PUBLIC_ORIGIN.
@@ -1423,8 +1424,13 @@ async function handleApi(request, env, ctx) {
       appliedPercentOff = checkout.percentOff || null;
       if (!checkoutUrl) {
         checkoutError = checkout.error || 'checkout_failed';
-        checkoutDetail = checkout.detail || null;
+        checkoutDetail = checkout.detail || checkout.message || null;
         console.error('[premium/session] checkout failed', checkoutError, checkoutDetail);
+      } else if (percentOff && appliedPercentOff !== percentOff) {
+        checkoutUrl = null;
+        checkoutError = 'discount_mismatch';
+        checkoutDetail = `expected=${percentOff} applied=${appliedPercentOff}`;
+        console.error('[premium/session] discount mismatch', checkoutDetail);
       }
     }
     return json(
