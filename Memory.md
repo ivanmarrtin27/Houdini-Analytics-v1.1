@@ -46,7 +46,7 @@
 - DNS Pages + cookies/success_url Stripe al dominio
 - API_FOOTBALL_KEY válida
 - Pase ES/EN móvil; PWA/splash coherente
-- Legales v2 listos en repo (shell hb186): auth requerida, Stripe Premium, page_hits/IP, CIF pendiente — **deploy Pages pendiente OK usuario**
+- Legales v2 listos en repo (shell hb187): auth requerida, Stripe Premium, page_hits/IP, NIF 78239644S — **deploy Pages pendiente OK usuario**
 
 ## Deploy
 - App Pages: `npx wrangler pages deploy pages --project-name houdini-analytics --branch main`
