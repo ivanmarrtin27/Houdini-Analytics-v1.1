@@ -264,8 +264,22 @@ function lineupPlayerName(p) {
     p.nameStr ||
     p.playerName ||
     p.player?.name ||
+    p.shortName ||
+    p.lastName ||
     null
   );
+}
+
+function lineupPlayerLastName(p) {
+  if (!p || typeof p !== 'object') return null;
+  const last = p.lastName || p.lastname || p.surname || null;
+  return last ? String(last).trim() || null : null;
+}
+
+function lineupPlayerShortName(p) {
+  if (!p || typeof p !== 'object') return null;
+  const short = p.shortName || p.shortname || null;
+  return short ? String(short).trim() || null : null;
 }
 
 function lineupShirt(p) {
@@ -314,7 +328,16 @@ function parseLineupSide(side) {
       const name = lineupPlayerName(p);
       if (!name) return null;
       const { x, y } = lineupCoords(p);
-      return { name: String(name), shirt: lineupShirt(p), x, y };
+      const lastName = lineupPlayerLastName(p);
+      const shortName = lineupPlayerShortName(p);
+      return {
+        name: String(name),
+        lastName: lastName || null,
+        shortName: shortName || null,
+        shirt: lineupShirt(p),
+        x,
+        y,
+      };
     })
     .filter(Boolean)
     .slice(0, 11);
