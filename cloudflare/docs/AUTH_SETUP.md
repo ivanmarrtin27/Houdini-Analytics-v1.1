@@ -42,7 +42,30 @@ Includes `0029_users_auth.sql` (users + sessions) and `0030_users_username.sql` 
 - `POST /api/v1/auth/change-password` — body `{ currentPassword, newPassword, newPassword2 }` (password accounts only).
 - `GET /api/v1/auth/export` — JSON portability dump (profile, sessions, premium refs, support tickets).
 - `POST /api/v1/auth/delete` — hard-delete user + sessions; scrub linked support tickets when table exists.
-- `POST /api/v1/support/tickets` — contact / complaint form (D1 `support_tickets`, migration `0042`).
+- `POST /api/v1/support/tickets` — contact / complaint form (D1 `support_tickets`, migration `0042`). After insert, Worker tries to email the inbox (see Support email below). Response includes `emailed: true|false`.
+
+## Support email (inbox notify)
+
+Tickets always land in D1 (admin panel → Soporte). To also receive them in Gmail:
+
+```bash
+cd cloudflare
+# Inbox (secret; never shown in public UI)
+npx wrangler secret put SUPPORT_INBOX_EMAIL
+# value: ivanmarrtin2703@gmail.com
+
+# Resend API key (required for real inbox delivery today)
+# 1) Create free account at https://resend.com
+# 2) API Keys → Create → copy
+# 3) With free sandbox from-address, Resend only delivers to your verified Resend email
+npx wrangler secret put RESEND_API_KEY
+
+# Optional: custom from after verifying a domain in Resend
+# npx wrangler secret put SUPPORT_FROM_EMAIL
+# value e.g. Houdini Analytics <noreply@yourdomain.com>
+```
+
+Without `RESEND_API_KEY`, the ticket is still saved (`ok: true`, `emailed: false`) and visible in admin. Optional Cloudflare Email Sending binding (`EMAIL` + onboarded domain + `SUPPORT_FROM_EMAIL`) is a fallback if configured later.
 
 ## Smoke
 

@@ -696,7 +696,7 @@ function hbCensorWrap(html, { block = false, elongated = false } = {}) {
   )}">
     <div class="hb-censor__veil" aria-hidden="true">${html}</div>
     <div class="hb-censor__lock" aria-hidden="true">
-      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb190" width="16" height="16" alt="" decoding="async" />
+      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb191" width="16" height="16" alt="" decoding="async" />
       <span class="hb-censor__lock-title">${escapeHtml(t('censor.title'))}</span>
       <span class="hb-censor__lock-sub">${escapeHtml(t('censor.sub'))}</span>
     </div>
@@ -1859,7 +1859,7 @@ function mpVsMidLabel(m, live) {
 }
 
 function mpVsBrandMarkHtml() {
-  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb190" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
+  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb191" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
 }
 
 function mpVsMidHtml(m, live) {
@@ -2162,7 +2162,7 @@ function sumRecentAvg(recentAvgs, key) {
   return Number(((Number(h) || 0) + (Number(a) || 0)).toFixed(2));
 }
 
-const UI_ICON_V = 'hb190';
+const UI_ICON_V = 'hb191';
 const MP_STAT_ICON_PX = 20;
 const mpStatImg = (file) =>
   `<img class="mp-stat__icon mp-stat__icon--img" src="/icons/ui/${file}?v=${UI_ICON_V}" width="${MP_STAT_ICON_PX}" height="${MP_STAT_ICON_PX}" alt="" aria-hidden="true" decoding="async" />`;
@@ -4761,7 +4761,7 @@ const I18N = {
     'contact.subject': 'Asunto',
     'contact.message': 'Mensaje',
     'contact.submit': 'Enviar',
-    'contact.orEmail': 'También puedes escribir a',
+    'contact.alt': 'El equipo Houdini te responderá por email a la dirección que indiques.',
     'contact.ok': 'Mensaje enviado. Te responderemos por email.',
     'contact.fail': 'No se pudo enviar el mensaje',
 
@@ -5234,7 +5234,7 @@ const I18N = {
     'contact.subject': 'Subject',
     'contact.message': 'Message',
     'contact.submit': 'Send',
-    'contact.orEmail': 'You can also email',
+    'contact.alt': 'The Houdini team will reply by email to the address you provide.',
     'contact.ok': 'Message sent. We will reply by email.',
     'contact.fail': 'Could not send the message',
 
@@ -6099,6 +6099,7 @@ function shiftDay(delta) {
   else if (selectedDate === yesterdayYmd()) windowMode = 'ayer';
   else windowMode = 'date';
   selectedMatchId = null;
+  markDateEnter();
   syncWindowChips();
   persistFiltersIfAllowed();
   load().catch((err) => showBanner(err.message, 'error'));
@@ -6116,6 +6117,7 @@ function setDayPreset(kind) {
     selectedDate = todayYmd();
   }
   selectedMatchId = null;
+  markDateEnter();
   syncWindowChips();
   persistFiltersIfAllowed();
   load().catch((err) => showBanner(err.message, 'error'));
@@ -6723,6 +6725,7 @@ function setAciertosDate(delta) {
   else if (selectedDate === tomorrowYmd()) windowMode = 'manana';
   else if (selectedDate === yesterdayYmd()) windowMode = 'ayer';
   else windowMode = 'date';
+  markDateEnter();
   syncWindowChips();
   persistFiltersIfAllowed();
   renderAciertos().catch(() => {});
@@ -6740,6 +6743,7 @@ function setAciertosPreset(kind) {
     windowMode = 'hoy';
     selectedDate = todayYmd();
   }
+  markDateEnter();
   syncWindowChips();
   persistFiltersIfAllowed();
   renderAciertos().catch(() => {});
@@ -6858,6 +6862,7 @@ async function renderAciertos() {
     summaryEl.innerHTML = aciertosSummaryHtml(data.summary || { total: items.length, resolved: 0 });
     if (!items.length) {
       list.innerHTML = `<div class="empty-board">${escapeHtml(t('aciertos.empty'))}</div>`;
+      flushDateEnter();
       return;
     }
     ensureFreeDailyTip(
@@ -6870,12 +6875,14 @@ async function renderAciertos() {
     );
     list.innerHTML = items.map((it, i) => aciertosRowHtml(it, i, { freeDay: date })).join('');
     bindAnalyze(list);
+    flushDateEnter();
   } catch (err) {
     if (seq !== aciertosLoadSeq) return;
     summaryEl.innerHTML = '';
     list.innerHTML = `<div class="empty-board">${escapeHtml(t('aciertos.loadError'))}: ${escapeHtml(
       err.message || 'error'
     )}</div>`;
+    flushDateEnter();
   }
 }
 
@@ -7454,6 +7461,7 @@ function renderHoyBoard() {
   renderPartidosList();
   renderTop3().catch(() => {});
   updateFilterChip();
+  flushDateEnter();
 }
 
 function syncMarketTabs() {
@@ -7546,7 +7554,7 @@ function perfTipDisplayHtml(tip) {
   )}">
     <span class="perf-row__tip-blur" aria-hidden="true">${tip}</span>
     <span class="perf-row__tip-premium" aria-hidden="true">
-      <img src="/icons/ui/premium-crown.png?v=hb190" width="13" height="13" alt="" />
+      <img src="/icons/ui/premium-crown.png?v=hb191" width="13" height="13" alt="" />
       Premium
     </span>
   </span>`;
@@ -7826,6 +7834,7 @@ function setMatchStatsDate(delta) {
   if (selectedDate === todayYmd()) windowMode = 'hoy';
   else if (selectedDate === tomorrowYmd()) windowMode = 'manana';
   else if (selectedDate === yesterdayYmd()) windowMode = 'ayer';
+  markDateEnter();
   syncWindowChips();
   persistFiltersIfAllowed();
   loadMatchStatsView().catch(() => {});
@@ -7874,6 +7883,7 @@ async function loadMatchStatsView() {
       } partidos con datos · ${formatStatsDate(date)}`;
     }
     renderMatchStatsRows(data.matches || []);
+    flushDateEnter();
   } catch (err) {
     if (seq !== matchStatsLoadSeq) return;
     if (list) {
@@ -7881,6 +7891,7 @@ async function loadMatchStatsView() {
         err.message || 'No se pudieron cargar las estadísticas.'
       )}</div>`;
     }
+    flushDateEnter();
   }
 }
 
@@ -8229,18 +8240,30 @@ function syncNavIndicator({ instant = false } = {}) {
   }
 }
 
-/** Subtle enter motion for all main tabs (nav / tabbar taps only — no swipe). */
+/** Subtle enter motion for main tabs (nav / tabbar taps + day-change). */
 const VIEW_ENTER_IDS = new Set(['partidos', 'top3', 'aciertos', 'stats', 'ligas']);
-/** Cap stagger so every visible row participates without a long cascade. */
-const VIEW_ENTER_STAGGER_CAP = 12;
-const VIEW_ENTER_STAGGER_MS = 35;
-const VIEW_ENTER_HOLD_MS =
-  VIEW_ENTER_STAGGER_CAP * VIEW_ENTER_STAGGER_MS + 420;
+/** Soft cap only for huge boards; every row below this gets its own delay. */
+const VIEW_ENTER_STAGGER_SOFT_CAP = 64;
+const VIEW_ENTER_STAGGER_MS = 28;
 let lastViewEnterId = null;
 let viewEnterClearTimer = 0;
+/** After Ayer/Hoy/Mañana / chevrons, replay row stagger on the active tab. */
+let pendingDateEnter = false;
 
 function viewEnterDelay(index) {
-  return Math.min(VIEW_ENTER_STAGGER_CAP, Math.max(0, Number(index) || 0)) * VIEW_ENTER_STAGGER_MS;
+  return Math.min(VIEW_ENTER_STAGGER_SOFT_CAP, Math.max(0, Number(index) || 0)) * VIEW_ENTER_STAGGER_MS;
+}
+
+function markDateEnter() {
+  pendingDateEnter = true;
+}
+
+function flushDateEnter() {
+  if (!pendingDateEnter) return;
+  pendingDateEnter = false;
+  const view = document.getElementById('views')?.dataset.view;
+  if (!VIEW_ENTER_IDS.has(view)) return;
+  requestAnimationFrame(() => triggerViewEnter(view));
 }
 
 function triggerViewEnter(view) {
@@ -8248,8 +8271,8 @@ function triggerViewEnter(view) {
   if (prefersReducedMotion()) return;
   const el = document.getElementById(view);
   if (!el) return;
-  // Keep .view-enter until capped stagger finishes (animationend on the pane
-  // alone fires too early and cancels later row animations).
+  // Keep .view-enter until stagger finishes (animationend on the pane alone
+  // fires too early and cancels later row animations).
   if (viewEnterClearTimer) {
     clearTimeout(viewEnterClearTimer);
     viewEnterClearTimer = 0;
@@ -8258,10 +8281,16 @@ function triggerViewEnter(view) {
   void el.offsetWidth;
   el.classList.add('view-enter');
   lastViewEnterId = view;
+  const animated = el.querySelectorAll(
+    '.league, .league-match, .card--top3, .card--aciertos, .match-stats-row, .ligas-folder'
+  );
+  const n = animated.length || 1;
+  const hold =
+    Math.min(VIEW_ENTER_STAGGER_SOFT_CAP, Math.max(0, n - 1)) * VIEW_ENTER_STAGGER_MS + 420;
   viewEnterClearTimer = window.setTimeout(() => {
     el.classList.remove('view-enter');
     viewEnterClearTimer = 0;
-  }, VIEW_ENTER_HOLD_MS);
+  }, hold);
 }
 
 function ensurePartidosDateSynced() {
@@ -10954,6 +10983,7 @@ document.getElementById('match-date')?.addEventListener('change', (e) => {
   windowMode = 'date';
   selectedDate = v;
   selectedMatchId = null;
+  markDateEnter();
   syncWindowChips();
   persistFiltersIfAllowed();
   load().catch((err) => showBanner(err.message, 'error'));

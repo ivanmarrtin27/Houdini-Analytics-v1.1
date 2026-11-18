@@ -44,6 +44,7 @@ import * as authService from './services/authService.js';
 import * as cfUsageService from './services/cfUsageService.js';
 import * as pageHitsService from './services/pageHitsService.js';
 import * as supportService from './services/supportService.js';
+import { notifySupportTicket } from './services/supportNotify.js';
 
 /** Failed admin secret attempts (isolate memory). */
 const adminSecretFails = new Map();
@@ -1410,7 +1411,27 @@ async function handleApi(request, env, ctx) {
         userId: user?.id || null,
         ip,
       });
-      return json({ ok: true, id: ticket.id, createdAt: ticket.createdAt }, 201);
+      const mail = await notifySupportTicket(env, {
+        id: ticket.id,
+        createdAt: ticket.createdAt,
+        name: fields.name,
+        email: fields.email,
+        subject: fields.subject,
+        message: fields.message,
+        ticketType: typeV.type,
+        userId: user?.id || null,
+        ip,
+      });
+      return json(
+        {
+          ok: true,
+          id: ticket.id,
+          createdAt: ticket.createdAt,
+          emailed: Boolean(mail?.emailed),
+          emailProvider: mail?.provider || null,
+        },
+        201
+      );
     } catch (err) {
       return json({ error: err?.message || 'No se pudo enviar' }, 500);
     }
