@@ -696,7 +696,7 @@ function hbCensorWrap(html, { block = false, elongated = false } = {}) {
   )}">
     <div class="hb-censor__veil" aria-hidden="true">${html}</div>
     <div class="hb-censor__lock" aria-hidden="true">
-      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb191" width="16" height="16" alt="" decoding="async" />
+      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb193" width="16" height="16" alt="" decoding="async" />
       <span class="hb-censor__lock-title">${escapeHtml(t('censor.title'))}</span>
       <span class="hb-censor__lock-sub">${escapeHtml(t('censor.sub'))}</span>
     </div>
@@ -1859,7 +1859,7 @@ function mpVsMidLabel(m, live) {
 }
 
 function mpVsBrandMarkHtml() {
-  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb191" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
+  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb193" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
 }
 
 function mpVsMidHtml(m, live) {
@@ -2162,7 +2162,7 @@ function sumRecentAvg(recentAvgs, key) {
   return Number(((Number(h) || 0) + (Number(a) || 0)).toFixed(2));
 }
 
-const UI_ICON_V = 'hb191';
+const UI_ICON_V = 'hb193';
 const MP_STAT_ICON_PX = 20;
 const mpStatImg = (file) =>
   `<img class="mp-stat__icon mp-stat__icon--img" src="/icons/ui/${file}?v=${UI_ICON_V}" width="${MP_STAT_ICON_PX}" height="${MP_STAT_ICON_PX}" alt="" aria-hidden="true" decoding="async" />`;
@@ -5701,14 +5701,10 @@ function syncPerfilView() {
 
 function syncContactForm() {
   const nameEl = document.getElementById('contact-name');
-  const emailEl = document.getElementById('contact-email');
-  if (authUser) {
-    if (nameEl && !String(nameEl.value || '').trim()) {
-      nameEl.value = authUser.name || '';
-    }
-    if (emailEl && !String(emailEl.value || '').trim()) {
-      emailEl.value = authUser.email || '';
-    }
+  // Never prefill Email from profile — leave empty so the user types
+  // the reply-to address (avoids surfacing owner/SUPPORT inbox when logged in as that account).
+  if (authUser && nameEl && !String(nameEl.value || '').trim()) {
+    nameEl.value = authUser.name || '';
   }
 }
 
@@ -7554,7 +7550,7 @@ function perfTipDisplayHtml(tip) {
   )}">
     <span class="perf-row__tip-blur" aria-hidden="true">${tip}</span>
     <span class="perf-row__tip-premium" aria-hidden="true">
-      <img src="/icons/ui/premium-crown.png?v=hb191" width="13" height="13" alt="" />
+      <img src="/icons/ui/premium-crown.png?v=hb193" width="13" height="13" alt="" />
       Premium
     </span>
   </span>`;

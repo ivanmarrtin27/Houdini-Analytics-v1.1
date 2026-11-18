@@ -1,10 +1,9 @@
 /**
  * Email notify for contact / support tickets.
  * Primary: Resend (RESEND_API_KEY). Optional fallback: Cloudflare Email binding (EMAIL).
- * Inbox address lives in secret SUPPORT_INBOX_EMAIL (never shown in public UI).
+ * Inbox address lives in secret SUPPORT_INBOX_EMAIL (never shown in public UI / API).
  */
 
-const DEFAULT_INBOX = 'ivanmarrtin2703@gmail.com';
 /** Resend free sandbox from-address; works to verified owner inbox. */
 const DEFAULT_FROM = 'Houdini Analytics <onboarding@resend.dev>';
 
@@ -16,11 +15,15 @@ function escapeHtml(s) {
     .replace(/"/g, '&quot;');
 }
 
+/**
+ * Private inbox from env/secret only — never hardcode a personal address in source.
+ * @returns {string|null}
+ */
 export function supportInbox(env) {
-  const v = String(env?.SUPPORT_INBOX_EMAIL || DEFAULT_INBOX)
+  const v = String(env?.SUPPORT_INBOX_EMAIL || '')
     .trim()
     .toLowerCase();
-  return v || DEFAULT_INBOX;
+  return v || null;
 }
 
 function buildBodies(ticket) {
@@ -126,10 +129,15 @@ async function sendViaCloudflareEmail(env, ticket, to, subject, text, html) {
 
 /**
  * Best-effort inbox notify after D1 insert.
+ * Destination address is never returned to callers / clients.
  * @returns {{ emailed: boolean, provider: string|null, error?: string, id?: string|null }}
  */
 export async function notifySupportTicket(env, ticket) {
   const to = supportInbox(env);
+  if (!to) {
+    console.error('supportNotify missing SUPPORT_INBOX_EMAIL');
+    return { emailed: false, provider: null, error: 'SUPPORT_INBOX_EMAIL_missing' };
+  }
   const { subject, text, html } = buildBodies(ticket);
 
   try {

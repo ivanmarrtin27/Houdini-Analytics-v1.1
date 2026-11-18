@@ -52,7 +52,7 @@ Tickets always land in D1 (admin panel → Soporte). To also receive them in Gma
 cd cloudflare
 # Inbox (secret; never shown in public UI)
 npx wrangler secret put SUPPORT_INBOX_EMAIL
-# value: ivanmarrtin2703@gmail.com
+# value: <private inbox email — never expose in UI/docs to users>
 
 # Resend API key (required for real inbox delivery today)
 # 1) Create free account at https://resend.com
