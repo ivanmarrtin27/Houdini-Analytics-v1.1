@@ -37,10 +37,18 @@ Includes `0029_users_auth.sql` (users + sessions) and `0030_users_username.sql` 
 - After email register: welcome banner ~3s, then centered Premium upsell modal (`POST /api/v1/premium/session`).
 - Stripe subscriptions (Mensual/Trimestral/Anual): see [`STRIPE_SETUP.md`](./STRIPE_SETUP.md).
 
+## Account self-service
+
+- `POST /api/v1/auth/change-password` — body `{ currentPassword, newPassword, newPassword2 }` (password accounts only).
+- `GET /api/v1/auth/export` — JSON portability dump (profile, sessions, premium refs, support tickets).
+- `POST /api/v1/auth/delete` — hard-delete user + sessions; scrub linked support tickets when table exists.
+- `POST /api/v1/support/tickets` — contact / complaint form (D1 `support_tickets`, migration `0042`).
+
 ## Smoke
 
 - Register via UI → `GET /api/v1/auth/me` returns user with `username`
 - Login with username or email
 - Logout → me returns `{ user: null }`
 - Google only works after secrets + redirect URIs
+- Change password (password provider) + export JSON from Perfil
 

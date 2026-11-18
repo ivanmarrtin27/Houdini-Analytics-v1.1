@@ -20,3 +20,6 @@ skills-lock.json
 # Local admin QR (no secret, but keep private)
 admin-qr/
 
+# Local ChatGPT / TikTok brand pack (assets + brief; keep out of git)
+cloudflare/content/chatgpt-brand-pack/
+

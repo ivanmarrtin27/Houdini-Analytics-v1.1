@@ -303,6 +303,22 @@ export async function setUserDisabled(db, userId, disabled) {
 
 export async function deleteUser(db, userId) {
   const id = String(userId);
+  // Best-effort: unlink + scrub support ticket PII if the table exists.
+  try {
+    await db.run(
+      `UPDATE support_tickets
+        SET user_id = NULL,
+            name = 'eliminado',
+            email = 'deleted@invalid',
+            message = '[cuenta eliminada]',
+            updated_at = ?2
+       WHERE user_id = ?1`,
+      id,
+      nowIso()
+    );
+  } catch (_) {
+    /* migration 0042 may not be applied yet */
+  }
   // Batch = one D1 transaction so sessions+user stay consistent under FK.
   await db.batch([
     { sql: `DELETE FROM auth_sessions WHERE user_id = ?1`, params: [id] },
@@ -313,6 +329,35 @@ export async function deleteUser(db, userId) {
   if (still) {
     throw new Error('No se pudo eliminar el usuario (sigue en D1)');
   }
+}
+
+/** Change password for password-provider accounts (current password required). */
+export async function changePassword(db, user, { currentPassword, newPassword }) {
+  if (!user?.id) return { ok: false, error: 'No autenticado' };
+  if (!user.password_hash) {
+    return {
+      ok: false,
+      error: 'Esta cuenta usa Google. No hay contraseña local que cambiar.',
+    };
+  }
+  const cur = validatePassword(currentPassword);
+  if (!cur.ok) return { ok: false, error: 'Contraseña actual incorrecta' };
+  const ok = await verifyPassword(cur.password, user.password_hash);
+  if (!ok) return { ok: false, error: 'Contraseña actual incorrecta' };
+  const next = validatePassword(newPassword);
+  if (!next.ok) return next;
+  if (cur.password === next.password) {
+    return { ok: false, error: 'La nueva contraseña debe ser distinta' };
+  }
+  const hash = await hashPassword(next.password);
+  const ts = nowIso();
+  await db.run(
+    `UPDATE users SET password_hash = ?2, updated_at = ?3, provider = 'password' WHERE id = ?1`,
+    String(user.id),
+    hash,
+    ts
+  );
+  return { ok: true };
 }
 
 export async function findUserByEmail(db, email) {

@@ -203,11 +203,14 @@ body.auth-required .auth-form__submit.primary:hover {
   -webkit-overflow-scrolling: touch;
 }
 .consent-gate__card {
-  background: #121212;
-  border: 1px solid var(--line);
-  border-radius: 0;
-  padding: 1.25rem 1.15rem 1.35rem;
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.035), transparent 42%),
+    #121212;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  padding: 1.35rem 1.2rem 1.4rem;
   color: var(--chalk);
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.45);
 }
 .consent-gate__logo {
   display: block;
@@ -1269,9 +1272,10 @@ main.v2-main.shell {
   transform: translateX(-400%);
 }
 
-/* Premium / Perfil / Ajustes / admin / legales live outside the views track */
+/* Premium / Perfil / Contacto / Ajustes / admin / legales live outside the views track */
 #premium.view,
 #perfil.view,
+#contacto.view,
 #admin.view,
 #ajustes.view,
 #privacidad.view,
@@ -1287,6 +1291,8 @@ main.v2-main.shell {
 .v2-main[data-view="premium"] .views-track,
 .views[data-view="perfil"] .views-track,
 .v2-main[data-view="perfil"] .views-track,
+.views[data-view="contacto"] .views-track,
+.v2-main[data-view="contacto"] .views-track,
 .views[data-view="admin"] .views-track,
 .v2-main[data-view="admin"] .views-track,
 .views[data-view="ajustes"] .views-track,
@@ -1305,6 +1311,8 @@ main.v2-main.shell {
 .v2-main[data-view="premium"] #premium,
 .views[data-view="perfil"] #perfil,
 .v2-main[data-view="perfil"] #perfil,
+.views[data-view="contacto"] #contacto,
+.v2-main[data-view="contacto"] #contacto,
 .views[data-view="admin"] #admin,
 .v2-main[data-view="admin"] #admin,
 .views[data-view="ajustes"] #ajustes,
@@ -2536,7 +2544,7 @@ h2 {
     transform: none;
   }
 }
-/* Tab enter: all main sections — subtle rise + row stagger (nav / tabbar taps) */
+/* Tab enter: pane rise + every visible row/group participates (inline delay caps cascade). */
 #partidos.view-enter,
 #top3.view-enter,
 #aciertos.view-enter,
@@ -2544,68 +2552,14 @@ h2 {
 #ligas.view-enter {
   animation: hb-view-enter 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+#partidos.view-enter .league,
 #partidos.view-enter .league-match,
 #top3.view-enter .card--top3,
 #aciertos.view-enter .card--aciertos,
 #stats.view-enter .match-stats-row,
 #ligas.view-enter .ligas-folder {
   animation: aciertos-row-in 0.35s ease both;
-}
-#partidos.view-enter .league-match:nth-child(1),
-#top3.view-enter .card--top3:nth-child(1),
-#aciertos.view-enter .card--aciertos:nth-child(1),
-#stats.view-enter .match-stats-row:nth-child(1),
-#ligas.view-enter .ligas-folder:nth-child(1) {
-  animation-delay: 0ms;
-}
-#partidos.view-enter .league-match:nth-child(2),
-#top3.view-enter .card--top3:nth-child(2),
-#aciertos.view-enter .card--aciertos:nth-child(2),
-#stats.view-enter .match-stats-row:nth-child(2),
-#ligas.view-enter .ligas-folder:nth-child(2) {
-  animation-delay: 40ms;
-}
-#partidos.view-enter .league-match:nth-child(3),
-#top3.view-enter .card--top3:nth-child(3),
-#aciertos.view-enter .card--aciertos:nth-child(3),
-#stats.view-enter .match-stats-row:nth-child(3),
-#ligas.view-enter .ligas-folder:nth-child(3) {
-  animation-delay: 80ms;
-}
-#partidos.view-enter .league-match:nth-child(4),
-#top3.view-enter .card--top3:nth-child(4),
-#aciertos.view-enter .card--aciertos:nth-child(4),
-#stats.view-enter .match-stats-row:nth-child(4),
-#ligas.view-enter .ligas-folder:nth-child(4) {
-  animation-delay: 120ms;
-}
-#partidos.view-enter .league-match:nth-child(5),
-#top3.view-enter .card--top3:nth-child(5),
-#aciertos.view-enter .card--aciertos:nth-child(5),
-#stats.view-enter .match-stats-row:nth-child(5),
-#ligas.view-enter .ligas-folder:nth-child(5) {
-  animation-delay: 160ms;
-}
-#partidos.view-enter .league-match:nth-child(6),
-#top3.view-enter .card--top3:nth-child(6),
-#aciertos.view-enter .card--aciertos:nth-child(6),
-#stats.view-enter .match-stats-row:nth-child(6),
-#ligas.view-enter .ligas-folder:nth-child(6) {
-  animation-delay: 200ms;
-}
-#partidos.view-enter .league-match:nth-child(7),
-#top3.view-enter .card--top3:nth-child(7),
-#aciertos.view-enter .card--aciertos:nth-child(7),
-#stats.view-enter .match-stats-row:nth-child(7),
-#ligas.view-enter .ligas-folder:nth-child(7) {
-  animation-delay: 240ms;
-}
-#partidos.view-enter .league-match:nth-child(8),
-#top3.view-enter .card--top3:nth-child(8),
-#aciertos.view-enter .card--aciertos:nth-child(8),
-#stats.view-enter .match-stats-row:nth-child(8),
-#ligas.view-enter .ligas-folder:nth-child(8) {
-  animation-delay: 280ms;
+  animation-delay: var(--hb-enter-delay, 0ms);
 }
 @media (prefers-reduced-motion: reduce) {
   .card--aciertos,
@@ -2616,6 +2570,7 @@ h2 {
   #aciertos.view-enter,
   #stats.view-enter,
   #ligas.view-enter,
+  #partidos.view-enter .league,
   #partidos.view-enter .league-match,
   #top3.view-enter .card--top3,
   #aciertos.view-enter .card--aciertos,
@@ -4389,6 +4344,19 @@ h2 {
   letter-spacing: 0.01em;
   text-decoration: none;
   cursor: pointer;
+}
+.site-footer__age {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  padding: 0.15rem 0.4rem;
+  border: 1px solid rgba(248, 113, 113, 0.45);
+  border-radius: 6px;
+  color: #fca5a5;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 .site-footer__manage {
   color: var(--fog-2);
@@ -6514,6 +6482,34 @@ body[data-theme='light'] .perfil-plan__upgrade:focus-visible {
   opacity: 0.55;
   cursor: not-allowed;
 }
+.perfil-password {
+  margin: 0.85rem 0 1rem;
+  padding: 0.9rem 0.95rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.02);
+  display: grid;
+  gap: 0.65rem;
+}
+.perfil-password__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.perfil-password__msg,
+.contact-form__msg {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--fog-2);
+}
+.perfil-password__msg.is-error,
+.contact-form__msg.is-error {
+  color: #f87171;
+}
+.perfil-password__msg.is-ok,
+.contact-form__msg.is-ok {
+  color: #86efac;
+}
 .perfil-actions {
   display: grid;
   gap: 0.55rem;
@@ -6521,6 +6517,54 @@ body[data-theme='light'] .perfil-plan__upgrade:focus-visible {
 .perfil-actions__delete {
   color: #f87171;
   border-color: rgba(220, 38, 38, 0.45);
+}
+
+.view--contacto {
+  padding-bottom: 1.5rem;
+}
+.contact-lead {
+  margin: 0 0 1rem;
+  color: var(--fog);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+.contact-form {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 28rem;
+}
+.contact-form .auth-field select,
+.contact-form .auth-field textarea {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--pitch);
+  color: var(--chalk);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.35;
+}
+.contact-form .auth-field textarea {
+  min-height: 7.5rem;
+  resize: vertical;
+}
+.contact-form .auth-field select:focus,
+.contact-form .auth-field textarea:focus,
+.contact-form .auth-field select:focus-visible,
+.contact-form .auth-field textarea:focus-visible {
+  outline: none;
+  border-color: var(--accent-soft);
+  box-shadow: 0 0 0 2px var(--accent-dim);
+}
+.contact-alt {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+}
+.contact-alt a {
+  color: var(--chalk);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .settings-fieldset {
@@ -8035,6 +8079,17 @@ body.tipster .v2-header .search-field {
   padding-top: 0.3rem;
   border-top: 1px dashed rgba(255, 255, 255, 0.06);
 }
+.live-strip--locked {
+  display: block;
+  width: 100%;
+}
+.live-strip--locked > .hb-censor--elongated {
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  min-height: 2.35rem;
+  border-radius: 12px;
+}
 .live-probs {
   display: inline-flex;
   align-items: center;
@@ -8890,6 +8945,36 @@ body.browse-layout [role="button"] {
   min-height: 34px;
   box-sizing: border-box;
   overflow: hidden;
+}
+/* One elongated lock strip (live probs+tip) — avoid stacked short crown bars */
+.hb-censor--elongated {
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  min-width: 10rem;
+  min-height: 2.35rem;
+  border-radius: 12px;
+  box-sizing: border-box;
+}
+.hb-censor--elongated .hb-censor__veil {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.6rem;
+  width: 100%;
+  padding: 0.28rem 0.7rem;
+  box-sizing: border-box;
+  transform: none;
+}
+.hb-censor--elongated .hb-censor__lock {
+  justify-content: flex-end;
+  padding: 0.28rem 0.75rem;
+  background:
+    linear-gradient(90deg, transparent 0%, rgba(15, 15, 18, 0.28) 28%, rgba(15, 15, 18, 0.62) 100%);
+}
+.hb-censor--elongated .hb-censor__lock-title,
+.hb-censor--elongated .hb-censor__lock-sub {
+  display: none;
 }
 /* Tip strips: locked + free-daily unlocked share the same full-width rhythm */
 #top3 .hb-censor--inline,

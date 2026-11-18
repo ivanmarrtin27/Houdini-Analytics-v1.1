@@ -41,6 +41,8 @@ const revokePremConfirmBtn = document.getElementById('revoke-premium-confirm');
 const promoForm = document.getElementById('promo-form');
 const promoList = document.getElementById('promo-list');
 const promoMeta = document.getElementById('promo-meta');
+const supportPanel = document.getElementById('support-panel');
+const supportMeta = document.getElementById('support-meta');
 
 /** @type {Array<Record<string, unknown>>} */
 let allUsers = [];
@@ -1054,6 +1056,45 @@ function syncPromoTypeUi() {
   }
 }
 
+function supportTicketHtml(t) {
+  const when = escapeHtml(String(t.created_at || '').replace('T', ' ').slice(0, 16));
+  const typ = escapeHtml(String(t.ticket_type || 'soporte'));
+  const status = escapeHtml(String(t.status || 'open'));
+  const name = escapeHtml(String(t.name || ''));
+  const email = escapeHtml(String(t.email || ''));
+  const subject = escapeHtml(String(t.subject || ''));
+  const msg = escapeHtml(String(t.message || ''));
+  const uid = t.user_id ? `<code>${escapeHtml(String(t.user_id).slice(0, 10))}…</code>` : 'anon';
+  return `
+    <article class="support-card">
+      <header class="support-card__head">
+        <strong>${subject}</strong>
+        <span class="support-card__meta">${when} · ${typ} · ${status} · ${uid}</span>
+      </header>
+      <p class="support-card__from">${name} &lt;${email}&gt;</p>
+      <p class="support-card__msg">${msg}</p>
+    </article>`;
+}
+
+async function loadSupportTickets() {
+  if (!supportPanel) return;
+  supportPanel.innerHTML = '<p class="muted">Cargando…</p>';
+  try {
+    const data = await adminFetch('/api/v1/admin/support/tickets?limit=100');
+    const items = Array.isArray(data.items) ? data.items : [];
+    if (supportMeta) {
+      supportMeta.textContent = `${items.length} ticket${items.length === 1 ? '' : 's'}`;
+    }
+    if (!items.length) {
+      supportPanel.innerHTML = '<p class="muted">Sin mensajes aún.</p>';
+      return;
+    }
+    supportPanel.innerHTML = `<div class="support-list">${items.map(supportTicketHtml).join('')}</div>`;
+  } catch (err) {
+    supportPanel.innerHTML = `<p class="muted">${escapeHtml(err.message || 'Error')}</p>`;
+  }
+}
+
 async function loadPromoCodes() {
   if (promoList) promoList.innerHTML = '<p class="promo-list__empty">Cargando…</p>';
   try {
@@ -1090,7 +1131,7 @@ async function loadDashboard() {
     if (mainEl?.dataset.screen === 'hits') renderHitsFull();
     allUsers = Array.isArray(usersRes.users) ? usersRes.users : [];
     renderUsers();
-    await Promise.all([loadTips(), loadStats(), loadPromoCodes()]);
+    await Promise.all([loadTips(), loadStats(), loadPromoCodes(), loadSupportTickets()]);
   } catch (err) {
     const msg = err.message || 'Error al cargar';
     usagePanel.innerHTML = `<p class="muted">${escapeHtml(msg)}</p>`;

@@ -6,8 +6,8 @@
 > `houdini-bet-admin` es **legacy**: no usar día a día; last-resort opcional. No borrar el proyecto remoto salvo petición explícita.
 
 1. Abre **`https://houdini-analytics-admin.pages.dev`** (proyecto Pages `houdini-analytics-admin`).
-2. Introduce el **PIN numérico** (= Worker `SYNC_SECRET`), campo enmascarado (`type=password` + `inputmode=numeric`). Se envía como header `x-sync-secret`; se guarda en `sessionStorage` solo para esa pestaña.
-3. Tras validar: dashboard (uso CF hoy + Tips rendimiento preview + Stats públicos teaser + visitantes + cupones + cuentas). `#tips` = tip performance completo; `#stats` = Stats públicos; `#hits` = historial visitas.
+2. Introduce el **PIN numérico** (= Worker `SYNC_SECRET`, máx. 32 dígitos), campo enmascarado (`type=password` + `inputmode=numeric`). Se envía como header `x-sync-secret`; se guarda en `sessionStorage` solo para esa pestaña. Valor operativo actual (no en git): el PIN acordado en ops — actualizar solo con `wrangler secret put SYNC_SECRET`.
+3. Tras validar: dashboard (uso CF hoy + Tips rendimiento preview + Stats públicos teaser + visitantes + cupones + **soporte/contacto** + cuentas). `#tips` = tip performance completo; `#stats` = Stats públicos; `#hits` = historial visitas.
 4. UI: DocuForge layout, fondo negro `#0a0a0a`, primary rojo `#DC2626`. Branding **Houdini Analytics**. Código: [`cloudflare/admin-pages/`](../admin-pages/).
 5. API base: `https://houdini-bet.ivanmarrtin2703.workers.dev`.
 6. QR privado: carpeta local [`admin-qr/`](../../admin-qr/) (`mi-qr.html` + PNG). Apunta al microsite **sin** embeber el secret. Está en `.gitignore`.
@@ -49,6 +49,7 @@ Sin `?admin=1`, la vista `#admin` no se muestra ni se enruta.
 - `GET /api/v1/admin/usage/daily?from=&to=` — serie diaria Worker; default 7 días UTC; máx. 90
 - `GET /api/v1/admin/usage/visits?day=` — Web Analytics agregadas; requiere `CF_WEB_ANALYTICS_SITE_TAG`
 - `GET /api/v1/admin/visits/recent?limit=` — hits D1 con IP + `uniqueIpsToday` + `device` (label best-effort desde UA; no modelo iPhone exacto ni nombre del aparato). `limit` máx. **500** (default 50). Preview UI = 5; `#hits` carga el historial.
+- `GET /api/v1/admin/support/tickets?limit=` — tickets del formulario `#contacto` (D1 `support_tickets`)
 - `GET /api/v1/admin/users` — listado (sin password_hash)
 - `POST /api/v1/admin/users/:id/revoke` — `disabled=1` + revoca sesiones
 - `POST /api/v1/admin/users/:id/enable` — reactiva

@@ -43,6 +43,7 @@ import * as premiumService from './services/premiumService.js';
 import * as authService from './services/authService.js';
 import * as cfUsageService from './services/cfUsageService.js';
 import * as pageHitsService from './services/pageHitsService.js';
+import * as supportService from './services/supportService.js';
 
 /** Failed admin secret attempts (isolate memory). */
 const adminSecretFails = new Map();
@@ -1347,6 +1348,81 @@ async function handleApi(request, env, ctx) {
       200,
       { 'set-cookie': authService.clearAuthCookieHeader() }
     );
+  }
+
+  if (method === 'POST' && path === '/api/v1/auth/change-password') {
+    const user = await authUserOf(request, db);
+    if (!user) return json({ error: 'No autenticado' }, 401);
+    let body = {};
+    try {
+      body = await request.json();
+    } catch (_) {
+      return json({ error: 'JSON inválido' }, 400);
+    }
+    const rate = authService.checkLoginRateLimit(`pwd:${clientIp(request)}:${user.id}`);
+    if (!rate.ok) return json({ error: rate.error }, 429);
+    const newPass = body.newPassword ?? body.password;
+    const confirm = body.newPassword2 ?? body.passwordConfirm ?? body.password2;
+    if (confirm == null || String(newPass) !== String(confirm)) {
+      return json({ error: 'Las contraseñas nuevas no coinciden' }, 400);
+    }
+    const result = await authService.changePassword(db, user, {
+      currentPassword: body.currentPassword ?? body.passwordCurrent,
+      newPassword: newPass,
+    });
+    if (!result.ok) return json({ error: result.error }, 400);
+    return json({ ok: true });
+  }
+
+  if (method === 'GET' && path === '/api/v1/auth/export') {
+    const user = await authUserOf(request, db);
+    if (!user) return json({ error: 'No autenticado' }, 401);
+    try {
+      const payload = await supportService.buildUserExport(db, user);
+      return json(payload);
+    } catch (err) {
+      return json({ error: err?.message || 'No se pudo exportar' }, 500);
+    }
+  }
+
+  if (method === 'POST' && path === '/api/v1/support/tickets') {
+    let body = {};
+    try {
+      body = await request.json();
+    } catch (_) {
+      return json({ error: 'JSON inválido' }, 400);
+    }
+    const ip = clientIp(request);
+    const rate = supportService.checkTicketRateLimit(`${ip}:${String(body.email || '').slice(0, 80)}`);
+    if (!rate.ok) return json({ error: rate.error }, 429);
+    const typeV = supportService.validateTicketType(body.type ?? body.ticketType);
+    if (!typeV.ok) return json({ error: typeV.error }, 400);
+    const fields = supportService.validateTicketFields(body);
+    if (!fields.ok) return json({ error: fields.error }, 400);
+    const user = await authUserOf(request, db);
+    try {
+      const ticket = await supportService.createTicket(db, {
+        name: fields.name,
+        email: fields.email,
+        subject: fields.subject,
+        message: fields.message,
+        ticketType: typeV.type,
+        userId: user?.id || null,
+        ip,
+      });
+      return json({ ok: true, id: ticket.id, createdAt: ticket.createdAt }, 201);
+    } catch (err) {
+      return json({ error: err?.message || 'No se pudo enviar' }, 500);
+    }
+  }
+
+  if (method === 'GET' && path === '/api/v1/admin/support/tickets') {
+    const gate = checkAdminSecret(request, env);
+    if (!gate.ok) return json({ error: gate.error }, gate.status);
+    const url = new URL(request.url);
+    const limit = Number(url.searchParams.get('limit') || 100);
+    const items = await supportService.listTickets(db, { limit });
+    return json({ items, count: items.length });
   }
 
   if (method === 'GET' && path === '/api/v1/premium/status') {

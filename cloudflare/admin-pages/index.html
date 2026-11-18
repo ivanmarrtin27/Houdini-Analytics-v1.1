@@ -34,8 +34,8 @@
           inputmode="numeric"
           pattern="[0-9]*"
           autocomplete="current-password"
-          maxlength="8"
-          placeholder="••••"
+          maxlength="32"
+          placeholder="••••••••"
           required
         />
         <button type="submit" class="btn btn--primary btn--lg gate__enter" id="gate-submit">Entrar</button>
@@ -160,6 +160,19 @@
             <p id="promo-type-effect" class="promo-type-effect field-helper" aria-live="polite"></p>
           </form>
           <div id="promo-list" class="promo-list" aria-live="polite">
+            <p class="muted">Cargando…</p>
+          </div>
+        </section>
+
+        <section class="panel panel--support" aria-labelledby="support-heading">
+          <div class="panel__head panel__head--wrap">
+            <h2 id="support-heading" class="panel__title">Soporte / contacto</h2>
+            <p id="support-meta" class="panel__meta muted"></p>
+          </div>
+          <p class="promo-help muted">
+            Mensajes del formulario público <code>#contacto</code> (quejas, sugerencias, soporte, export).
+          </p>
+          <div id="support-panel" class="panel__body" aria-live="polite">
             <p class="muted">Cargando…</p>
           </div>
         </section>

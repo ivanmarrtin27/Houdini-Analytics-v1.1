@@ -419,9 +419,9 @@ function trackEvent(name, payload) {
   }
 }
 
-/** First-party page hit for admin IP log (Worker D1). Not third-party analytics. */
+/** First-party page hit for admin IP log (Worker D1). Gated by analytics category. */
 function reportPageHit() {
-  if (!hasValidConsent()) return;
+  if (!hasValidConsent() || !privacyPrefs.analytics) return;
   try {
     const path = truncateStr(
       `${location.pathname || '/'}${location.hash || ''}`,
@@ -681,17 +681,22 @@ function isFreeDailyTip(date, matchId, tip) {
   return freeDailyTipIdentity(pick.matchId, pick.tip) === freeDailyTipIdentity(matchId, tip);
 }
 
-/** Blur veil + Premium crown lock for free users (Analytics chrome; tap ? #premium). */
-function hbCensorWrap(html, { block = false } = {}) {
+/** Blur veil + Premium crown lock for free users (Analytics chrome; tap → #premium). */
+function hbCensorWrap(html, { block = false, elongated = false } = {}) {
   if (!html) return '';
   if (contentUnlocked()) return html;
-  const cls = block ? 'hb-censor hb-censor--block' : 'hb-censor hb-censor--inline';
-  return `<div class="${cls}" data-hb-censor role="button" tabindex="0" aria-label="${escapeHtml(
+  const mods = [
+    block ? 'hb-censor--block' : 'hb-censor--inline',
+    elongated ? 'hb-censor--elongated' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+  return `<div class="hb-censor ${mods}" data-hb-censor role="button" tabindex="0" aria-label="${escapeHtml(
     t('censor.aria')
   )}">
     <div class="hb-censor__veil" aria-hidden="true">${html}</div>
     <div class="hb-censor__lock" aria-hidden="true">
-      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb189" width="16" height="16" alt="" decoding="async" />
+      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb190" width="16" height="16" alt="" decoding="async" />
       <span class="hb-censor__lock-title">${escapeHtml(t('censor.title'))}</span>
       <span class="hb-censor__lock-sub">${escapeHtml(t('censor.sub'))}</span>
     </div>
@@ -1854,7 +1859,7 @@ function mpVsMidLabel(m, live) {
 }
 
 function mpVsBrandMarkHtml() {
-  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb189" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
+  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb190" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
 }
 
 function mpVsMidHtml(m, live) {
@@ -2000,32 +2005,40 @@ const LIVE_TIP_META = {
   unknown: { label: 'EN CURSO', cls: 'live-tip--unknown' },
 };
 
-function liveTipChip(tip) {
+function liveTipChip(tip, { censor = true } = {}) {
   if (!tip || !tip.label) return '';
   const meta = LIVE_TIP_META[tip.status] || LIVE_TIP_META.unknown;
   const prob = tip.prob != null ? ` · ${Math.round(Number(tip.prob) * 100)}%` : '';
-  return hbCensorWrap(
-    `<span class="live-tip ${meta.cls}">${escapeHtml(meta.label)}${escapeHtml(prob)}</span>`
-  );
+  const html = `<span class="live-tip ${meta.cls}">${escapeHtml(meta.label)}${escapeHtml(prob)}</span>`;
+  return censor ? hbCensorWrap(html) : html;
 }
 
-function liveProbsRow(live) {
+function liveProbsRow(live, { censor = true } = {}) {
   if (!live) return '';
   const h = Math.round(Number(live.homeWin || 0) * 100);
   const d = Math.round(Number(live.draw || 0) * 100);
   const a = Math.round(Number(live.awayWin || 0) * 100);
-  return hbCensorWrap(`<span class="live-probs" aria-label="Probabilidades en vivo: local ${h}%, empate ${d}%, visitante ${a}%">
+  const html = `<span class="live-probs" aria-label="Probabilidades en vivo: local ${h}%, empate ${d}%, visitante ${a}%">
     <span class="live-probs__p live-probs__p--home">${h}%</span>
     <span class="live-probs__p live-probs__p--draw">${d}%</span>
     <span class="live-probs__p live-probs__p--away">${a}%</span>
-  </span>`);
+  </span>`;
+  return censor ? hbCensorWrap(html) : html;
 }
 
-/** Compact live strip for the match list row. */
+/** Compact live strip for the match list row. Free: one elongated censor bar. */
 function liveStripHtml(m) {
   const live = m?.live;
   if (!live) return '';
-  return `<span class="live-strip">${liveProbsRow(live)}${liveTipChip(live.tip)}</span>`;
+  const inner = `${liveProbsRow(live, { censor: false })}${liveTipChip(live.tip, { censor: false })}`;
+  if (!inner) return '';
+  if (contentUnlocked()) {
+    return `<span class="live-strip">${inner}</span>`;
+  }
+  return `<span class="live-strip live-strip--locked">${hbCensorWrap(inner, {
+    block: false,
+    elongated: true,
+  })}</span>`;
 }
 
 /** Live block of the analysis panel: probabilities now vs. before kickoff. */
@@ -2149,7 +2162,7 @@ function sumRecentAvg(recentAvgs, key) {
   return Number(((Number(h) || 0) + (Number(a) || 0)).toFixed(2));
 }
 
-const UI_ICON_V = 'hb189';
+const UI_ICON_V = 'hb190';
 const MP_STAT_ICON_PX = 20;
 const mpStatImg = (file) =>
   `<img class="mp-stat__icon mp-stat__icon--img" src="/icons/ui/${file}?v=${UI_ICON_V}" width="${MP_STAT_ICON_PX}" height="${MP_STAT_ICON_PX}" alt="" aria-hidden="true" decoding="async" />`;
@@ -4612,7 +4625,7 @@ const I18N = {
     'premiumModal.skip': 'Ahora no',
     'consent.title': 'Cookies y privacidad',
     'consent.lead':
-      'Usamos almacenamiento local para que la app funcione. Las opciones opcionales (analytics stub, búsqueda y filtros) solo se activan si las aceptas.',
+      'Usamos cookies y almacenamiento local necesarios para la app (sesión, Premium, consentimiento +18). Las opciones opcionales (registro de visitas propio / analytics stub, búsqueda y filtros) solo se activan si las aceptas.',
     'consent.age': 'Confirmo que soy mayor de 18 años',
     'consent.acceptAll': 'Aceptar todo',
     'consent.necessary': 'Solo necesarias',
@@ -4720,6 +4733,37 @@ const I18N = {
     'perfil.help': 'Ayuda',
     'perfil.logout': 'Cerrar sesión',
     'perfil.delete': 'Eliminar cuenta',
+    'perfil.contact': 'Contacta con nosotros',
+    'perfil.export': 'Exportar mis datos',
+    'perfil.exportOk': 'Datos exportados',
+    'perfil.exportFail': 'No se pudo exportar',
+    'perfil.exportNeedAuth': 'Inicia sesión para exportar',
+    'perfil.passwordTitle': 'Cambiar contraseña',
+    'perfil.passwordCurrent': 'Contraseña actual',
+    'perfil.passwordNew': 'Nueva contraseña',
+    'perfil.passwordConfirm': 'Confirmar nueva',
+    'perfil.passwordSubmit': 'Guardar contraseña',
+    'perfil.passwordOk': 'Contraseña actualizada',
+    'perfil.passwordFail': 'No se pudo cambiar la contraseña',
+    'perfil.passwordMismatch': 'Las contraseñas nuevas no coinciden',
+    'contact.title': 'Contacta con nosotros',
+    'contact.back': '← Perfil',
+    'contact.lead':
+      'Envía una queja, sugerencia o petición de ayuda. Guardamos el mensaje de forma segura para responderte.',
+    'contact.name': 'Nombre',
+    'contact.email': 'Email',
+    'contact.type': 'Tipo',
+    'contact.typeSupport': 'Soporte',
+    'contact.typeComplaint': 'Queja',
+    'contact.typeSuggestion': 'Sugerencia',
+    'contact.typeExport': 'Exportar / portabilidad',
+    'contact.typeOther': 'Otro',
+    'contact.subject': 'Asunto',
+    'contact.message': 'Mensaje',
+    'contact.submit': 'Enviar',
+    'contact.orEmail': 'También puedes escribir a',
+    'contact.ok': 'Mensaje enviado. Te responderemos por email.',
+    'contact.fail': 'No se pudo enviar el mensaje',
 
     'premium.eyebrow': 'Houdini Premium',
     'premium.title': 'Todos los datos del partido',
@@ -4832,7 +4876,7 @@ const I18N = {
     'privacy.linkTerms': 'Condiciones',
     'privacy.prefsGroup': 'Preferencias locales',
     'privacy.analyticsTitle': 'Analytics / telemetría',
-    'privacy.analyticsHint': 'Stub local (consola). El registro de visitas con IP se describe en Privacidad.',
+    'privacy.analyticsHint': 'Incluye stub local y el registro de visitas propio (IP/ruta, ~30 días).',
     'privacy.searchTitle': 'Guardar búsqueda reciente',
     'privacy.searchHint': 'Recuerda el último equipo buscado en este dispositivo.',
     'privacy.filtersTitle': 'Recordar filtros',
@@ -5054,7 +5098,7 @@ const I18N = {
     'premiumModal.skip': 'Not now',
     'consent.title': 'Cookies and privacy',
     'consent.lead':
-      'We use local storage so the app works. Optional choices (analytics stub, search and filters) only turn on if you accept them.',
+      'We use necessary cookies and local storage for the app (session, Premium, consent +18). Optional choices (first-party visit log / analytics stub, search and filters) only turn on if you accept them.',
     'consent.age': 'I confirm I am 18 or older',
     'consent.acceptAll': 'Accept all',
     'consent.necessary': 'Necessary only',
@@ -5162,6 +5206,37 @@ const I18N = {
     'perfil.help': 'Help',
     'perfil.logout': 'Log out',
     'perfil.delete': 'Delete account',
+    'perfil.contact': 'Contact us',
+    'perfil.export': 'Export my data',
+    'perfil.exportOk': 'Data exported',
+    'perfil.exportFail': 'Could not export',
+    'perfil.exportNeedAuth': 'Sign in to export',
+    'perfil.passwordTitle': 'Change password',
+    'perfil.passwordCurrent': 'Current password',
+    'perfil.passwordNew': 'New password',
+    'perfil.passwordConfirm': 'Confirm new',
+    'perfil.passwordSubmit': 'Save password',
+    'perfil.passwordOk': 'Password updated',
+    'perfil.passwordFail': 'Could not change password',
+    'perfil.passwordMismatch': 'New passwords do not match',
+    'contact.title': 'Contact us',
+    'contact.back': '← Profile',
+    'contact.lead':
+      'Send a complaint, suggestion, or help request. We store the message securely so we can reply.',
+    'contact.name': 'Name',
+    'contact.email': 'Email',
+    'contact.type': 'Type',
+    'contact.typeSupport': 'Support',
+    'contact.typeComplaint': 'Complaint',
+    'contact.typeSuggestion': 'Suggestion',
+    'contact.typeExport': 'Export / portability',
+    'contact.typeOther': 'Other',
+    'contact.subject': 'Subject',
+    'contact.message': 'Message',
+    'contact.submit': 'Send',
+    'contact.orEmail': 'You can also email',
+    'contact.ok': 'Message sent. We will reply by email.',
+    'contact.fail': 'Could not send the message',
 
     'premium.eyebrow': 'Houdini Premium',
     'premium.title': 'Every match insight unlocked',
@@ -5274,7 +5349,7 @@ const I18N = {
     'privacy.linkTerms': 'Terms',
     'privacy.prefsGroup': 'Local preferences',
     'privacy.analyticsTitle': 'Analytics / telemetry',
-    'privacy.analyticsHint': 'Local stub (console). First-party visit logging (may include IP) is described in Privacy.',
+    'privacy.analyticsHint': 'Includes local stub and first-party visit logging (IP/path, ~30 days).',
     'privacy.searchTitle': 'Save recent search',
     'privacy.searchHint': 'Remembers the last team searched on this device.',
     'privacy.filtersTitle': 'Remember filters',
@@ -5616,6 +5691,142 @@ function syncPerfilView() {
     const label = upgrade.querySelector('.perfil-plan__upgrade-label');
     if (label) label.textContent = t('perfil.upgrade');
     else upgrade.textContent = t('perfil.upgrade');
+  }
+  const pwForm = document.getElementById('perfil-password-form');
+  if (pwForm) {
+    const canPw = String(authUser.provider || '') === 'password';
+    pwForm.hidden = !canPw;
+  }
+}
+
+function syncContactForm() {
+  const nameEl = document.getElementById('contact-name');
+  const emailEl = document.getElementById('contact-email');
+  if (authUser) {
+    if (nameEl && !String(nameEl.value || '').trim()) {
+      nameEl.value = authUser.name || '';
+    }
+    if (emailEl && !String(emailEl.value || '').trim()) {
+      emailEl.value = authUser.email || '';
+    }
+  }
+}
+
+function setContactFormMsg(text, { error = false } = {}) {
+  const el = document.getElementById('contact-form-msg');
+  if (!el) return;
+  if (!text) {
+    el.hidden = true;
+    el.textContent = '';
+    el.classList.remove('is-error', 'is-ok');
+    return;
+  }
+  el.hidden = false;
+  el.textContent = text;
+  el.classList.toggle('is-error', error);
+  el.classList.toggle('is-ok', !error);
+}
+
+function setPerfilPasswordMsg(text, { error = false } = {}) {
+  const el = document.getElementById('perfil-password-msg');
+  if (!el) return;
+  if (!text) {
+    el.hidden = true;
+    el.textContent = '';
+    el.classList.remove('is-error', 'is-ok');
+    return;
+  }
+  el.hidden = false;
+  el.textContent = text;
+  el.classList.toggle('is-error', error);
+  el.classList.toggle('is-ok', !error);
+}
+
+async function submitContactForm(ev) {
+  ev?.preventDefault?.();
+  const form = document.getElementById('contact-form');
+  const btn = document.getElementById('contact-submit');
+  if (!form) return;
+  const fd = new FormData(form);
+  const body = {
+    name: String(fd.get('name') || ''),
+    email: String(fd.get('email') || ''),
+    type: String(fd.get('type') || 'soporte'),
+    subject: String(fd.get('subject') || ''),
+    message: String(fd.get('message') || ''),
+  };
+  setContactFormMsg('');
+  if (btn) btn.disabled = true;
+  try {
+    await api('/api/v1/support/tickets', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    setContactFormMsg(t('contact.ok'));
+    form.reset();
+    syncContactForm();
+    showBanner(t('contact.ok'), 'info');
+  } catch (err) {
+    const msg = err.message || t('contact.fail');
+    setContactFormMsg(msg, { error: true });
+    showBanner(msg, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function submitPerfilPassword(ev) {
+  ev?.preventDefault?.();
+  const form = document.getElementById('perfil-password-form');
+  const btn = document.getElementById('perfil-password-submit');
+  if (!form || form.hidden) return;
+  const currentPassword = document.getElementById('perfil-pw-current')?.value || '';
+  const newPassword = document.getElementById('perfil-pw-new')?.value || '';
+  const newPassword2 = document.getElementById('perfil-pw-confirm')?.value || '';
+  setPerfilPasswordMsg('');
+  if (newPassword !== newPassword2) {
+    setPerfilPasswordMsg(t('perfil.passwordMismatch'), { error: true });
+    return;
+  }
+  if (btn) btn.disabled = true;
+  try {
+    await api('/api/v1/auth/change-password', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ currentPassword, newPassword, newPassword2 }),
+    });
+    form.reset();
+    setPerfilPasswordMsg(t('perfil.passwordOk'));
+    showBanner(t('perfil.passwordOk'), 'info');
+  } catch (err) {
+    const msg = err.message || t('perfil.passwordFail');
+    setPerfilPasswordMsg(msg, { error: true });
+    showBanner(msg, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function exportOwnData() {
+  if (!authUser) {
+    showBanner(t('perfil.exportNeedAuth'), 'error');
+    return;
+  }
+  try {
+    const data = await api('/api/v1/auth/export');
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `houdini-export-${String(authUser.id || 'user').slice(0, 12)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showBanner(t('perfil.exportOk'), 'info');
+  } catch (err) {
+    showBanner(err.message || t('perfil.exportFail'), 'error');
   }
 }
 
@@ -5982,7 +6193,7 @@ function leagueKey(m) {
   );
 }
 
-function browseRowHtml(m) {
+function browseRowHtml(m, staggerIndex = 0) {
   const id = Number(m.id);
   const home = m.homeTeam?.name || '';
   const away = m.awayTeam?.name || '';
@@ -5991,8 +6202,9 @@ function browseRowHtml(m) {
   const sel = selectedMatchId === id ? ' is-selected' : '';
   const liveCls = m.status === 'live' ? ' league-match--live' : '';
   const liveStrip = m.status === 'live' ? liveStripHtml(m) : '';
+  const delay = viewEnterDelay(staggerIndex);
   return `
-    <button type="button" class="league-match${liveCls}${sel}" data-analyze="${id}" role="listitem">
+    <button type="button" class="league-match${liveCls}${sel}" data-analyze="${id}" role="listitem" style="--hb-enter-delay:${delay}ms;animation-delay:${delay}ms">
       <span class="league-match__main">
         <span class="league-match__home">
           ${crestHtml(home, homeLogo, 'sm')}
@@ -6035,13 +6247,27 @@ function renderPartidosList() {
     if (!g.logo && m.leagueLogo) g.logo = m.leagueLogo;
     g.matches.push(m);
   }
-  const sections = [...groups.values()].map(
-    ({ title, logo, matches }) => `
-      <section class="league" role="group" aria-label="${escapeHtml(title)}">
-        <h3 class="league__title">${leagueLogoHtml(logo, 'league__logo')}<span>${escapeHtml(title)}</span></h3>
-        <div class="league__list">${matches.map(browseRowHtml).join('')}</div>
-      </section>`
-  );
+  let stagger = 0;
+  const sections = [...groups.values()].map(({ title, logo, matches }) => {
+    const groupDelay = viewEnterDelay(stagger);
+    stagger += 1;
+    const listHtml = matches
+      .map((m) => {
+        const row = browseRowHtml(m, stagger);
+        stagger += 1;
+        return row;
+      })
+      .join('');
+    return `
+      <section class="league" role="group" aria-label="${escapeHtml(
+        title
+      )}" style="--hb-enter-delay:${groupDelay}ms;animation-delay:${groupDelay}ms">
+        <h3 class="league__title">${leagueLogoHtml(logo, 'league__logo')}<span>${escapeHtml(
+          title
+        )}</span></h3>
+        <div class="league__list">${listHtml}</div>
+      </section>`;
+  });
   /* Banner after first league group (or at top if only one). */
   if (sections.length > 1) {
     sections.splice(1, 0, premiumBannerHtml());
@@ -6354,10 +6580,8 @@ function paintTop10List(el, matches) {
       const prob = tipProbPct(m);
       const rank = i + 1;
       const matchId = Number(item.matchId ?? bet.id ?? bet.matchId);
-      // Free: never paint liveStrip here — liveProbs + liveTipChip each call
-      // hbCensorWrap and stacked 3 crown bars under the tip. Premium keeps live.
-      const liveStrip =
-        bet.status === 'live' && contentUnlocked() ? liveStripHtml(m) : '';
+      // Free: one elongated live censor strip (same as Partidos). Premium keeps live.
+      const liveStrip = bet.status === 'live' ? liveStripHtml(m) : '';
       const round = formatRoundLabel(m);
       const tipInner = `<div class="card-tip__primary">
             <span class="card-tip__bet tip-accent">${escapeHtml(tipLabel)}</span>
@@ -6369,9 +6593,9 @@ function paintTop10List(el, matches) {
           </div>`;
       const tipPrimary =
         !contentUnlocked() && isFreeDailyTip(day, matchId, tip) ? tipInner : hbCensorWrap(tipInner);
-      const delay = Math.min(8, i) * 40;
+      const delay = viewEnterDelay(i);
       return `
-      <article class="card card--tip card--row card--top3" data-analyze="${matchId}" style="animation-delay:${delay}ms">
+      <article class="card card--tip card--row card--top3" data-analyze="${matchId}" style="--hb-enter-delay:${delay}ms;animation-delay:${delay}ms">
         <div class="card-tip__body">
           <div class="card-tip__head">
             ${tipPrimary}
@@ -6589,12 +6813,12 @@ function aciertosRowHtml(item, rankFallback, { freeDay = '' } = {}) {
     </div>`;
   const unlockFree = !contentUnlocked() && freeDay && isFreeDailyTip(freeDay, matchId, tip);
   const tipBlock = contentUnlocked() || unlockFree ? tipMeta : hbCensorWrap(tipMeta);
-  const delay = Math.min(8, Math.max(0, Number(rankFallback) || 0)) * 40;
+  const delay = viewEnterDelay(rankFallback);
   const side = score
     ? `<div class="aciertos-row__side"><span class="aciertos-row__score">${escapeHtml(score)}</span></div>`
     : '';
   return `
-    <button type="button" class="card card--aciertos card--aciertos-${tone}" data-analyze="${matchId}" style="animation-delay:${delay}ms" aria-label="${escapeHtml(
+    <button type="button" class="card card--aciertos card--aciertos-${tone}" data-analyze="${matchId}" style="--hb-enter-delay:${delay}ms;animation-delay:${delay}ms" aria-label="${escapeHtml(
       home + ' vs ' + away + ', ' + statusLabel + (score ? ', ' + score : '')
     )}">
       <div class="aciertos-row__body">
@@ -7322,7 +7546,7 @@ function perfTipDisplayHtml(tip) {
   )}">
     <span class="perf-row__tip-blur" aria-hidden="true">${tip}</span>
     <span class="perf-row__tip-premium" aria-hidden="true">
-      <img src="/icons/ui/premium-crown.png?v=hb189" width="13" height="13" alt="" />
+      <img src="/icons/ui/premium-crown.png?v=hb190" width="13" height="13" alt="" />
       Premium
     </span>
   </span>`;
@@ -7550,8 +7774,8 @@ function renderMatchStatsRows(rows) {
         row.leagueApiId ?? row.apiId
       );
       const leagueLogo = leagueLogoHtml(row.leagueLogo, 'match-stats-row__league-logo');
-      const delay = Math.min(8, index) * 40;
-      return `<button type="button" class="match-stats-row" data-analyze="${Number(row.id)}" role="listitem" style="animation-delay:${delay}ms">
+      const delay = viewEnterDelay(index);
+      return `<button type="button" class="match-stats-row" data-analyze="${Number(row.id)}" role="listitem" style="--hb-enter-delay:${delay}ms;animation-delay:${delay}ms">
         <span class="match-stats-row__rank" aria-label="Posicin ${index + 1}">${index + 1}</span>
         <span class="match-stats-row__crests" aria-hidden="true">
           ${crestHtml(home.name, home.logo, 'sm')}
@@ -7959,6 +8183,7 @@ function normalizeViewHash(hash) {
     id === 'premium' ||
     id === 'perfil' ||
     id === 'ajustes' ||
+    id === 'contacto' ||
     isLegalViewId(id)
   ) {
     return id;
@@ -8004,26 +8229,55 @@ function syncNavIndicator({ instant = false } = {}) {
   }
 }
 
-/** Subtle enter motion for all main tabs (nav / tabbar taps only  no swipe). */
+/** Subtle enter motion for all main tabs (nav / tabbar taps only — no swipe). */
 const VIEW_ENTER_IDS = new Set(['partidos', 'top3', 'aciertos', 'stats', 'ligas']);
+/** Cap stagger so every visible row participates without a long cascade. */
+const VIEW_ENTER_STAGGER_CAP = 12;
+const VIEW_ENTER_STAGGER_MS = 35;
+const VIEW_ENTER_HOLD_MS =
+  VIEW_ENTER_STAGGER_CAP * VIEW_ENTER_STAGGER_MS + 420;
 let lastViewEnterId = null;
+let viewEnterClearTimer = 0;
+
+function viewEnterDelay(index) {
+  return Math.min(VIEW_ENTER_STAGGER_CAP, Math.max(0, Number(index) || 0)) * VIEW_ENTER_STAGGER_MS;
+}
 
 function triggerViewEnter(view) {
   if (!VIEW_ENTER_IDS.has(view)) return;
   if (prefersReducedMotion()) return;
   const el = document.getElementById(view);
   if (!el) return;
-  // Re-run when switching back to the same tab or first paint of that pane.
+  // Keep .view-enter until capped stagger finishes (animationend on the pane
+  // alone fires too early and cancels later row animations).
+  if (viewEnterClearTimer) {
+    clearTimeout(viewEnterClearTimer);
+    viewEnterClearTimer = 0;
+  }
   el.classList.remove('view-enter');
   void el.offsetWidth;
   el.classList.add('view-enter');
   lastViewEnterId = view;
-  const clear = (ev) => {
-    if (ev.target !== el) return;
+  viewEnterClearTimer = window.setTimeout(() => {
     el.classList.remove('view-enter');
-    el.removeEventListener('animationend', clear);
-  };
-  el.addEventListener('animationend', clear);
+    viewEnterClearTimer = 0;
+  }, VIEW_ENTER_HOLD_MS);
+}
+
+function ensurePartidosDateSynced() {
+  syncWindowChips();
+  const want = resolveSelectedDate();
+  selectedDate = want;
+  const leagueWant = desiredMatchesFetchLeagueId();
+  const stale =
+    matchesFetchDate !== want ||
+    matchesFetchLeagueId !== leagueWant ||
+    !Array.isArray(cachedMatches);
+  if (stale) {
+    load().catch((err) => showBanner(err.message, 'error'));
+    return;
+  }
+  renderHoyBoard();
 }
 
 function setActiveNav(hash, { pushHash = true } = {}) {
@@ -8051,6 +8305,8 @@ function setActiveNav(hash, { pushHash = true } = {}) {
   }
   window.scrollTo(0, 0);
   if (view !== 'ligas') document.body.classList.remove('has-ligas-selection');
+  // Shared selectedDate / windowMode across Partidos · Top10 · Aciertos · Stats.
+  if (view === 'partidos') ensurePartidosDateSynced();
   if (view === 'stats') loadLeagueStatsView().catch(() => {});
   if (view === 'top3') renderTop3().catch(() => {});
   if (view === 'aciertos') renderAciertos().catch(() => {});
@@ -8061,6 +8317,7 @@ function setActiveNav(hash, { pushHash = true } = {}) {
     renderPremiumTips().catch(() => {});
   }
   if (view === 'perfil') syncPerfilView();
+  if (view === 'contacto') syncContactForm();
   if (view === 'admin') loadAdminPanel().catch(() => {});
   if (view !== prevView || lastViewEnterId !== view) {
     requestAnimationFrame(() => triggerViewEnter(view));
@@ -10101,6 +10358,15 @@ document.getElementById('perfil-logout')?.addEventListener('click', () => {
 });
 document.getElementById('perfil-delete')?.addEventListener('click', () => {
   deleteOwnAccount().catch(() => {});
+});
+document.getElementById('perfil-export')?.addEventListener('click', () => {
+  exportOwnData().catch(() => {});
+});
+document.getElementById('perfil-password-form')?.addEventListener('submit', (e) => {
+  submitPerfilPassword(e).catch(() => {});
+});
+document.getElementById('contact-form')?.addEventListener('submit', (e) => {
+  submitContactForm(e).catch(() => {});
 });
 document.getElementById('perfil-open-settings')?.addEventListener('click', () => {
   openSettingsModal();
