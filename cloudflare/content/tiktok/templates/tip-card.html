@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=1080, height=1920" />
+  <title>Houdini Analytics — Tip card</title>
+  <style>
+    :root {
+      --bg: #050505;
+      --red: #e11d2e;
+      --white: #f5f5f5;
+      --muted: #a3a3a3;
+      --line: rgba(255, 255, 255, 0.12);
+      --font: "Segoe UI", "Arial", "Helvetica Neue", sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 1080px;
+      height: 1920px;
+      overflow: hidden;
+      background: var(--bg);
+      font-family: var(--font);
+      color: var(--white);
+    }
+
+    .slide {
+      position: relative;
+      width: 1080px;
+      height: 1920px;
+      background:
+        radial-gradient(ellipse 65% 40% at 50% 38%, rgba(80, 10, 18, 0.4), transparent 70%),
+        #050505;
+      overflow: hidden;
+      padding: 72px 64px 64px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .motif { position: absolute; inset: 0; pointer-events: none; }
+    .shard {
+      position: absolute;
+      width: 340px;
+      height: 5px;
+      background: linear-gradient(90deg, transparent, #fff, var(--red), transparent);
+      opacity: 0.55;
+    }
+    .shard--tl { top: 140px; left: -20px; transform: rotate(-28deg); }
+    .shard--br { bottom: 200px; right: -40px; transform: rotate(-28deg); }
+
+    .top {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 72px;
+    }
+    .top img {
+      width: 96px;
+      height: 96px;
+      object-fit: contain;
+    }
+    .top-meta {
+      text-align: right;
+    }
+    .top-meta .tag {
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .top-meta .date {
+      margin-top: 10px;
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--red);
+      letter-spacing: 0.04em;
+    }
+
+    .body {
+      position: relative;
+      z-index: 1;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 36px;
+      padding-bottom: 80px;
+    }
+
+    .league {
+      font-size: 26px;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .match {
+      font-size: 56px;
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -0.01em;
+    }
+    .match .vs {
+      display: block;
+      margin: 12px 0;
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: 0.35em;
+      color: var(--red);
+      text-transform: uppercase;
+    }
+
+    .divider {
+      width: 100%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--line), transparent);
+      margin: 8px 0;
+    }
+
+    .market-label {
+      font-size: 24px;
+      font-weight: 600;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .market {
+      font-size: 48px;
+      font-weight: 700;
+      line-height: 1.2;
+      max-width: 920px;
+    }
+
+    .prob-block {
+      margin-top: 12px;
+      display: flex;
+      align-items: baseline;
+      gap: 18px;
+    }
+    .prob {
+      font-size: 160px;
+      font-weight: 800;
+      color: var(--red);
+      letter-spacing: -0.03em;
+      line-height: 0.9;
+    }
+    .prob-unit {
+      font-size: 56px;
+      font-weight: 700;
+      color: var(--red);
+    }
+    .prob-caption {
+      margin-top: 8px;
+      font-size: 26px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .foot {
+      position: relative;
+      z-index: 1;
+      border-top: 1px solid var(--line);
+      padding-top: 28px;
+    }
+    .disclaimer {
+      font-size: 22px;
+      font-weight: 500;
+      line-height: 1.45;
+      color: var(--muted);
+      max-width: 920px;
+    }
+    .handle {
+      margin-top: 18px;
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--white);
+    }
+  </style>
+</head>
+<body>
+  <div class="slide" data-slide="tip">
+    <div class="motif" aria-hidden="true">
+      <div class="shard shard--tl"></div>
+      <div class="shard shard--br"></div>
+    </div>
+
+    <header class="top">
+      <img src="{{LOGO_URL}}" alt="Houdini Analytics" />
+      <div class="top-meta">
+        <div class="tag">{{TAG}}</div>
+        <div class="date">{{DATE}}</div>
+      </div>
+    </header>
+
+    <main class="body">
+      <p class="league">{{LEAGUE}}</p>
+      <h1 class="match">
+        {{HOME}}
+        <span class="vs">vs</span>
+        {{AWAY}}
+      </h1>
+      <div class="divider"></div>
+      <p class="market-label">Señal del modelo</p>
+      <p class="market">{{MARKET}}</p>
+      <div>
+        <div class="prob-block">
+          <span class="prob">{{PROB}}</span>
+          <span class="prob-unit">%</span>
+        </div>
+        <p class="prob-caption">Probabilidad estimada</p>
+      </div>
+    </main>
+
+    <footer class="foot">
+      <p class="disclaimer">{{DISCLAIMER}}</p>
+      <p class="handle">{{HANDLE}}</p>
+    </footer>
+  </div>
+</body>
+</html>

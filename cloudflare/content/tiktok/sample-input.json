@@ -1,0 +1,32 @@
+{
+  "date": "2026-11-18",
+  "dateDisplay": "18/11/2026",
+  "cover": {
+    "eyebrow": "ANALISIS DE DATOS",
+    "title": "ESTADISTICAS",
+    "cta": "DESLIZA PARA VER"
+  },
+  "tips": [
+    {
+      "home": "Real Madrid",
+      "away": "Sevilla",
+      "league": "LaLiga",
+      "marketCode": "OVER_25",
+      "marketLabel": "Más de 2,5 goles",
+      "probPct": 84
+    },
+    {
+      "home": "Arsenal",
+      "away": "Brighton",
+      "league": "Premier League",
+      "marketCode": "BTTS_YES",
+      "marketLabel": "Ambos equipos marcan",
+      "probPct": 81
+    }
+  ],
+  "meta": {
+    "tag": "Tip del día",
+    "handle": "houdini.analytics",
+    "disclaimer": "Modelo estadístico (Poisson). Contenido informativo · no es consejo financiero ni de juego."
+  }
+}
