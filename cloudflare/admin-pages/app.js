@@ -1178,6 +1178,12 @@ function playEntryThenReveal() {
   });
 }
 
+function clearPinField() {
+  if (!pinInput) return;
+  pinInput.value = '';
+  pinInput.defaultValue = '';
+}
+
 function showGate() {
   appEl.hidden = true;
   appEl.classList.remove('is-revealed', 'is-entering');
@@ -1185,7 +1191,7 @@ function showGate() {
   entryEl.classList.remove('is-playing');
   entryEl.setAttribute('aria-hidden', 'true');
   gateEl.hidden = false;
-  pinInput.value = '';
+  clearPinField();
   clearGateError();
   try {
     pinInput.focus({ preventScroll: true });
@@ -1212,7 +1218,7 @@ async function enterWithPin(pin) {
     else if (location.hash === '#stats') setAdminScreen('stats');
   } catch (err) {
     setSecret('');
-    pinInput.value = '';
+    clearPinField();
     pinInput.focus();
     showGateError('PIN incorrecto. Inténtalo de nuevo.');
   } finally {
@@ -1432,7 +1438,12 @@ window.addEventListener('hashchange', () => {
   }
 });
 
+window.addEventListener('pageshow', () => {
+  if (!gateEl?.hidden) clearPinField();
+});
+
 (async function boot() {
+  clearPinField();
   try {
     const cached = getSecret();
     if (!cached) {

@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./styles.css?v=adm11" />
-  <link rel="stylesheet" href="./stats-public.css?v=adm11" />
+  <link rel="stylesheet" href="./styles.css?v=adm12" />
+  <link rel="stylesheet" href="./stats-public.css?v=adm12" />
   <!-- Canonical admin Pages project: houdini-analytics-admin (legacy: houdini-bet-admin — do not use day-to-day) -->
   <link rel="icon" href="https://houdini-analytics.pages.dev/icons/favicon-32.png" type="image/png" />
 </head>
@@ -29,13 +29,13 @@
         <input
           id="pin"
           class="field-input"
-          name="pin"
+          name="admin_pin"
           type="password"
           inputmode="numeric"
           pattern="[0-9]*"
-          autocomplete="current-password"
+          autocomplete="new-password"
           maxlength="32"
-          placeholder="••••••••"
+          placeholder="Introduce el PIN"
           required
         />
         <button type="submit" class="btn btn--primary btn--lg gate__enter" id="gate-submit">Entrar</button>
@@ -408,7 +408,7 @@
     </div>
   </div>
 
-  <script src="./stats-public.js?v=adm11" defer></script>
-  <script src="./app.js?v=adm11" defer></script>
+  <script src="./stats-public.js?v=adm12" defer></script>
+  <script src="./app.js?v=adm12" defer></script>
 </body>
 </html>
