@@ -178,26 +178,12 @@ Sin `API_BASE_URL` apunta a MySQL local (solo legacy).
 
 ## Capturas
 
-<p align="center">
-  <a href="https://houdini-analytics.pages.dev">
-    <img src="docs/screenshots/partidos-desktop.png" alt="Partidos + panel de análisis" width="720" />
-  </a><br/>
-  <sub>Partidos + panel de análisis</sub>
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/ligas-desktop.png" alt="Ligas — catálogo y tablas" width="480" />
-</p>
-<p align="center"><sub>Ligas</sub></p>
-
-<p align="center">
-  <img src="docs/screenshots/partidos-mobile.jpg" alt="Partidos (móvil)" width="220" />
-  &nbsp;&nbsp;
-  <img src="docs/screenshots/analisis-general-mobile.jpg" alt="Análisis General (móvil)" width="220" />
-</p>
-<p align="center">
-  <sub>Móvil — Partidos · Análisis</sub>
-</p>
+| Vista | Captura | Descripción |
+|-------|---------|-------------|
+| Partidos (desktop) | <img src="docs/screenshots/partidos-desktop.png" alt="Partidos desktop" width="420" /> | Lista de partidos del día con filtros de estado y panel de análisis al lado. |
+| Ligas (desktop) | <img src="docs/screenshots/ligas-desktop.png" alt="Ligas desktop" width="360" /> | Catálogo de ligas con buscador, logos y acceso a tablas de clasificación. |
+| Partidos (móvil) | <img src="docs/screenshots/partidos-mobile.jpg" alt="Partidos móvil" width="180" /> | Misma lista en móvil: chips de estado, escudos y navegación inferior. |
+| Análisis (móvil) | <img src="docs/screenshots/analisis-general-mobile.jpg" alt="Análisis móvil" width="180" /> | Panel General del partido: O1.5, O2.5, BTTS y medias de liga. |
 
 ## Autor
 
