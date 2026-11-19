@@ -180,8 +180,8 @@ Sin `API_BASE_URL` apunta a MySQL local (solo legacy).
 
 | Vista | Captura | Descripción |
 |-------|---------|-------------|
-| Partidos (desktop) | <img src="docs/screenshots/partidos-desktop.png" alt="Partidos desktop" width="420" /> | Lista de partidos del día con filtros de estado y panel de análisis al lado. |
-| Ligas (desktop) | <img src="docs/screenshots/ligas-desktop.png" alt="Ligas desktop" width="360" /> | Catálogo de ligas con buscador, logos y acceso a tablas de clasificación. |
+| Partidos (desktop) | <img src="docs/screenshots/partidos-desktop.png" alt="Partidos desktop" width="360" /> | Lista de partidos del día con filtros de estado y panel de análisis al lado. |
+| Ligas (desktop) | <img src="docs/screenshots/ligas-desktop.png" alt="Ligas desktop" width="300" /> | Catálogo de ligas con buscador, logos y acceso a tablas de clasificación. |
 | Partidos (móvil) | <img src="docs/screenshots/partidos-mobile.jpg" alt="Partidos móvil" width="180" /> | Misma lista en móvil: chips de estado, escudos y navegación inferior. |
 | Análisis (móvil) | <img src="docs/screenshots/analisis-general-mobile.jpg" alt="Análisis móvil" width="180" /> | Panel General del partido: O1.5, O2.5, BTTS y medias de liga. |
 
