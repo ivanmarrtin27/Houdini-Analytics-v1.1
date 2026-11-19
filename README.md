@@ -18,12 +18,44 @@
 <p align="center">
   <a href="https://houdini-analytics.pages.dev">Abrir app</a>
   ·
+  <a href="#capturas--screenshots">Capturas</a>
+  ·
   <a href="#desarrollo">Desarrollo</a>
   ·
   <a href="#deploy">Deploy</a>
   ·
   <a href="#api-resumen">API</a>
 </p>
+
+---
+
+## Capturas / Screenshots
+
+App en vivo: **[https://houdini-analytics.pages.dev](https://houdini-analytics.pages.dev)**
+
+### Desktop
+
+| Partidos + panel | Stats |
+|:---:|:---:|
+| ![Partidos y panel de análisis](docs/screenshots/partidos-desktop.png) | ![Stats — medias del día](docs/screenshots/stats-desktop.png) |
+| Partidos + panel de análisis | Stats — medias por partido |
+
+| Top 10 | Ligas |
+|:---:|:---:|
+| ![Top 10 tips del día](docs/screenshots/top10-desktop.png) | ![Ligas — catálogo y tablas](docs/screenshots/ligas-desktop.png) |
+| Top 10 — tips P 78–95% | Ligas — catálogo y tablas |
+
+### Mobile
+
+| Partidos | Top 10 | Análisis · General |
+|:---:|:---:|:---:|
+| ![Partidos (móvil)](docs/screenshots/partidos-mobile.jpg) | ![Top 10 (móvil)](docs/screenshots/top10-mobile.jpg) | ![Análisis General (móvil)](docs/screenshots/analisis-general-mobile.jpg) |
+| Partidos | Top 10 | Análisis · General |
+
+| Análisis · Goles | Análisis · Córners |
+|:---:|:---:|
+| ![Análisis Goles (móvil)](docs/screenshots/analisis-goles-mobile.jpg) | ![Análisis Córners (móvil)](docs/screenshots/analisis-corners-mobile.jpg) |
+| Análisis · Goles | Análisis · Córners |
 
 ---
 
@@ -90,6 +122,7 @@ Houdini-Analytics-v1.1/
 │   ├── migrations/      # D1
 │   ├── docs/            # ADMIN_PANEL, AUTH_SETUP, STRIPE_SETUP
 │   └── scripts/         # tests / utilidades
+├── docs/screenshots/    # capturas README (desktop + mobile)
 ├── legacy/              # CLI / backend local (referencia)
 ├── AGENTS.md
 └── Memory.md
