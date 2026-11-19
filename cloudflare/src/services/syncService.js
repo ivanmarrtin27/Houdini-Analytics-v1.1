@@ -104,7 +104,7 @@ function formatDate(d) {
 }
 
 function getLeagueIds(env) {
-  return (env.LEAGUE_IDS || '140,141,39,135,78,61,5,2,3')
+  return (env.LEAGUE_IDS || '140,141,39,40,135,78,61,5,2,3')
     .split(',')
     .map((id) => Number(id.trim()))
     .filter(Boolean);
@@ -195,7 +195,7 @@ export function parseAfRound(roundStr) {
 
 function leagueLogoFallback(apiId) {
   const id = Number(apiId);
-  if (![2, 3, 5, 39, 61, 78, 135, 140, 141].includes(id)) return null;
+  if (![2, 3, 5, 39, 40, 61, 78, 135, 140, 141].includes(id)) return null;
   return `https://media.api-sports.io/football/leagues/${id}.png`;
 }
 

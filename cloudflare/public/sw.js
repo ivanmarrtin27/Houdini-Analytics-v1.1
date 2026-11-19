@@ -11,7 +11,7 @@
  * the shell changes, so clients pick the new files.
  */
 
-const VERSION = 'hb-v192';
+const VERSION = 'hb-v205';
 const SHELL_CACHE = `houdini-shell-${VERSION}`;
 const DATA_CACHE = `houdini-data-${VERSION}`;
 const DATA_TTL_MS = 60_000;
@@ -19,8 +19,8 @@ const DATA_TTL_MS = 60_000;
 const SHELL_ASSETS = [
   '/',
   '/index.html',
-  '/app.js?v=hb193',
-  '/styles.css?v=hb193',
+  '/app.js?v=hb205',
+  '/styles.css?v=hb205',
   '/manifest.webmanifest',
   '/icons/icon.svg',
   '/icons/icon-192.png',
@@ -119,7 +119,7 @@ async function networkFirstApi(request) {
       });
     }
     return new Response(
-      JSON.stringify({ error: 'Sin conexiÃ³n y sin copia guardada de esta consulta.' }),
+      JSON.stringify({ error: 'Sin conexiÃƒÂ³n y sin copia guardada de esta consulta.' }),
       { status: 503, headers: { 'content-type': 'application/json; charset=utf-8' } }
     );
   }
@@ -179,9 +179,9 @@ async function networkFirstNavigation(request) {
     const cached = await cache.match('/index.html');
     if (cached) return cached;
     return new Response(
-      '<!doctype html><meta charset="utf-8"><title>Sin conexiÃ³n</title>' +
+      '<!doctype html><meta charset="utf-8"><title>Sin conexiÃƒÂ³n</title>' +
         '<body style="font-family:system-ui;background:#0a0a0a;color:#f5f5f5;padding:2rem">' +
-        '<h1 style="font-size:1.2rem">Sin conexiÃ³n</h1>' +
+        '<h1 style="font-size:1.2rem">Sin conexiÃƒÂ³n</h1>' +
         '<p>Vuelve a intentarlo cuando recuperes la red.</p>',
       { status: 503, headers: { 'content-type': 'text/html; charset=utf-8' } }
     );

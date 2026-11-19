@@ -127,6 +127,92 @@ const FOTMOB_CLUB_IDS = {
   hsv: 9790,
 };
 
+/**
+ * Soft FotMob fills (Championship): used only when logo is missing / AF id mapped below.
+ * NOT in the hard force map — shared names (Burnley, Wolves…) must not overwrite
+ * good crests in Premier / cups / other leagues by name alone.
+ * @type {Record<string, number>}
+ */
+const FOTMOB_SOFT_CLUB_IDS = {
+  // Championship 2026/27 — FD sync leaves logo_url null; AF media often placeholder.
+  'birmingham city': 8658,
+  birmingham: 8658,
+  'blackburn rovers': 8655,
+  blackburn: 8655,
+  'bolton wanderers': 8559,
+  bolton: 8559,
+  'bristol city': 8427,
+  burnley: 8191,
+  'cardiff city': 8344,
+  cardiff: 8344,
+  'charlton athletic': 8451,
+  charlton: 8451,
+  'derby county': 10170,
+  derby: 10170,
+  'lincoln city': 8430,
+  lincoln: 8430,
+  middlesbrough: 8549,
+  millwall: 10004,
+  'norwich city': 9850,
+  norwich: 9850,
+  portsmouth: 8462,
+  'portsmouth fc': 8462,
+  'preston north end': 8411,
+  preston: 8411,
+  'queens park rangers': 10172,
+  qpr: 10172,
+  'sheffield united': 8657,
+  'sheff united': 8657,
+  'sheff utd': 8657,
+  southampton: 8466,
+  'stoke city': 10194,
+  stoke: 10194,
+  'swansea city': 10003,
+  swansea: 10003,
+  watford: 9817,
+  'west bromwich albion': 8659,
+  'west brom': 8659,
+  wba: 8659,
+  'west ham united': 8654,
+  'west ham': 8654,
+  'wolverhampton wanderers': 8602,
+  wolverhampton: 8602,
+  wolves: 8602,
+  wrexham: 9841,
+  'wrexham afc': 9841,
+};
+
+/**
+ * AF media team id → FotMob crest id for Championship clubs (id-keyed, no name collide).
+ * @type {Record<number, number>}
+ */
+const AF_TO_FOTMOB_CREST = {
+  54: 8658, // Birmingham
+  67: 8655, // Blackburn
+  53: 8559, // Bolton
+  56: 8427, // Bristol City
+  44: 8191, // Burnley
+  43: 8344, // Cardiff
+  1335: 8451, // Charlton
+  69: 10170, // Derby
+  1375: 8430, // Lincoln
+  70: 8549, // Middlesbrough
+  58: 10004, // Millwall
+  71: 9850, // Norwich
+  1355: 8462, // Portsmouth
+  59: 8411, // Preston
+  72: 10172, // QPR
+  62: 8657, // Sheffield United
+  41: 8466, // Southampton
+  75: 10194, // Stoke
+  76: 10003, // Swansea
+  38: 9817, // Watford
+  60: 8659, // West Brom
+  48: 8654, // West Ham
+  39: 8602, // Wolves
+  1837: 9841, // Wrexham
+};
+
 /** @type {Record<string, number>} */
 const CLUB_IDS = {
   // —— La Liga ——
@@ -237,6 +323,46 @@ const CLUB_IDS = {
   'hull city': 64,
   coventry: 1346,
   'coventry city': 1346,
+
+  // —— Championship ——
+  'birmingham city': 54,
+  birmingham: 54,
+  'blackburn rovers': 67,
+  blackburn: 67,
+  'bolton wanderers': 53,
+  bolton: 53,
+  'bristol city': 56,
+  'cardiff city': 43,
+  cardiff: 43,
+  'charlton athletic': 1335,
+  charlton: 1335,
+  'derby county': 69,
+  derby: 69,
+  'lincoln city': 1375,
+  lincoln: 1375,
+  middlesbrough: 70,
+  millwall: 58,
+  'norwich city': 71,
+  norwich: 71,
+  portsmouth: 1355,
+  'portsmouth fc': 1355,
+  'preston north end': 59,
+  preston: 59,
+  'queens park rangers': 72,
+  qpr: 72,
+  'sheffield united': 62,
+  'sheff united': 62,
+  'sheff utd': 62,
+  'stoke city': 75,
+  stoke: 75,
+  'swansea city': 76,
+  swansea: 76,
+  watford: 38,
+  'west bromwich albion': 60,
+  'west brom': 60,
+  wba: 60,
+  wrexham: 1837,
+  'wrexham afc': 1837,
 
   // —— Serie A ——
   'ac milan': 489,
@@ -713,6 +839,16 @@ function apiSportsTeamIdFromUrl(url) {
   return m ? Number(m[1]) : null;
 }
 
+function softFotmobUrl(name) {
+  const key = normalizeTeamName(name);
+  if (!key) return null;
+  for (const k of clubLookupKeys(key)) {
+    const softId = FOTMOB_SOFT_CLUB_IDS[k];
+    if (softId != null) return `${FOTMOB_MEDIA}/${softId}.png`;
+  }
+  return null;
+}
+
 export function clubLogoUrl(name) {
   const key = normalizeTeamName(name);
   if (!key) return null;
@@ -720,9 +856,14 @@ export function clubLogoUrl(name) {
     const fmId = FOTMOB_CLUB_IDS[k];
     if (fmId != null) return `${FOTMOB_MEDIA}/${fmId}.png`;
   }
+  // Championship soft fill before AF media (placeholders); name only used when no stored logo.
+  const soft = softFotmobUrl(name);
+  if (soft) return soft;
   for (const k of clubLookupKeys(key)) {
     const id = CLUB_IDS[k];
     if (id == null || AF_BROKEN_LOGO_IDS.has(id)) continue;
+    const fmFromAf = AF_TO_FOTMOB_CREST[id];
+    if (fmFromAf != null) return `${FOTMOB_MEDIA}/${fmFromAf}.png`;
     return `${MEDIA}/${id}.png`;
   }
   return null;
@@ -747,17 +888,23 @@ function fotmobOverrideUrl(name) {
 /**
  * Resolve display crest: prefer synced FotMob logos, then static maps,
  * and replace known-broken API-Sports media URLs.
+ * Championship soft fills never overwrite a non-AF existing crest by name alone.
  */
 export function resolveTeamLogoUrl(name, existingLogo = null) {
   const existing = existingLogo ? String(existingLogo).trim() : '';
   if (existing && isFotmobCrestUrl(existing)) return existing;
 
-  // Explicit FotMob overrides always win over stored AF URLs (PSG, Elche, Deportivo…).
+  // Hard FotMob overrides (broken AF media: PSG, Elche, Deportivo, BL…).
   const fotmobForced = fotmobOverrideUrl(name);
   if (fotmobForced) return fotmobForced;
 
-  const mapped = clubLogoUrl(name);
   const afId = existing ? apiSportsTeamIdFromUrl(existing) : null;
+  // Id-keyed Championship AF → FotMob (safe across leagues; same club id).
+  if (afId != null && AF_TO_FOTMOB_CREST[afId] != null) {
+    return `${FOTMOB_MEDIA}/${AF_TO_FOTMOB_CREST[afId]}.png`;
+  }
+
+  const mapped = clubLogoUrl(name);
   if (afId != null && AF_BROKEN_LOGO_IDS.has(afId) && mapped) return mapped;
   if (existing && /^https?:\/\//i.test(existing) && !isFlagCdnUrl(existing)) {
     return existing;
@@ -911,6 +1058,35 @@ export const TOP5_CREST_ROSTERS = {
       'RC Deportivo',
     ],
   },
+  40: {
+    name: 'Championship',
+    teams: [
+      'Birmingham City',
+      'Blackburn Rovers',
+      'Bolton Wanderers',
+      'Bristol City',
+      'Burnley',
+      'Cardiff City',
+      'Charlton Athletic',
+      'Derby County',
+      'Lincoln City',
+      'Middlesbrough',
+      'Millwall',
+      'Norwich City',
+      'Portsmouth',
+      'Preston North End',
+      'Queens Park Rangers',
+      'Sheffield United',
+      'Southampton',
+      'Stoke City',
+      'Swansea City',
+      'Watford',
+      'West Bromwich Albion',
+      'West Ham United',
+      'Wolverhampton Wanderers',
+      'Wrexham',
+    ],
+  },
 };
 
 /**
@@ -928,6 +1104,14 @@ export function auditCrestForTeam(teamName, leagueApiId, existingLogo = null) {
     if (FOTMOB_CLUB_IDS[k] != null) {
       fotmobId = FOTMOB_CLUB_IDS[k];
       break;
+    }
+  }
+  if (fotmobId == null) {
+    for (const k of clubLookupKeys(key)) {
+      if (FOTMOB_SOFT_CLUB_IDS[k] != null) {
+        fotmobId = FOTMOB_SOFT_CLUB_IDS[k];
+        break;
+      }
     }
   }
   for (const k of clubLookupKeys(key)) {
@@ -1009,4 +1193,12 @@ export function auditCrestsForLeague(leagueApiId) {
   return { leagueApiId: Number(leagueApiId), name: roster.name, rows };
 }
 
-export { AF_BROKEN_LOGO_IDS, FOTMOB_CLUB_IDS, CLUB_IDS, MEDIA, FOTMOB_MEDIA };
+export {
+  AF_BROKEN_LOGO_IDS,
+  FOTMOB_CLUB_IDS,
+  FOTMOB_SOFT_CLUB_IDS,
+  AF_TO_FOTMOB_CREST,
+  CLUB_IDS,
+  MEDIA,
+  FOTMOB_MEDIA,
+};

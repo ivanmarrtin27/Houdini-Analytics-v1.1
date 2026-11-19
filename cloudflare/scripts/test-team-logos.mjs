@@ -148,6 +148,37 @@ check(
   clubLogoUrl('Bayern Munich') !== FOTMOB_LEV
 );
 
+const FOTMOB_BURNLEY =
+  'https://images.fotmob.com/image_resources/logo/teamlogo/8191.png';
+const FOTMOB_WOLVES =
+  'https://images.fotmob.com/image_resources/logo/teamlogo/8602.png';
+const AF_ARSENAL = 'https://media.api-sports.io/football/teams/42.png';
+const AF_BURNLEY = 'https://media.api-sports.io/football/teams/44.png';
+const OTHER_CDN = 'https://cdn.example.com/crests/burnley-custom.png';
+
+check('Championship Burnley soft-fills when logo missing', clubLogoUrl('Burnley') === FOTMOB_BURNLEY);
+check(
+  'Championship Wolves soft-fills when logo missing',
+  resolveTeamLogoUrl('Wolves', null) === FOTMOB_WOLVES
+);
+check(
+  'Burnley AF id rewrites to FotMob (id-keyed, same club)',
+  resolveTeamLogoUrl('Burnley', AF_BURNLEY) === FOTMOB_BURNLEY
+);
+check(
+  'Championship name does NOT overwrite non-AF crest by name',
+  resolveTeamLogoUrl('Burnley', OTHER_CDN) === OTHER_CDN
+);
+check(
+  'Premier Arsenal keeps AF crest (Championship map does not steal)',
+  resolveTeamLogoUrl('Arsenal', AF_ARSENAL) === AF_ARSENAL
+);
+check(
+  'Man City keeps AF crest',
+  resolveTeamLogoUrl('Manchester City', 'https://media.api-sports.io/football/teams/50.png') ===
+    'https://media.api-sports.io/football/teams/50.png'
+);
+
 if (failed) {
   console.error(`\n${failed} check(s) failed`);
   process.exit(1);

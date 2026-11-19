@@ -14,8 +14,8 @@ App de predicciones de fútbol (Poisson). Producto: **Houdini Analytics v1.1**.
 - Cron sync: `0 6 * * *`
 - Código: carpeta [`cloudflare/`](cloudflare/)
 - Secrets: `SYNC_SECRET`, opcional `API_FOOTBALL_KEY`
-- Vars: `LEAGUE_IDS=140,141,39,135,78,61,5,2,3` (top5 + Segunda + UNL + UCL + UEL)
-- Sync sin key: FixtureDownload (domésticas + UNL + Champions + Europa) + FotMob Friendlies + **Segunda** (LaLiga2; jornada desde FotMob `round`/`roundName`); con `API_FOOTBALL_KEY`: odds/stats AF vía `POST /api/v1/sync/enrich` (cron `30 6 * * *`)
+- Vars: `LEAGUE_IDS=140,141,39,40,135,78,61,5,2,3` (top5 + Championship + Segunda + UNL + UCL + UEL)
+- Sync sin key: FixtureDownload (domésticas incl. **Championship** `championship-2026` api 40 + UNL + Champions + Europa) + FotMob Friendlies + **Segunda** (LaLiga2; jornada desde FotMob `round`/`roundName`); con `API_FOOTBALL_KEY`: odds/stats AF vía `POST /api/v1/sync/enrich` (cron `30 6 * * *`)
 - Lista: ventana **hoy + 14 días**; solo ligas allowlist (sin ASEAN / AFC / CAF / CONCACAF NL / WCQ / etc.)
 - Auto-sync si stale >12h
 - En vivo: `POST /api/v1/matches/refresh-live` (cooldown 45 s) + `POST /api/v1/matches/:id/live`; proyección en `src/services/liveModel.js`

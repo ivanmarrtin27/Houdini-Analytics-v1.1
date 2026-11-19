@@ -56,7 +56,7 @@ const MATCH_SELECT = `
 `;
 
 /** Allowlisted comps — CDN crest when D1 leagues.logo_url is empty. */
-const API_FOOTBALL_LEAGUE_LOGO_IDS = new Set([2, 3, 5, 39, 61, 78, 135, 140, 141]);
+const API_FOOTBALL_LEAGUE_LOGO_IDS = new Set([2, 3, 5, 39, 40, 61, 78, 135, 140, 141]);
 
 function parseMatchEvents(raw) {
   if (!raw) return [];
@@ -3789,7 +3789,7 @@ export async function backfillMissingTeamLogos(db, resolveLogo) {
 }
 
 /** AF-compatible league api_ids only (skip FotMob synthetic namespaces). */
-const AF_ODDS_LEAGUE_SQL = `AND l.api_id IN (2, 3, 5, 39, 61, 78, 135, 140, 141)`;
+const AF_ODDS_LEAGUE_SQL = `AND l.api_id IN (2, 3, 5, 39, 40, 61, 78, 135, 140, 141)`;
 
 export async function getUpcomingForOddsEnrichment(db, limit = 80, days = 14) {
   const endModifier = `+${Number(days)} days`;

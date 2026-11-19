@@ -44,6 +44,7 @@
     140: 'LaLiga',
     141: 'LaLiga Hypermotion',
     39: 'Premier League',
+    40: 'Championship',
     135: 'Serie A',
     78: 'Bundesliga',
     61: 'Ligue 1',
@@ -178,6 +179,7 @@
     if (Number.isFinite(aid) && LEAGUE_ES_BY_API[aid]) return LEAGUE_ES_BY_API[aid];
     const n = String(name || '').trim();
     if (!n) return 'Liga';
+    if (/championship|efl\s*championship/i.test(n)) return 'Championship';
     if (/champions/i.test(n)) return 'Champions League';
     if (/europa\s*league/i.test(n)) return 'Europa League';
     if (/nations\s*league|liga de naciones/i.test(n)) return 'Liga de Naciones';

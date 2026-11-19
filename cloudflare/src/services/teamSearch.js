@@ -71,7 +71,11 @@ export const teamSearchVariants = searchNameVariants;
 /** Prefer domestic top leagues over cups / friendlies when the same club has multiple rows. */
 export function leagueSearchPriority(leagueName) {
   const n = String(leagueName || '');
-  if (/^(La Liga|Premier League|Serie A|Bundesliga|Ligue 1|Segunda Divisi[oó]n|LaLiga ?2)$/i.test(n)) {
+  if (
+    /^(La Liga|Premier League|Championship|EFL Championship|Serie A|Bundesliga|Ligue 1|Segunda Divisi[oó]n|LaLiga ?2)$/i.test(
+      n
+    )
+  ) {
     return 0;
   }
   if (/Champions League/i.test(n)) return 1;

@@ -35,6 +35,12 @@ const FEEDS = [
     country: 'England',
   },
   {
+    slug: 'championship-2026',
+    leagueApiId: 40,
+    name: 'Championship',
+    country: 'England',
+  },
+  {
     slug: 'serie-a-2026',
     leagueApiId: 135,
     name: 'Serie A',

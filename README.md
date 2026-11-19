@@ -74,7 +74,7 @@ Los pronósticos y tips son **informativos y orientativos**. No constituyen ases
 | DB | D1 `houdini-bet-db` (aislado; no mezclar con otros proyectos) |
 | Admin | Pages `houdini-analytics-admin` (`cloudflare/admin-pages/`) |
 | Cron | sync `0 6 * * *` · enrich `30 6 * * *` (si hay `API_FOOTBALL_KEY`) |
-| Ligas | `LEAGUE_IDS=140,141,39,135,78,61,5,2,3` |
+| Ligas | `LEAGUE_IDS=140,141,39,40,135,78,61,5,2,3` |
 
 Código de producción: [`cloudflare/`](./cloudflare). Express + MySQL archivado en [`legacy/`](./legacy/). (Histórico: producto renombrado desde HoudiniBet v1.0.)
 

@@ -172,9 +172,12 @@ body.auth-required .primary.auth-form__submit {
   color: #fff;
 }
 body.auth-required .auth-modal__tab.is-active:hover,
-body.auth-required .auth-form__submit.primary:hover {
+body.auth-required .auth-form__submit.primary:hover,
+body.auth-required .primary.auth-form__submit:hover {
   background: #ef4444;
   border-color: #ef4444;
+  color: #fff;
+  filter: none;
 }
 
 .consent-gate {
@@ -971,6 +974,12 @@ body.auth-open {
 .auth-modal__panel[hidden] {
   display: none;
 }
+.auth-oauth {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin: 0 0 0.95rem;
+}
 .auth-google {
   appearance: none;
   display: inline-flex;
@@ -979,7 +988,7 @@ body.auth-open {
   gap: 0.65rem;
   width: 100%;
   min-height: 2.75rem;
-  margin: 0 0 0.95rem;
+  margin: 0;
   padding: 0.55rem 0.85rem;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius);
@@ -1063,16 +1072,67 @@ body.auth-open {
   border-color: var(--accent-soft);
   box-shadow: 0 0 0 2px var(--accent-dim);
 }
-.auth-form__submit {
-  width: 100%;
-  min-height: 2.75rem;
+/* Auth primary CTAs — same family as Ayer chip / ENVIAR: pill, bold red, display type */
+.auth-form__submit,
+button.primary.auth-form__submit,
+.primary.auth-form__submit {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
-  margin-top: 0.15rem;
+  width: 100%;
+  min-height: 2.9rem;
+  margin-top: 0.2rem;
+  padding: 0.7rem 1.35rem;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 1.08rem;
+  font-weight: 400;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  line-height: 1.1;
+  cursor: pointer;
+  box-shadow:
+    0 2px 0 rgba(0, 0, 0, 0.28),
+    0 0 0 1px rgba(220, 38, 38, 0.28);
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    filter 0.15s ease,
+    transform 0.12s ease,
+    box-shadow 0.15s ease;
 }
-.auth-form__submit:hover {
+.auth-form__submit:hover,
+button.primary.auth-form__submit:hover,
+.primary.auth-form__submit:hover {
   background: var(--accent-soft);
   border-color: var(--accent-soft);
+  color: #fff;
+  filter: brightness(1.06);
+  /* Kill global button.primary green hover for auth */
+}
+.auth-form__submit:active,
+button.primary.auth-form__submit:active,
+.primary.auth-form__submit:active {
+  transform: translateY(1px);
+  box-shadow: none;
   filter: none;
+}
+.auth-form__submit:focus-visible,
+button.primary.auth-form__submit:focus-visible,
+.primary.auth-form__submit:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+.auth-form__submit:disabled,
+button.primary.auth-form__submit:disabled,
+.primary.auth-form__submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
 }
 .auth-modal__switch {
   margin: 0.95rem 0 0;
@@ -1098,17 +1158,75 @@ body.auth-open {
   outline-offset: 2px;
 }
 .auth-modal__note {
-  margin: 1rem 0 0;
-  padding-top: 0.85rem;
-  border-top: 1px solid var(--line);
+  margin: 0.75rem 0 0;
+  padding: 0.7rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid transparent;
   color: var(--fog);
-  font-size: 0.78rem;
-  line-height: 1.45;
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.4;
   text-align: center;
-  min-height: 1.2em;
+  min-height: 0;
 }
 .auth-modal__note:empty {
   display: none;
+}
+.auth-modal__note--error {
+  border-color: rgba(248, 113, 113, 0.7);
+  background: rgba(127, 29, 29, 0.62);
+  color: #fecaca;
+  box-shadow:
+    0 0 0 1px rgba(220, 38, 38, 0.3),
+    0 8px 22px rgba(127, 29, 29, 0.4);
+  animation: auth-note-pulse 0.55s ease-out 1;
+}
+body[data-theme='light'] .auth-modal__note--error {
+  background: rgba(254, 226, 226, 0.95);
+  border-color: rgba(185, 28, 28, 0.45);
+  color: #991b1b;
+  box-shadow: 0 6px 16px rgba(185, 28, 28, 0.12);
+}
+@keyframes auth-note-pulse {
+  0% { transform: translateY(-0.2rem); opacity: 0.55; }
+  55% { transform: translateY(0); opacity: 1; }
+  100% { transform: none; opacity: 1; }
+}
+/* Guest — same pill geometry, secondary weight */
+.auth-guest {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin-top: 0.7rem;
+  min-height: 2.75rem;
+  padding: 0.65rem 1.2rem;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--fog-2);
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.auth-guest:hover,
+.auth-guest:focus-visible {
+  border-color: rgba(248, 113, 113, 0.55);
+  color: var(--chalk);
+  background: rgba(255, 255, 255, 0.055);
+  outline: none;
+}
+.auth-guest:focus-visible {
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.35);
 }
 .premium-modal__lead {
   margin: 0 0 1rem;
@@ -1136,16 +1254,17 @@ body.auth-open {
   padding: 0.5rem 0.75rem;
   min-height: 44px;
 }
-.auth-modal__note--error {
-  color: var(--warn, #e8a54b);
-}
-
 @media (prefers-reduced-motion: reduce) {
   .auth-modal__card,
   .account-btn,
   .auth-modal__tab,
-  .auth-google {
+  .auth-google,
+  .auth-telegram,
+  .auth-guest {
     transition: none;
+  }
+  .auth-modal__note--error {
+    animation: none;
   }
 }
 
@@ -6613,25 +6732,28 @@ body[data-theme='light'] .perfil-plan__upgrade:focus-visible {
   cursor: not-allowed;
 }
 .auth-telegram {
-  display: flex;
+  appearance: none;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.55rem;
+  gap: 0.65rem;
   width: 100%;
-  margin: 0.55rem 0 0;
-  min-height: 2.65rem;
+  min-height: 2.75rem;
+  margin: 0;
   padding: 0.55rem 0.85rem;
-  border-radius: 12px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
   background: var(--board-2);
   color: var(--fog);
-  font: inherit;
+  font-family: var(--font-body);
+  font-size: 0.92rem;
   font-weight: 600;
+  line-height: 1.2;
   cursor: not-allowed;
   opacity: 0.65;
 }
 .auth-telegram__mark {
-  flex-shrink: 0;
+  flex: 0 0 auto;
   display: block;
   width: 1.15rem;
   height: 1.15rem;
@@ -7283,10 +7405,14 @@ body.browse-layout {
 }
 .v2-header-inner {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) minmax(14rem, 18rem) auto;
-  grid-template-areas: "brand nav search actions";
+  /*
+    Desktop: [logo | tabs] then flexible gutter, then [search | actions] (hb205).
+    1fr gutter between nav and search pulls «Buscar equipo» toward Premium/account.
+  */
+  grid-template-columns: max-content max-content minmax(0.5rem, 1fr) minmax(0, 16rem) max-content;
+  grid-template-areas: "brand nav gutter search actions";
   align-items: center;
-  gap: 0.75rem 1rem;
+  gap: 0.45rem 0.7rem;
   max-width: min(1240px, 100%);
   margin: 0 auto;
   padding: 0.45rem var(--page-pad);
@@ -7297,6 +7423,7 @@ body.browse-layout {
   display: flex;
   align-items: center;
   height: 48px;
+  justify-self: start;
 }
 .v2-header .brand__icon {
   height: 48px;
@@ -7307,25 +7434,36 @@ body.browse-layout {
   background: transparent;
   padding: 0;
 }
-.v2-header-inner > .v2-nav { grid-area: nav; }
+.v2-header-inner > .v2-nav {
+  grid-area: nav;
+  min-width: 0;
+  width: max-content;
+  max-width: 100%;
+  justify-self: start;
+  /* Slight breath off the isotipo — nudge tab cluster right as a group (hb203) */
+  margin-inline-start: 0.55rem;
+}
 .v2-header__search {
   grid-area: search;
   min-width: 0;
-  justify-self: stretch;
+  max-width: 16rem;
+  width: 100%;
+  justify-self: end;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
 }
 .v2-nav {
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.15rem;
-  flex: 1;
-  min-width: 0;
+  justify-content: flex-start;
+  /* Equal inter-tab rhythm; a bit more breath between tabs (hb205) */
+  gap: 1.12rem;
+  flex: 0 0 auto;
+  min-width: max-content;
   max-width: 100%;
-  overflow-x: auto;
+  overflow-x: visible;
   overflow-y: hidden;
   scrollbar-width: none;
   overscroll-behavior-x: contain;
@@ -7339,12 +7477,16 @@ body.browse-layout {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.4rem;
   color: var(--fog-2);
   text-decoration: none;
-  font-size: 0.88rem;
+  font-size: 0.875rem;
   font-weight: 600;
-  padding: 0.45rem 0.7rem;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  /* Symmetric padding — spacing between tabs comes from .v2-nav gap */
+  padding: 0.5rem 0.55rem;
   border-radius: 0;
   border-bottom: 2px solid transparent;
   white-space: nowrap;
@@ -7352,7 +7494,13 @@ body.browse-layout {
 .v2-nav__link .nav-ico {
   flex-shrink: 0;
   display: block;
+  width: 1.05rem;
+  height: 1.05rem;
   opacity: 0.85;
+}
+.v2-nav__link .nav-ico--img {
+  width: 1.05rem;
+  height: 1.05rem;
 }
 .v2-nav__link:hover { color: var(--chalk); }
 .v2-nav__link:hover .nav-ico { opacity: 1; }
@@ -7390,8 +7538,8 @@ body.browse-layout {
 }
 .v2-header .search-dock {
   width: 100%;
-  max-width: 18rem;
-  margin-inline: auto;
+  max-width: 16rem;
+  margin-inline: 0;
   display: flex;
   align-items: center;
   min-width: 0;
@@ -7409,8 +7557,8 @@ body.browse-layout {
   min-width: 0;
   min-height: 44px;
   height: 44px;
-  padding: 0 0.85rem;
-  gap: 0.5rem;
+  padding: 0 0.7rem;
+  gap: 0.35rem;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -7420,16 +7568,22 @@ body.browse-layout {
 body.tipster .v2-header .search-field {
   min-height: 44px;
   height: 44px;
-  padding: 0 0.85rem;
+  padding: 0 0.7rem;
 }
 .v2-header .search-field__icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1rem;
-  height: 1rem;
+  width: 0.75rem;
+  height: 0.75rem;
   color: var(--fog);
   pointer-events: none;
+  flex-shrink: 0;
+}
+.v2-header .search-field__icon svg {
+  width: 0.75rem;
+  height: 0.75rem;
+  display: block;
 }
 .v2-header .search-field input[type="search"],
 .v2-header #team-search {
@@ -7465,6 +7619,46 @@ body.tipster .v2-header .search-field {
   outline: 2px solid var(--blue);
   outline-offset: 2px;
   border-radius: 999px;
+}
+
+/* Desktop mid-widths: keep all nav tabs; compress search, never crush tabs */
+@media (min-width: 721px) and (max-width: 1100px) {
+  .v2-header-inner {
+    grid-template-columns: max-content max-content minmax(0.35rem, 1fr) minmax(0, 14rem) max-content;
+    gap: 0.4rem 0.5rem;
+  }
+  .v2-header-inner > .v2-nav {
+    margin-inline-start: 0.35rem;
+  }
+  .v2-header__search,
+  .v2-header .search-dock {
+    max-width: 14rem;
+  }
+  .v2-nav {
+    gap: 0.65rem;
+  }
+  .v2-nav__link {
+    gap: 0.3rem;
+    padding: 0.45rem 0.38rem;
+    font-size: 0.8rem;
+  }
+  .v2-nav__link .nav-ico,
+  .v2-nav__link .nav-ico--img {
+    width: 1rem;
+    height: 1rem;
+  }
+  .v2-header .search-field,
+  body.tipster .v2-header .search-field {
+    padding: 0 0.55rem;
+    gap: 0.28rem;
+  }
+  .v2-header .premium-chip span {
+    /* Chip stays; label can yield a bit of horizontal room */
+    max-width: 4.5rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 .shell { width: 100%; }
 
@@ -8699,6 +8893,7 @@ body.browse-layout [role="button"] {
     padding: 0;
     width: 100%;
     min-width: 0;
+    max-width: none;
     height: var(--v2-header-row-h);
   }
   .v2-header .search-dock,
@@ -8718,12 +8913,12 @@ body.browse-layout [role="button"] {
     gap: 0.55rem;
   }
   .v2-header .search-field__icon {
-    width: 1.1rem;
-    height: 1.1rem;
+    width: 0.85rem;
+    height: 0.85rem;
   }
   .v2-header .search-field__icon svg {
-    width: 1.1rem;
-    height: 1.1rem;
+    width: 0.85rem;
+    height: 0.85rem;
   }
   /* Circular account stays far right; Premium chip yields space on mobile */
   .v2-header__right {
@@ -9559,8 +9754,13 @@ body[data-theme='light'] .hb-censor--chip { background: rgba(244, 244, 245, 0.85
   animation: hb-toast-in 180ms ease-out both;
 }
 .hb-toast__item--error {
-  border-color: rgba(220, 38, 38, 0.55);
+  border-color: rgba(248, 113, 113, 0.75);
+  background: rgba(127, 29, 29, 0.92);
   color: #fecaca;
+  font-weight: 650;
+  box-shadow:
+    0 0 0 1px rgba(220, 38, 38, 0.3),
+    0 12px 28px rgba(0, 0, 0, 0.45);
 }
 .hb-toast__item--ok {
   border-color: rgba(34, 197, 94, 0.45);

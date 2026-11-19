@@ -5,7 +5,7 @@
  */
 
 const DOMESTIC =
-  /^(La Liga|LaLiga|Premier League|Serie A|Bundesliga|Ligue 1|Segunda Divisi[oó]n|LaLiga ?2)$/i;
+  /^(La Liga|LaLiga|Premier League|Championship|EFL Championship|Serie A|Bundesliga|Ligue 1|Segunda Divisi[oó]n|LaLiga ?2)$/i;
 
 const REJECT =
   /AFC|CAF|ASEAN|CONCACAF|OFC|Asian Cup|Africa Cup|Gold Cup|Copa America|World Cup|Arab Cup|Confederations|Club Friendlies|Women|U21|U20|U19|U17|U23|Youth|Olympic|\(W\)/i;
@@ -32,7 +32,8 @@ export function isAllowedCompetition(leagueName, _country = '') {
 export const ALLOWED_LEAGUE_SQL = `
   AND (
     l.name IN (
-      'La Liga', 'Premier League', 'Serie A', 'Bundesliga', 'Ligue 1',
+      'La Liga', 'Premier League', 'Championship', 'EFL Championship',
+      'Serie A', 'Bundesliga', 'Ligue 1',
       'Segunda División', 'Champions League', 'Europa League', 'Friendlies',
       'UEFA Nations League', 'UEFA Champions League', 'UEFA Europa League'
     )

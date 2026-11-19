@@ -5,7 +5,7 @@
 - tipMarketProb on today/panel; Top10 fill via raw P; Stats logos + `/stats/teams`; public brand Houdini Analytics; Aciertos→Partidos analyze.
 - **Baseline:** free censor → `#premium`; panel sin tip; tip universe = O1.5/O2.5 (+team) · BTTS Yes · DC 1X/X2 · cards O3.5 · corners O7.5 · SOT O7.5; Top 10 / Aciertos = **P 78–95%** desc + tip/% **sin cuota** (no odds gates; no low-P backfill; includeFinished día = Aciertos); Aciertos = **Top del día** (`GET /tips/day-results`, ✓/✗/pendiente, **sin cuotas/yield**; fill all qualifying ≤10); header = isotipo `icon` transparente; splash/PWA = isotipo `icon`; panel mark transparente; Segunda FotMob; lista sin jornada; pills >80/60–80/50–59/<50; Stats matchAvg = xG/expected panel; metrics PNG + «Tiros a puerta»; panel XI FotMob + tabla full; Ligas/search nextMatch por liga; Premium stage brand-first + i18n P0/P1 ES↔EN; shell `hb168`. Top10/Aciertos **re-pick** allowlisted tip from model probs on read (ignore stale `suggested_bet`).
 - Match chrome: Analytics list/hero (compact rows, form pills, scorers); league logos (`leagueLogo` + AF CDN fallback); jornada from FD `RoundNumber`/`Group` (+ AF `league.round`); Top 10 tip + % (sin cuota)
-- CF Worker + D1; FD + FotMob + AF enrich
+- CF Worker + D1; FD + FotMob + AF enrich; **Championship** AF 40 / FD `championship-2026` in `LEAGUE_IDS`
 - Tips (`tipMarkets.js`): anti-trivial (no O0.5 / U4.5); **nunca SHOTS_***; rank **P only**; lane **P 78–95%**; **solo playable** en `tip_results`; **BTTS_YES primary OK**; tipTier `none` → schema + `tip_tier`
 - UI: Partidos · Top 10 · Aciertos Top del día (`#aciertos`, `/tips/day-results`) · Stats por partido/día (`#stats`, `/stats/match-averages`) · Ligas; `#top3` / `#ligas/<apiId>` / `#premium` / `#perfil`; tip % = mercado raw truncado; tab enter `view-enter` all 5 tabs (desktop nav + mobile tabbar); fixed `.v2-header` + `--v2-header-h` offset; shell `hb168`; postponed/cancelled i18n ES/EN
 - Auth bloqueante tras consent (sin sesión no hay app); cookie `hb_auth`; register/login/Google; Telegram UI **Pronto**
@@ -35,7 +35,7 @@
 - Auth v1 + Google; Ligas explorer; live cron; tip lock; ban SHOTS_*
 - Free General key cards + icons; tabs Tiros; i18n P0+P1; SOT/córners ranges; promo types+delete; admin Stats cards homogéneas; tip sync Top10=panel; Under tables + BTTS block; Tiros 14.5–24.5
 - Full restore to v1.0 + Analytics brand/UI icons; Aciertos + free censor chrome from Analytics
-- Match list/hero + logos; tip universe P-only (no cuota) + Top 10/Aciertos fill ≤10; Stats layout+model + Ligas chrome; General icons; Aciertos Top del día (`/tips/day-results`, sin cuotas, fill ≤10); splash `#000` + OG framed; Segunda FotMob; escudos homogéneos; Premium UX + i18n; mobile header row ~52px homogéneo; header icon transparente; shell `hb164`; repo GitHub `Houdini-Analytics-v1.1`
+- Match list/hero + logos; tip universe P-only (no cuota) + Top 10/Aciertos fill ≤10; Stats layout+model + Ligas chrome; General icons; Aciertos Top del día (`/tips/day-results`, sin cuotas, fill ≤10); splash `#000` + OG framed; Segunda FotMob; Championship FD; escudos homogéneos; Premium UX + i18n; mobile header row ~52px homogéneo; header icon transparente; shell `hb194`; repo GitHub `Houdini-Analytics-v1.1`
 - Admin: Tips `#tips` (`/tips/performance`) separado de Stats públicos `#stats`; Cupones Premium CRUD; cache `adm11`; Pages canónico `houdini-analytics-admin` (`houdini-bet-admin` = legacy)
 
 ## Pendiente

@@ -569,7 +569,10 @@ const LIGAS_FOLDERS = [
     label: 'Inglaterra',
     badge: 'ENG',
     flagCountry: 'England',
-    leagues: [{ apiId: 39, name: 'Premier League', tag: 'PL' }],
+    leagues: [
+      { apiId: 39, name: 'Premier League', tag: 'PL' },
+      { apiId: 40, name: 'Championship', tag: 'EFL' },
+    ],
   },
   {
     key: 'spain',
@@ -696,7 +699,7 @@ function hbCensorWrap(html, { block = false, elongated = false } = {}) {
   )}">
     <div class="hb-censor__veil" aria-hidden="true">${html}</div>
     <div class="hb-censor__lock" aria-hidden="true">
-      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb193" width="16" height="16" alt="" decoding="async" />
+      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb205" width="16" height="16" alt="" decoding="async" />
       <span class="hb-censor__lock-title">${escapeHtml(t('censor.title'))}</span>
       <span class="hb-censor__lock-sub">${escapeHtml(t('censor.sub'))}</span>
     </div>
@@ -1166,6 +1169,7 @@ const LEAGUE_ES_BY_API = {
   140: 'LaLiga',
   141: 'LaLiga Hypermotion',
   39: 'Premier League',
+  40: 'Championship',
   135: 'Serie A',
   78: 'Bundesliga',
   61: 'Ligue 1',
@@ -1728,6 +1732,81 @@ const FOTMOB_CREST_IDS = {
   hamburg: 9790,
   hsv: 9790,
 };
+/** Soft Championship fills — only when logo missing; do not force-overwrite other leagues by name. */
+const FOTMOB_SOFT_CREST_IDS = {
+  'birmingham city': 8658,
+  birmingham: 8658,
+  'blackburn rovers': 8655,
+  blackburn: 8655,
+  'bolton wanderers': 8559,
+  bolton: 8559,
+  'bristol city': 8427,
+  burnley: 8191,
+  'cardiff city': 8344,
+  cardiff: 8344,
+  'charlton athletic': 8451,
+  charlton: 8451,
+  'derby county': 10170,
+  derby: 10170,
+  'lincoln city': 8430,
+  lincoln: 8430,
+  middlesbrough: 8549,
+  millwall: 10004,
+  'norwich city': 9850,
+  norwich: 9850,
+  portsmouth: 8462,
+  'portsmouth fc': 8462,
+  'preston north end': 8411,
+  preston: 8411,
+  'queens park rangers': 10172,
+  qpr: 10172,
+  'sheffield united': 8657,
+  'sheff united': 8657,
+  'sheff utd': 8657,
+  southampton: 8466,
+  'stoke city': 10194,
+  stoke: 10194,
+  'swansea city': 10003,
+  swansea: 10003,
+  watford: 9817,
+  'west bromwich albion': 8659,
+  'west brom': 8659,
+  wba: 8659,
+  'west ham united': 8654,
+  'west ham': 8654,
+  'wolverhampton wanderers': 8602,
+  wolverhampton: 8602,
+  wolves: 8602,
+  wrexham: 9841,
+  'wrexham afc': 9841,
+};
+/** AF team id → FotMob (Championship); id-keyed, no cross-club name steal. */
+const AF_TO_FOTMOB_CREST = {
+  54: 8658,
+  67: 8655,
+  53: 8559,
+  56: 8427,
+  44: 8191,
+  43: 8344,
+  1335: 8451,
+  69: 10170,
+  1375: 8430,
+  70: 8549,
+  58: 10004,
+  71: 9850,
+  1355: 8462,
+  59: 8411,
+  72: 10172,
+  62: 8657,
+  41: 8466,
+  75: 10194,
+  76: 10003,
+  38: 9817,
+  60: 8659,
+  48: 8654,
+  39: 8602,
+  1837: 9841,
+};
 const AF_BROKEN_CREST_IDS = new Set([1102, 85, 3751, 168, 159, 174, 1357, 1113]);
 
 function normalizeCrestKey(name) {
@@ -1753,8 +1832,16 @@ function clubCrestUrl(name) {
   if (!key) return null;
   const fm = FOTMOB_CREST_IDS[key];
   if (fm != null) return `https://images.fotmob.com/image_resources/logo/teamlogo/${fm}.png`;
+  const soft = FOTMOB_SOFT_CREST_IDS[key];
+  if (soft != null) return `https://images.fotmob.com/image_resources/logo/teamlogo/${soft}.png`;
   const id = CLUB_CREST_IDS[key];
-  if (id != null) return `https://media.api-sports.io/football/teams/${id}.png`;
+  if (id != null) {
+    const fmFromAf = AF_TO_FOTMOB_CREST[id];
+    if (fmFromAf != null) {
+      return `https://images.fotmob.com/image_resources/logo/teamlogo/${fmFromAf}.png`;
+    }
+    return `https://media.api-sports.io/football/teams/${id}.png`;
+  }
   const stripped = key
     .replace(/^(fc|cf|ac|as|ssc|rc|rcd|gnk|nk|sk|fk|rsc|sl)\s+/, '')
     .replace(/\s+(fc|cf|ac|afc|sc|sv|jk)$/, '')
@@ -1762,14 +1849,26 @@ function clubCrestUrl(name) {
   if (stripped && FOTMOB_CREST_IDS[stripped] != null) {
     return `https://images.fotmob.com/image_resources/logo/teamlogo/${FOTMOB_CREST_IDS[stripped]}.png`;
   }
+  if (stripped && FOTMOB_SOFT_CREST_IDS[stripped] != null) {
+    return `https://images.fotmob.com/image_resources/logo/teamlogo/${FOTMOB_SOFT_CREST_IDS[stripped]}.png`;
+  }
   if (stripped && CLUB_CREST_IDS[stripped] != null) {
-    return `https://media.api-sports.io/football/teams/${CLUB_CREST_IDS[stripped]}.png`;
+    const sid = CLUB_CREST_IDS[stripped];
+    const fmFromAf = AF_TO_FOTMOB_CREST[sid];
+    if (fmFromAf != null) {
+      return `https://images.fotmob.com/image_resources/logo/teamlogo/${fmFromAf}.png`;
+    }
+    return `https://media.api-sports.io/football/teams/${sid}.png`;
   }
   return null;
 }
 
 function resolveCrestUrl(logo, name) {
   const existing = logo ? String(logo).trim() : '';
+  if (existing && /images\.fotmob\.com\/image_resources\/logo\/teamlogo\//i.test(existing)) {
+    return existing;
+  }
+  // Hard force only (broken AF: PSG, Elche, BL…) — Championship is soft, not here.
   const forced = (() => {
     const key = normalizeCrestKey(name);
     if (!key) return null;
@@ -1788,8 +1887,14 @@ function resolveCrestUrl(logo, name) {
   if (forced) return forced;
   if (existing && /^https?:\/\//i.test(existing)) {
     const m = existing.match(/media\.api-sports\.io\/football\/teams\/(\d+)\.png/i);
-    if (m && AF_BROKEN_CREST_IDS.has(Number(m[1]))) {
-      return clubCrestUrl(name) || existing;
+    if (m) {
+      const afId = Number(m[1]);
+      if (AF_TO_FOTMOB_CREST[afId] != null) {
+        return `https://images.fotmob.com/image_resources/logo/teamlogo/${AF_TO_FOTMOB_CREST[afId]}.png`;
+      }
+      if (AF_BROKEN_CREST_IDS.has(afId)) {
+        return clubCrestUrl(name) || existing;
+      }
     }
     return existing;
   }
@@ -1859,7 +1964,7 @@ function mpVsMidLabel(m, live) {
 }
 
 function mpVsBrandMarkHtml() {
-  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb193" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
+  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb205" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
 }
 
 function mpVsMidHtml(m, live) {
@@ -2162,7 +2267,7 @@ function sumRecentAvg(recentAvgs, key) {
   return Number(((Number(h) || 0) + (Number(a) || 0)).toFixed(2));
 }
 
-const UI_ICON_V = 'hb193';
+const UI_ICON_V = 'hb205';
 const MP_STAT_ICON_PX = 20;
 const mpStatImg = (file) =>
   `<img class="mp-stat__icon mp-stat__icon--img" src="/icons/ui/${file}?v=${UI_ICON_V}" width="${MP_STAT_ICON_PX}" height="${MP_STAT_ICON_PX}" alt="" aria-hidden="true" decoding="async" />`;
@@ -3526,6 +3631,7 @@ function leagueLabelEs(nameOrMatch, apiId = null) {
       : nameOrMatch?.leagueName || nameOrMatch?.league || nameOrMatch?.league_name || '';
   const n = String(raw || '').trim();
   if (!n) return t('league.generic');
+  if (/championship|efl\s*championship/i.test(n)) return 'Championship';
   if (/champions/i.test(n)) return 'Champions League';
   if (/europa\s*league/i.test(n)) return 'Europa League';
   if (/nations\s*league|liga de naciones/i.test(n)) return t('league.nations');
@@ -3561,7 +3667,7 @@ function formatRoundLabel(m) {
   const hasN = n != null && Number.isFinite(n);
   if (!hasN && !g) return '';
   const apiId = Number(m.leagueApiId);
-  const useMatchday = apiId === 39 || getUiLang() === 'en';
+  const useMatchday = apiId === 39 || apiId === 40 || getUiLang() === 'en';
   let base = '';
   if (hasN) {
     base = t(useMatchday ? 'round.matchday' : 'round.jornada', { n: String(n) });
@@ -3645,7 +3751,7 @@ async function ensureLigasCatalog() {
           logoUrl:
             row.logo_url ||
             row.logoUrl ||
-            ([2, 3, 5, 39, 61, 78, 135, 140, 141].includes(apiId)
+            ([2, 3, 5, 39, 40, 61, 78, 135, 140, 141].includes(apiId)
               ? `https://media.api-sports.io/football/leagues/${apiId}.png`
               : null),
         });
@@ -4132,27 +4238,34 @@ function clearToasts() {
 function renderToastQueue() {
   const host = document.getElementById('hb-toast');
   if (!host) return;
+  const hasError = toastQueue.some((item) => item.kind === 'error');
+  host.setAttribute('aria-live', hasError ? 'assertive' : 'polite');
   host.innerHTML = toastQueue
-    .map(
-      (item) =>
-        `<div class="hb-toast__item hb-toast__item--${escapeHtml(item.kind)}" role="status">${escapeHtml(
-          item.message
-        )}</div>`
-    )
+    .map((item) => {
+      const role = item.kind === 'error' ? 'alert' : 'status';
+      return `<div class="hb-toast__item hb-toast__item--${escapeHtml(item.kind)}" role="${role}">${escapeHtml(
+        item.message
+      )}</div>`;
+    })
     .join('');
+}
+
+function toastDurationMs(kind) {
+  return kind === 'error' ? 6500 : 3000;
 }
 
 function scheduleToastDismiss() {
   if (toastTimer) clearTimeout(toastTimer);
+  const head = toastQueue[0];
   toastTimer = setTimeout(() => {
     toastQueue.shift();
     renderToastQueue();
     toastTimer = null;
     if (toastQueue.length) scheduleToastDismiss();
-  }, 3000);
+  }, toastDurationMs(head?.kind));
 }
 
-/** Ephemeral bottom toast (3s). Empty message clears the queue. */
+/** Ephemeral bottom toast (3s; errors 6.5s). Empty message clears the queue. */
 function showBanner(message, kind = 'info') {
   if (!message) {
     clearToasts();
@@ -4618,6 +4731,10 @@ const I18N = {
     'auth.registerSubmit': 'Crear cuenta',
     'auth.confirmPassword': 'Confirmar contraseña',
     'auth.close': 'Cerrar',
+    'auth.guest': 'Entrar sin cuenta',
+    'auth.loginFail': 'No se pudo iniciar sesión',
+    'auth.registerFail': 'No se pudo crear la cuenta',
+    'auth.passwordMismatch': 'Las contraseñas no coinciden',
     'premiumModal.title': 'Pasa a Premium',
     'premiumModal.lead':
       'Desbloquea tips semanales y el acceso completo a Houdini Analytics. Puedes activarlo ahora o más tarde.',
@@ -4751,7 +4868,7 @@ const I18N = {
     'contact.lead':
       'Envía una queja, sugerencia o petición de ayuda. Guardamos el mensaje de forma segura para responderte.',
     'contact.name': 'Nombre',
-    'contact.email': 'Email',
+    'contact.email': 'Tu email',
     'contact.type': 'Tipo',
     'contact.typeSupport': 'Soporte',
     'contact.typeComplaint': 'Queja',
@@ -5091,6 +5208,10 @@ const I18N = {
     'auth.registerSubmit': 'Create account',
     'auth.confirmPassword': 'Confirm password',
     'auth.close': 'Close',
+    'auth.guest': 'Continue without account',
+    'auth.loginFail': 'Could not sign in',
+    'auth.registerFail': 'Could not create account',
+    'auth.passwordMismatch': 'Passwords do not match',
     'premiumModal.title': 'Go Premium',
     'premiumModal.lead':
       'Unlock weekly tips and full access to Houdini Analytics. Activate now or later.',
@@ -5224,7 +5345,7 @@ const I18N = {
     'contact.lead':
       'Send a complaint, suggestion, or help request. We store the message securely so we can reply.',
     'contact.name': 'Name',
-    'contact.email': 'Email',
+    'contact.email': 'Your email',
     'contact.type': 'Type',
     'contact.typeSupport': 'Support',
     'contact.typeComplaint': 'Complaint',
@@ -7550,7 +7671,7 @@ function perfTipDisplayHtml(tip) {
   )}">
     <span class="perf-row__tip-blur" aria-hidden="true">${tip}</span>
     <span class="perf-row__tip-premium" aria-hidden="true">
-      <img src="/icons/ui/premium-crown.png?v=hb193" width="13" height="13" alt="" />
+      <img src="/icons/ui/premium-crown.png?v=hb205" width="13" height="13" alt="" />
       Premium
     </span>
   </span>`;
@@ -8602,6 +8723,7 @@ let weeklySeenIds = [];
 
 const WEEKLY_LEAGUE_LABELS = {
   39: 'Premier League',
+  40: 'Championship',
   140: 'LaLiga',
   141: 'LaLiga Hypermotion',
   135: 'Serie A',
@@ -9739,8 +9861,24 @@ function isAuthModalOpen() {
 function setAuthModalNote(msg, isError = false) {
   const note = document.getElementById('auth-modal-note');
   if (!note) return;
-  note.textContent = msg || '';
-  note.classList.toggle('auth-modal__note--error', Boolean(isError && msg));
+  const text = msg ? String(msg) : '';
+  const err = Boolean(isError && text);
+  note.textContent = text;
+  note.classList.remove('auth-modal__note--error');
+  if (err) {
+    void note.offsetWidth;
+    note.classList.add('auth-modal__note--error');
+  }
+  note.setAttribute('role', err ? 'alert' : 'status');
+  note.setAttribute('aria-live', err ? 'assertive' : 'polite');
+  if (err) {
+    showBanner(text, 'error');
+    try {
+      note.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    } catch (_) {
+      /* ignore */
+    }
+  }
 }
 
 function setAuthTab(tab) {
@@ -9977,6 +10115,7 @@ async function handleAuthLogin(e) {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ identifier, password }),
     });
+    clearGuestSession();
     setAuthUser(data.user);
     closeAuthModal();
     if (data.user?.premiumSanction) showSanctionOverlay();
@@ -9986,7 +10125,7 @@ async function handleAuthLogin(e) {
       loadPremiumState().then(() => refreshTipsLockedViews()).catch(() => {});
     }
   } catch (err) {
-    setAuthModalNote(err.message || 'No se pudo iniciar sesión', true);
+    setAuthModalNote(err.message || t('auth.loginFail'), true);
   } finally {
     if (submit) submit.disabled = false;
   }
@@ -10089,7 +10228,7 @@ async function handleAuthRegister(e) {
   };
   setAuthModalNote('');
   if (payload.password !== payload.password2) {
-    setAuthModalNote('Las contraseñas no coinciden', true);
+    setAuthModalNote(t('auth.passwordMismatch'), true);
     return;
   }
   if (submit) submit.disabled = true;
@@ -10099,6 +10238,7 @@ async function handleAuthRegister(e) {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(payload),
     });
+    clearGuestSession();
     setAuthUser(data.user);
     closeAuthModal();
     if (bootAwaitingAuth) {
@@ -10108,7 +10248,7 @@ async function handleAuthRegister(e) {
     }
     schedulePostRegisterPremiumUpsell();
   } catch (err) {
-    setAuthModalNote(err.message || 'No se pudo crear la cuenta', true);
+    setAuthModalNote(err.message || t('auth.registerFail'), true);
   } finally {
     if (submit) submit.disabled = false;
   }
@@ -10128,6 +10268,7 @@ async function handleAuthLogout() {
   } catch (_) {
     /* still clear local */
   }
+  clearGuestSession();
   setAuthUser(null);
   premiumState.premium = false;
   premiumState.plan = 'free';
@@ -10452,6 +10593,9 @@ document.getElementById('auth-form-login')?.addEventListener('submit', (e) => {
 });
 document.getElementById('auth-form-register')?.addEventListener('submit', (e) => {
   handleAuthRegister(e).catch(() => {});
+});
+document.getElementById('auth-guest')?.addEventListener('click', () => {
+  continueAsGuest();
 });
 document.getElementById('auth-google')?.addEventListener('click', handleAuthGoogle);
 document.getElementById('auth-telegram')?.addEventListener('click', (e) => {
@@ -11278,6 +11422,43 @@ function dismissBootSplash() {
 
 let bootAwaitingAuth = false;
 
+/** Session-scoped anonymous browse (skip auth gate until logout / new tab). */
+const GUEST_SESSION_KEY = 'hb_guest_v1';
+
+function isGuestSession() {
+  try {
+    return sessionStorage.getItem(GUEST_SESSION_KEY) === '1';
+  } catch (_) {
+    return false;
+  }
+}
+
+function setGuestSession() {
+  try {
+    sessionStorage.setItem(GUEST_SESSION_KEY, '1');
+  } catch (_) {
+    /* private mode */
+  }
+}
+
+function clearGuestSession() {
+  try {
+    sessionStorage.removeItem(GUEST_SESSION_KEY);
+  } catch (_) {
+    /* ignore */
+  }
+}
+
+function continueAsGuest() {
+  setGuestSession();
+  setAuthModalNote('');
+  if (bootAwaitingAuth || document.body.classList.contains('auth-required')) {
+    finishBootAfterAuth().catch(() => {});
+    return;
+  }
+  closeAuthModal();
+}
+
 function openAuthRequiredGate() {
   document.body.classList.add('auth-required');
   const closeBtn = document.getElementById('auth-modal-close');
@@ -11337,11 +11518,16 @@ async function bootApp() {
     handleAuthQueryFlags();
     await refreshAuthMe();
     if (!authUser) {
+      if (isGuestSession()) {
+        await finishBootAfterAuth();
+        return;
+      }
       bootAwaitingAuth = true;
       dismissBootSplash();
       openAuthRequiredGate();
       return;
     }
+    clearGuestSession();
     /* Google OAuth return (?auth=ok) lands here with session already set */
     await finishBootAfterAuth();
   } catch (err) {
