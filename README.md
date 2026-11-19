@@ -31,31 +31,72 @@
 
 ## Capturas / Screenshots
 
-App en vivo: **[https://houdini-analytics.pages.dev](https://houdini-analytics.pages.dev)**
+<p align="center">
+  <a href="https://houdini-analytics.pages.dev"><strong>https://houdini-analytics.pages.dev</strong></a><br/>
+  <sub>App en vivo · PWA · Desktop &amp; móvil</sub>
+</p>
 
-### Desktop
+<br/>
 
-| Partidos + panel | Stats |
-|:---:|:---:|
-| ![Partidos y panel de análisis](docs/screenshots/partidos-desktop.png) | ![Stats — medias del día](docs/screenshots/stats-desktop.png) |
-| Partidos + panel de análisis | Stats — medias por partido |
+<h3 align="center">Desktop</h3>
 
-| Top 10 | Ligas |
-|:---:|:---:|
-| ![Top 10 tips del día](docs/screenshots/top10-desktop.png) | ![Ligas — catálogo y tablas](docs/screenshots/ligas-desktop.png) |
-| Top 10 — tips P 78–95% | Ligas — catálogo y tablas |
+<p align="center">
+  <a href="https://houdini-analytics.pages.dev">
+    <img src="docs/screenshots/partidos-desktop.png" alt="Partidos + panel de análisis" width="820" />
+  </a>
+</p>
+<p align="center"><sub>Partidos + panel de análisis</sub></p>
 
-### Mobile
+<table>
+  <tr>
+    <td align="center" width="33%">
+      <a href="https://houdini-analytics.pages.dev/#top3">
+        <img src="docs/screenshots/top10-desktop.png" alt="Top 10 tips del día" width="260" />
+      </a><br/>
+      <sub>Top 10 — tips P 78–95%</sub>
+    </td>
+    <td align="center" width="33%">
+      <a href="https://houdini-analytics.pages.dev/#stats">
+        <img src="docs/screenshots/stats-desktop.png" alt="Stats — medias del día" width="260" />
+      </a><br/>
+      <sub>Stats — medias por partido</sub>
+    </td>
+    <td align="center" width="33%">
+      <a href="https://houdini-analytics.pages.dev/#ligas">
+        <img src="docs/screenshots/ligas-desktop.png" alt="Ligas — catálogo y tablas" width="260" />
+      </a><br/>
+      <sub>Ligas — catálogo y tablas</sub>
+    </td>
+  </tr>
+</table>
 
-| Partidos | Top 10 | Análisis · General |
-|:---:|:---:|:---:|
-| ![Partidos (móvil)](docs/screenshots/partidos-mobile.jpg) | ![Top 10 (móvil)](docs/screenshots/top10-mobile.jpg) | ![Análisis General (móvil)](docs/screenshots/analisis-general-mobile.jpg) |
-| Partidos | Top 10 | Análisis · General |
+<br/>
 
-| Análisis · Goles | Análisis · Córners |
-|:---:|:---:|
-| ![Análisis Goles (móvil)](docs/screenshots/analisis-goles-mobile.jpg) | ![Análisis Córners (móvil)](docs/screenshots/analisis-corners-mobile.jpg) |
-| Análisis · Goles | Análisis · Córners |
+<h3 align="center">Mobile</h3>
+
+<p align="center">
+  <img src="docs/screenshots/partidos-mobile.jpg" alt="Partidos (móvil)" width="260" />
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/top10-mobile.jpg" alt="Top 10 (móvil)" width="260" />
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/analisis-general-mobile.jpg" alt="Análisis General (móvil)" width="260" />
+</p>
+<p align="center">
+  <sub>Partidos &nbsp;·&nbsp; Top 10 &nbsp;·&nbsp; Análisis · General</sub>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/analisis-goles-mobile.jpg" alt="Análisis Goles (móvil)" width="260" />
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/analisis-corners-mobile.jpg" alt="Análisis Córners (móvil)" width="260" />
+</p>
+<p align="center">
+  <sub>Análisis · Goles &nbsp;·&nbsp; Análisis · Córners</sub>
+</p>
+
+<p align="center">
+  <a href="https://houdini-analytics.pages.dev">Abrir Houdini Analytics →</a>
+</p>
 
 ---
 
