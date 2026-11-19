@@ -18,84 +18,13 @@
 <p align="center">
   <a href="https://houdini-analytics.pages.dev">Abrir app</a>
   ·
-  <a href="#capturas--screenshots">Capturas</a>
-  ·
   <a href="#desarrollo">Desarrollo</a>
   ·
   <a href="#deploy">Deploy</a>
   ·
   <a href="#api-resumen">API</a>
-</p>
-
----
-
-## Capturas / Screenshots
-
-<p align="center">
-  <a href="https://houdini-analytics.pages.dev"><strong>https://houdini-analytics.pages.dev</strong></a><br/>
-  <sub>App en vivo · PWA · Desktop &amp; móvil</sub>
-</p>
-
-<br/>
-
-<h3 align="center">Desktop</h3>
-
-<p align="center">
-  <a href="https://houdini-analytics.pages.dev">
-    <img src="docs/screenshots/partidos-desktop.png" alt="Partidos + panel de análisis" width="820" />
-  </a>
-</p>
-<p align="center"><sub>Partidos + panel de análisis</sub></p>
-
-<table>
-  <tr>
-    <td align="center" width="33%">
-      <a href="https://houdini-analytics.pages.dev/#top3">
-        <img src="docs/screenshots/top10-desktop.png" alt="Top 10 tips del día" width="260" />
-      </a><br/>
-      <sub>Top 10 — tips P 78–95%</sub>
-    </td>
-    <td align="center" width="33%">
-      <a href="https://houdini-analytics.pages.dev/#stats">
-        <img src="docs/screenshots/stats-desktop.png" alt="Stats — medias del día" width="260" />
-      </a><br/>
-      <sub>Stats — medias por partido</sub>
-    </td>
-    <td align="center" width="33%">
-      <a href="https://houdini-analytics.pages.dev/#ligas">
-        <img src="docs/screenshots/ligas-desktop.png" alt="Ligas — catálogo y tablas" width="260" />
-      </a><br/>
-      <sub>Ligas — catálogo y tablas</sub>
-    </td>
-  </tr>
-</table>
-
-<br/>
-
-<h3 align="center">Mobile</h3>
-
-<p align="center">
-  <img src="docs/screenshots/partidos-mobile.jpg" alt="Partidos (móvil)" width="260" />
-  &nbsp;&nbsp;
-  <img src="docs/screenshots/top10-mobile.jpg" alt="Top 10 (móvil)" width="260" />
-  &nbsp;&nbsp;
-  <img src="docs/screenshots/analisis-general-mobile.jpg" alt="Análisis General (móvil)" width="260" />
-</p>
-<p align="center">
-  <sub>Partidos &nbsp;·&nbsp; Top 10 &nbsp;·&nbsp; Análisis · General</sub>
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/analisis-goles-mobile.jpg" alt="Análisis Goles (móvil)" width="260" />
-  &nbsp;&nbsp;
-  <img src="docs/screenshots/analisis-corners-mobile.jpg" alt="Análisis Córners (móvil)" width="260" />
-</p>
-<p align="center">
-  <sub>Análisis · Goles &nbsp;·&nbsp; Análisis · Córners</sub>
-</p>
-
-<p align="center">
-  <a href="https://houdini-analytics.pages.dev">Abrir Houdini Analytics →</a>
+  ·
+  <a href="#capturas">Capturas</a>
 </p>
 
 ---
@@ -246,6 +175,29 @@ Sin `API_BASE_URL` apunta a MySQL local (solo legacy).
 1. Dominio custom + OAuth redirects de producto
 2. Stripe Live estable (tras validar Test)
 3. Pulido UI (design guidelines)
+
+## Capturas
+
+<p align="center">
+  <a href="https://houdini-analytics.pages.dev">
+    <img src="docs/screenshots/partidos-desktop.png" alt="Partidos + panel de análisis" width="720" />
+  </a><br/>
+  <sub>Partidos + panel de análisis</sub>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/ligas-desktop.png" alt="Ligas — catálogo y tablas" width="480" />
+</p>
+<p align="center"><sub>Ligas</sub></p>
+
+<p align="center">
+  <img src="docs/screenshots/partidos-mobile.jpg" alt="Partidos (móvil)" width="220" />
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/analisis-general-mobile.jpg" alt="Análisis General (móvil)" width="220" />
+</p>
+<p align="center">
+  <sub>Móvil — Partidos · Análisis</sub>
+</p>
 
 ## Autor
 
