@@ -1,22 +1,35 @@
 <p align="center">
-  <img src="cloudflare/public/brand/houdini-analytics-icon.png" alt="Houdini Analytics" width="120" />
+  <img src="cloudflare/public/brand/houdini-analytics-icon.png" alt="Houdini Analytics" width="108" />
 </p>
 
 <h1 align="center">Houdini Analytics</h1>
 
 <p align="center">
-  Predicciones de fútbol con Poisson · tip lane 78–95% · PWA en Cloudflare
+  <strong>Predicciones de fútbol con modelo Poisson</strong><br>
+  <sub>Tip lane 78–95% · en vivo · PWA dark/red en Cloudflare</sub>
 </p>
 
 <p align="center">
-  <a href="https://houdini-analytics.pages.dev"><strong>Abrir app en vivo →</strong></a>
+  <a href="https://houdini-analytics.pages.dev"><img src="https://img.shields.io/badge/%E2%96%B6_Abrir_app_en_vivo-DC2626?style=for-the-badge&labelColor=0A0A0A" alt="Abrir app en vivo"></a>
+  &nbsp;
+  <a href="https://houdini-analytics-admin.pages.dev"><img src="https://img.shields.io/badge/Admin_panel-1A1A1A?style=for-the-badge&labelColor=0A0A0A" alt="Admin"></a>
 </p>
 
 <p align="center">
   <a href="https://houdini-analytics.pages.dev"><img src="https://img.shields.io/badge/Live-houdini--analytics.pages.dev-DC2626?style=flat-square&labelColor=0A0A0A" alt="Live"></a>
-  <img src="https://img.shields.io/badge/Stack-Workers%20%2B%20D1%20%2B%20Pages-0A0A0A?style=flat-square&labelColor=1a1a1a" alt="Stack">
+  <img src="https://img.shields.io/badge/Stack-Workers%20%2B%20D1%20%2B%20Pages-0A0A0A?style=flat-square&labelColor=1A1A1A" alt="Stack">
   <img src="https://img.shields.io/badge/v1.1-MVP-DC2626?style=flat-square&labelColor=0A0A0A" alt="v1.1">
-  <img src="https://img.shields.io/badge/PWA-ready-1a1a1a?style=flat-square" alt="PWA">
+  <img src="https://img.shields.io/badge/PWA-ready-1A1A1A?style=flat-square&labelColor=0A0A0A" alt="PWA">
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Poisson-0A0A0A?style=flat-square&labelColor=1A1A1A" alt="Poisson">
+  <img src="https://img.shields.io/badge/Tip_78%E2%80%9395%25-DC2626?style=flat-square&labelColor=0A0A0A" alt="Tip 78-95%">
+  <img src="https://img.shields.io/badge/Top_10-0A0A0A?style=flat-square&labelColor=1A1A1A" alt="Top 10">
+  <img src="https://img.shields.io/badge/Aciertos-0A0A0A?style=flat-square&labelColor=1A1A1A" alt="Aciertos">
+  <img src="https://img.shields.io/badge/Stats-0A0A0A?style=flat-square&labelColor=1A1A1A" alt="Stats">
+  <img src="https://img.shields.io/badge/Ligas-0A0A0A?style=flat-square&labelColor=1A1A1A" alt="Ligas">
+  <img src="https://img.shields.io/badge/Premium-DC2626?style=flat-square&labelColor=0A0A0A" alt="Premium">
 </p>
 
 <p align="center">
@@ -43,7 +56,7 @@ App de predicciones (Poisson + Dixon–Coles). Tips rankeados solo por **P del m
 | **Admin** | [houdini-analytics-admin.pages.dev](https://houdini-analytics-admin.pages.dev) |
 | **API** | `houdini-bet…workers.dev` → `/api/v1/…` · `/health` |
 
-- **Partidos** — hoy + 14 días · top5 + Segunda + UNL/UCL/UEL · live
+- **Partidos** — hoy + 14 días · top5 + Segunda + Championship + UNL/UCL/UEL · live
 - **Top 10 / Aciertos** — tip primary allowlist · hit / miss / void / pending
 - **Stats · Ligas · Panel** — medias, tablas, 1X2 / O-U / BTTS / córners / tarjetas / SOT
 - **Auth · Premium** — cookie + Google · Stripe (Mensual / Trimestral / Anual)
@@ -114,10 +127,10 @@ Secrets (`wrangler secret put`, nunca en git): `SYNC_SECRET`, `AUTH_SECRET`, Goo
 
 | Vista | | |
 |-------|---|---|
-| Partidos | <img src="docs/screenshots/partidos-desktop.png" alt="Partidos desktop" width="280" /> | Lista del día + panel de análisis |
-| Ligas | <img src="docs/screenshots/ligas-desktop.png" alt="Ligas desktop" width="240" /> | Catálogo, logos y tablas |
-| Móvil | <img src="docs/screenshots/partidos-mobile.jpg" alt="Partidos móvil" width="140" /> | Chips, escudos, tabbar |
-| Análisis | <img src="docs/screenshots/analisis-general-mobile.jpg" alt="Análisis móvil" width="140" /> | O1.5 · O2.5 · BTTS · medias |
+| Partidos | <img src="docs/screenshots/partidos-desktop.png" alt="Partidos desktop" width="220" /> | Lista del día + panel de análisis |
+| Ligas | <img src="docs/screenshots/ligas-desktop.png" alt="Ligas desktop" width="200" /> | Catálogo, logos y tablas |
+| Móvil | <img src="docs/screenshots/partidos-mobile.jpg" alt="Partidos móvil" width="108" /> | Chips, escudos, tabbar |
+| Análisis | <img src="docs/screenshots/analisis-general-mobile.jpg" alt="Análisis móvil" width="108" /> | O1.5 · O2.5 · BTTS · medias |
 
 ## Autor
 
