@@ -699,7 +699,7 @@ function hbCensorWrap(html, { block = false, elongated = false } = {}) {
   )}">
     <div class="hb-censor__veil" aria-hidden="true">${html}</div>
     <div class="hb-censor__lock" aria-hidden="true">
-      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb205" width="16" height="16" alt="" decoding="async" />
+      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb208" width="16" height="16" alt="" decoding="async" />
       <span class="hb-censor__lock-title">${escapeHtml(t('censor.title'))}</span>
       <span class="hb-censor__lock-sub">${escapeHtml(t('censor.sub'))}</span>
     </div>
@@ -1964,7 +1964,7 @@ function mpVsMidLabel(m, live) {
 }
 
 function mpVsBrandMarkHtml() {
-  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb205" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
+  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb208" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
 }
 
 function mpVsMidHtml(m, live) {
@@ -2267,7 +2267,7 @@ function sumRecentAvg(recentAvgs, key) {
   return Number(((Number(h) || 0) + (Number(a) || 0)).toFixed(2));
 }
 
-const UI_ICON_V = 'hb205';
+const UI_ICON_V = 'hb208';
 const MP_STAT_ICON_PX = 20;
 const mpStatImg = (file) =>
   `<img class="mp-stat__icon mp-stat__icon--img" src="/icons/ui/${file}?v=${UI_ICON_V}" width="${MP_STAT_ICON_PX}" height="${MP_STAT_ICON_PX}" alt="" aria-hidden="true" decoding="async" />`;
@@ -7671,7 +7671,7 @@ function perfTipDisplayHtml(tip) {
   )}">
     <span class="perf-row__tip-blur" aria-hidden="true">${tip}</span>
     <span class="perf-row__tip-premium" aria-hidden="true">
-      <img src="/icons/ui/premium-crown.png?v=hb205" width="13" height="13" alt="" />
+      <img src="/icons/ui/premium-crown.png?v=hb208" width="13" height="13" alt="" />
       Premium
     </span>
   </span>`;
@@ -8326,13 +8326,23 @@ function syncNavIndicator({ instant = false } = {}) {
   const indicator = nav?.querySelector('.v2-nav__indicator');
   const active = nav?.querySelector('.v2-nav__link.is-active');
   if (!nav || !indicator) return;
+  // Mobile hides .v2-nav (bottom .app-tabbar). Skip geometry — measuring
+  // display:none links jitters the fixed header on WebKit.
+  const navStyle = window.getComputedStyle(nav);
+  if (navStyle.display === 'none' || navStyle.visibility === 'hidden') {
+    indicator.style.opacity = '0';
+    return;
+  }
   if (!active) {
     indicator.style.opacity = '0';
     return;
   }
+  // Never scroll the tab strip or the page (hb208). Desktop nav must stay put
+  // when switching to Aciertos/Stats; scrollIntoView used to pan overflow-x:auto.
+  if (nav.scrollLeft) nav.scrollLeft = 0;
   const navRect = nav.getBoundingClientRect();
   const linkRect = active.getBoundingClientRect();
-  const left = linkRect.left - navRect.left + nav.scrollLeft;
+  const left = linkRect.left - navRect.left;
   const width = linkRect.width;
   const snap = instant || prefersReducedMotion() || !navIndicatorReady;
   if (snap) {
@@ -8346,15 +8356,23 @@ function syncNavIndicator({ instant = false } = {}) {
     indicator.style.transition = '';
   }
   navIndicatorReady = true;
+}
+
+/** Pin document + nav scroll so tab switches never nudge the fixed header. */
+function lockShellScroll() {
+  const root = document.documentElement;
+  const prev = root.style.scrollBehavior;
+  root.style.scrollBehavior = 'auto';
   try {
-    active.scrollIntoView({
-      block: 'nearest',
-      inline: 'nearest',
-      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
-    });
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   } catch {
-    /* ignore */
+    window.scrollTo(0, 0);
   }
+  if (root.scrollLeft) root.scrollLeft = 0;
+  if (document.body?.scrollLeft) document.body.scrollLeft = 0;
+  const nav = document.querySelector('.v2-nav');
+  if (nav?.scrollLeft) nav.scrollLeft = 0;
+  root.style.scrollBehavior = prev;
 }
 
 /** Subtle enter motion for main tabs (nav / tabbar taps + day-change). */
@@ -8449,7 +8467,9 @@ function setActiveNav(hash, { pushHash = true } = {}) {
     if (view === 'ligas' && /^ligas\/\d+/.test(deep)) want = `#${deep}`;
     if (location.hash !== want) history.replaceState(null, '', want);
   }
-  window.scrollTo(0, 0);
+  // Instant reset — html { scroll-behavior: smooth } + hash targets inside a
+  // translated .views-track would otherwise pan/jank the fixed .v2-nav (hb208).
+  lockShellScroll();
   if (view !== 'ligas') document.body.classList.remove('has-ligas-selection');
   // Shared selectedDate / windowMode across Partidos · Top10 · Aciertos · Stats.
   if (view === 'partidos') ensurePartidosDateSynced();
@@ -8468,7 +8488,10 @@ function setActiveNav(hash, { pushHash = true } = {}) {
   if (view !== prevView || lastViewEnterId !== view) {
     requestAnimationFrame(() => triggerViewEnter(view));
   }
-  requestAnimationFrame(() => syncNavIndicator({ instant: !navIndicatorReady }));
+  requestAnimationFrame(() => {
+    lockShellScroll();
+    syncNavIndicator({ instant: !navIndicatorReady });
+  });
 }
 
 function navigateAppHash(href) {
@@ -10657,6 +10680,12 @@ document
       const href = link.getAttribute('href') || '';
       if (!href.startsWith('#')) return;
       e.preventDefault();
+      // Focus must not scroll ancestors / the (formerly) overflow-x:auto nav.
+      try {
+        link.focus({ preventScroll: true });
+      } catch {
+        /* ignore */
+      }
       navigateAppHash(href);
     });
   });

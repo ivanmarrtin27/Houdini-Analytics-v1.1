@@ -54,6 +54,8 @@ html {
   height: 100%;
   overflow-x: hidden;
   overscroll-behavior-x: none;
+  /* Keep header/tabs from shifting when tab content toggles the vertical scrollbar (hb208). */
+  scrollbar-gutter: stable;
 }
 
 body {
@@ -1353,8 +1355,8 @@ main.v2-main.shell {
   max-width: 100%;
   min-width: 0;
   box-sizing: border-box;
+  /* Desktop only: soft horizontal pane switch. Mobile uses instant snap (see ≤720px). */
   transition: transform var(--motion-panel) cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: transform;
 }
 
 /* Active pane owns track height so a taller sibling doesn't leave a blank band above the footer. */
@@ -2653,23 +2655,19 @@ h2 {
     transform: none;
   }
 }
+/* Kept for reduced-motion hooks / future; pane itself must NOT transform (hb208). */
 @keyframes hb-view-enter {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+  from { opacity: 1; }
+  to { opacity: 1; }
 }
-/* Tab enter: pane rise + every visible row/group participates (inline delay caps cascade). */
+/* Tab enter: ONLY list/card rows stagger — never the pane, header, or browse-chrome. */
 #partidos.view-enter,
 #top3.view-enter,
 #aciertos.view-enter,
 #stats.view-enter,
 #ligas.view-enter {
-  animation: hb-view-enter 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: none;
+  transform: none;
 }
 #partidos.view-enter .league,
 #partidos.view-enter .league-match,
@@ -2679,6 +2677,22 @@ h2 {
 #ligas.view-enter .ligas-folder {
   animation: aciertos-row-in 0.35s ease both;
   animation-delay: var(--hb-enter-delay, 0ms);
+}
+/* Chrome inside panes stays put during enter (date bar / chips / section heads). */
+#partidos.view-enter .browse-chrome,
+#partidos.view-enter .date-bar,
+#partidos.view-enter .browse-chips,
+#top3.view-enter .section-lead,
+#top3.view-enter .browse-chrome,
+#aciertos.view-enter .aciertos-summary,
+#aciertos.view-enter .browse-chrome,
+#stats.view-enter .browse-chrome,
+#stats.view-enter .match-stats__toolbar,
+#ligas.view-enter .ligas-explorer__search,
+#ligas.view-enter .browse-chrome {
+  animation: none !important;
+  transform: none !important;
+  opacity: 1 !important;
 }
 @media (prefers-reduced-motion: reduce) {
   .card--aciertos,
@@ -7402,6 +7416,12 @@ body.browse-layout {
   background: rgba(10, 10, 10, 0.92);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line);
+  /* Own compositor layer — never ride sibling view transforms (hb208). */
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  isolation: isolate;
+  contain: layout style;
 }
 .v2-header-inner {
   display: grid;
@@ -7463,12 +7483,15 @@ body.browse-layout {
   flex: 0 0 auto;
   min-width: max-content;
   max-width: 100%;
-  overflow-x: visible;
-  overflow-y: hidden;
-  scrollbar-width: none;
-  overscroll-behavior-x: contain;
-  -webkit-overflow-scrolling: touch;
-  scroll-padding-inline: 0.25rem;
+  /*
+    Both axes must be non-visible. `overflow-x: visible` + `overflow-y: hidden`
+    computes to overflow-x:auto (CSS Overflow), turning the strip into a
+    horizontal scroller — then scrollIntoView / focus on Aciertos|Stats
+    shifts every tab (hb208).
+  */
+  overflow: hidden;
+  overscroll-behavior: none;
+  scroll-behavior: auto;
 }
 .v2-nav::-webkit-scrollbar { display: none; }
 .v2-nav__link {
@@ -7668,6 +7691,37 @@ body.tipster .v2-header .search-field {
   gap: 0.75rem;
   min-height: 0;
 }
+
+/* Shared Partidos/Ligas scroll chrome (hb208): same gutter, width, track, thumb */
+#partidos.view,
+#ligas.view {
+  padding-right: calc(var(--page-pad) + 0.4rem);
+}
+.browse-col--list,
+.browse-col--panel {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+.browse-col--list::-webkit-scrollbar,
+.browse-col--panel::-webkit-scrollbar {
+  width: 8px;
+}
+.browse-col--list::-webkit-scrollbar-track,
+.browse-col--panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+.browse-col--list::-webkit-scrollbar-thumb,
+.browse-col--panel::-webkit-scrollbar-thumb {
+  background-color: var(--line-strong);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.browse-col--list::-webkit-scrollbar-thumb:hover,
+.browse-col--panel::-webkit-scrollbar-thumb:hover {
+  background-color: var(--fog);
+}
+
 @media (min-width: 900px) {
   .browse-split {
     grid-template-columns: minmax(320px, 0.95fr) minmax(340px, 1.05fr);
@@ -7678,12 +7732,16 @@ body.tipster .v2-header .search-field {
   .browse-col--list {
     max-height: calc(100vh - 4.5rem);
     overflow: auto;
+    padding-right: 0.55rem;
+    scrollbar-gutter: stable;
   }
   .browse-col--panel {
     position: sticky;
     top: 3.5rem;
     max-height: calc(100vh - 4.5rem);
     overflow: auto;
+    padding-right: 0.55rem;
+    scrollbar-gutter: stable;
     border: 1px solid var(--line);
     border-radius: var(--radius);
     background: #111;
@@ -8852,8 +8910,26 @@ body.browse-layout [role="button"] {
     padding-bottom: calc(var(--dock-h) + env(safe-area-inset-bottom, 0px) + 0.65rem);
   }
 
+  /* Tap-only tabs: no horizontal track slide (avoids top chrome / fixed-header jank). */
+  .views-track {
+    transition: none !important;
+    will-change: auto;
+  }
+
   .v2-header {
     padding-top: env(safe-area-inset-top, 0px);
+    /* Re-assert fixed; never sticky/relative on mobile tab switches. */
+    position: fixed !important;
+    top: 0 !important;
+    left: 0;
+    right: 0;
+    transform: translateZ(0);
+  }
+
+  .app-tabbar {
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
   }
   .v2-header-inner {
     --v2-header-row-h: 52px;
