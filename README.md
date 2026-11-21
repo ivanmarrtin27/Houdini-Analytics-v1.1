@@ -11,8 +11,6 @@
 
 <p align="center">
   <a href="https://houdini-analytics.pages.dev"><img src="https://img.shields.io/badge/%E2%96%B6_Abrir_app_en_vivo-DC2626?style=for-the-badge&labelColor=0A0A0A" alt="Abrir app en vivo"></a>
-  &nbsp;
-  <a href="https://houdini-analytics-admin.pages.dev"><img src="https://img.shields.io/badge/Admin_panel-1A1A1A?style=for-the-badge&labelColor=0A0A0A" alt="Admin"></a>
 </p>
 
 <p align="center">
@@ -53,8 +51,9 @@ App de predicciones (Poisson + Dixon–Coles). Tips rankeados solo por **P del m
 | | |
 |---|---|
 | **App** | [houdini-analytics.pages.dev](https://houdini-analytics.pages.dev) |
-| **Admin** | [houdini-analytics-admin.pages.dev](https://houdini-analytics-admin.pages.dev) |
-| **API** | `houdini-bet…workers.dev` → `/api/v1/…` · `/health` |
+| **API** | `houdini-bet…workers.dev` → `/api/v1/…` · `/status` |
+
+Hay un **panel de administración** protegido con contraseña para operaciones y control del producto (uso interno; sin enlace público).
 
 - **Partidos** — hoy + 14 días · top5 + Segunda + Championship + UNL/UCL/UEL · live
 - **Top 10 / Aciertos** — tip primary allowlist · hit / miss / void / pending
@@ -62,7 +61,7 @@ App de predicciones (Poisson + Dixon–Coles). Tips rankeados solo por **P del m
 - **Auth · Premium** — cookie + Google · Stripe (Mensual / Trimestral / Anual)
 - **Datos** — cron FixtureDownload + FotMob · enrich opcional API-Football
 
-Docs: [Admin](./cloudflare/docs/ADMIN_PANEL.md) · [Auth](./cloudflare/docs/AUTH_SETUP.md) · [Stripe](./cloudflare/docs/STRIPE_SETUP.md)
+Docs: [Auth](./cloudflare/docs/AUTH_SETUP.md) · [Stripe](./cloudflare/docs/STRIPE_SETUP.md)
 
 > Pronósticos **informativos**. No son asesoramiento financiero. Juega con responsabilidad.
 
@@ -73,7 +72,7 @@ Docs: [Admin](./cloudflare/docs/ADMIN_PANEL.md) · [Auth](./cloudflare/docs/AUTH
 | Frontend | Pages `houdini-analytics` (`cloudflare/public` → `pages/`) |
 | API | Worker `houdini-bet` |
 | DB | D1 `houdini-bet-db` (aislado) |
-| Admin | Pages `houdini-analytics-admin` |
+| Admin | Microsite interno con contraseña (ops) |
 | Cron | sync `0 6 * * *` · enrich `30 6 * * *` |
 | Ligas | `140,141,39,40,135,78,61,5,2,3` |
 
@@ -108,11 +107,10 @@ npm test
 cd cloudflare
 npx wrangler deploy
 npx wrangler pages deploy pages --project-name houdini-analytics --branch main
-npx wrangler pages deploy admin-pages --project-name houdini-analytics-admin --branch main
 npx wrangler d1 migrations apply houdini-bet-db --remote
 ```
 
-Secrets (`wrangler secret put`, nunca en git): `SYNC_SECRET`, `AUTH_SECRET`, Google OAuth, `STRIPE_*`, opcional `API_FOOTBALL_KEY` / `CF_*`.
+El panel admin se despliega por separado (interno). Secrets (`wrangler secret put`, nunca en git): `AUTH_SECRET`, Google OAuth, `STRIPE_*`, opcional `API_FOOTBALL_KEY` / `CF_*` (+ secret de sync/admin).
 
 ### API (resumen)
 
