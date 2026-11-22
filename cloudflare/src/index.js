@@ -1668,11 +1668,13 @@ async function handleApi(request, env, ctx) {
     const gate = checkAdminSecret(request, env);
     if (!gate.ok) return json({ error: gate.error }, gate.status);
     const limit = url.searchParams.get('limit');
-    const [uniqueIpsToday, hits] = await Promise.all([
-      pageHitsService.countUniqueIpsToday(db),
+    const { start, end } = cfUsageService.todayUtcWindow();
+    const [uniqueIpsToday, hitsToday, hits] = await Promise.all([
+      pageHitsService.countUniqueIpsToday(db, { startIso: start, endIso: end }),
+      pageHitsService.countHitsToday(db, { startIso: start, endIso: end }),
       pageHitsService.listRecent(db, { limit }),
     ]);
-    return json({ uniqueIpsToday, hits });
+    return json({ uniqueIpsToday, hitsToday, day: start.slice(0, 10), hits });
   }
 
   if (method === 'GET' && path === '/api/v1/admin/usage/today') {
@@ -1680,14 +1682,21 @@ async function handleApi(request, env, ctx) {
     if (!gate.ok) return json({ error: gate.error }, gate.status);
     const { start, end } = cfUsageService.todayUtcWindow();
     const day = start.slice(0, 10);
-    const [usage, loginsToday] = await Promise.all([
-      cfUsageService.fetchWorkerUsageToday(env),
-      authService.countLoginsToday(db, { startIso: start, endIso: end }),
+    const window = { startIso: start, endIso: end };
+    const [hitsToday, uniqueIpsToday, loginsToday, ticketsToday] = await Promise.all([
+      pageHitsService.countHitsToday(db, window),
+      pageHitsService.countUniqueIpsToday(db, window),
+      authService.countLoginsToday(db, window),
+      supportService.countTicketsToday(db, window),
     ]);
+    // D1-backed dashboard metrics (no CF Web Analytics / Worker GraphQL).
     return json({
-      ...usage,
-      day: usage.day || day,
+      source: 'd1',
+      day,
+      hitsToday,
+      uniqueIpsToday,
       loginsToday,
+      ticketsToday,
     });
   }
 

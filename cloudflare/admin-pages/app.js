@@ -31,6 +31,8 @@ const screenHome = document.getElementById('screen-home');
 const screenHits = document.getElementById('screen-hits');
 const screenTips = document.getElementById('screen-tips');
 const screenStats = document.getElementById('screen-stats');
+const screenPromo = document.getElementById('screen-promo');
+const screenSupport = document.getElementById('screen-support');
 const deleteModal = document.getElementById('delete-modal');
 const deleteModalBody = document.getElementById('delete-modal-body');
 const deleteConfirmBtn = document.getElementById('delete-confirm');
@@ -41,8 +43,14 @@ const revokePremConfirmBtn = document.getElementById('revoke-premium-confirm');
 const promoForm = document.getElementById('promo-form');
 const promoList = document.getElementById('promo-list');
 const promoMeta = document.getElementById('promo-meta');
+const promoFullList = document.getElementById('promo-full-list');
+const promoFullCount = document.getElementById('promo-full-count');
+const promoSearch = document.getElementById('promo-search');
 const supportPanel = document.getElementById('support-panel');
 const supportMeta = document.getElementById('support-meta');
+const supportFullPanel = document.getElementById('support-full-panel');
+const supportFullCount = document.getElementById('support-full-count');
+const supportSearch = document.getElementById('support-search');
 
 /** @type {Array<Record<string, unknown>>} */
 let allUsers = [];
@@ -56,6 +64,12 @@ let tipsPerf = null;
 /** @type {Array<Record<string, unknown>>} */
 let allTipsRecent = [];
 let tipsQuery = '';
+/** @type {Array<Record<string, unknown>>} */
+let allPromoCodes = [];
+let promoQuery = '';
+/** @type {Array<Record<string, unknown>>} */
+let allSupportTickets = [];
+let supportQuery = '';
 /** @type {{ id: string, label: string } | null} */
 let pendingDelete = null;
 /** @type {{ id: string, label: string } | null} */
@@ -65,6 +79,8 @@ const HITS_PREVIEW = 3;
 const HITS_HISTORY_LIMIT = 500;
 const TIPS_PREVIEW = 3;
 const TIPS_RECENT_LIMIT = 80;
+const PROMO_PREVIEW = 3;
+const SUPPORT_PREVIEW = 3;
 
 const BET_LABELS = {
   HOME_WIN: 'Victoria local',
@@ -229,77 +245,60 @@ async function validatePin(pin) {
   await adminFetch('/api/v1/admin/users', { secret: pin });
 }
 
-function usageVisitsBlock(visits) {
-  if (!visits || visits.configured === false) {
-    return `
-      <div class="usage-card usage-card--visits">
-        <p class="usage-card__label">Visitas</p>
-        <p class="usage-card__note"><strong>No configuradas</strong></p>
-        <p class="usage-card__meta">Web Analytics / site tag pendiente.</p>
-      </div>`;
-  }
-  if (visits.error) {
-    return `
-      <div class="usage-card usage-card--visits">
-        <p class="usage-card__label">Visitas</p>
-        <p class="usage-card__note"><strong>Error</strong></p>
-        <p class="usage-card__meta">${escapeHtml(visits.error)}</p>
-      </div>`;
-  }
-  const v = Number(visits.visits) || 0;
-  const pv = Number(visits.pageViews) || 0;
-  return `
-    <div class="usage-card usage-card--visits">
-      <p class="usage-card__label">Visitas</p>
-      <p class="usage-card__metric">${v.toLocaleString('es-ES')}</p>
-      <p class="usage-card__meta">page views ${pv.toLocaleString('es-ES')} · hoy UTC ${escapeHtml(visits.day || '')}</p>
-    </div>`;
+function utcTodayPrefix() {
+  return new Date().toISOString().slice(0, 10);
 }
 
-function usageLoginsBlock(data) {
+function countTicketsCreatedToday(tickets) {
+  const day = utcTodayPrefix();
+  return (Array.isArray(tickets) ? tickets : []).filter((t) =>
+    String(t?.created_at || '').startsWith(day)
+  ).length;
+}
+
+/** D1-backed «Uso de hoy» cards. Prefer /usage/today; fall back to hits/tickets payloads. */
+function renderUsage(data, hitsPayload, tickets) {
+  const day = escapeHtml(data?.day || hitsPayload?.day || utcTodayPrefix());
+  const hitsToday =
+    data?.hitsToday != null
+      ? Number(data.hitsToday) || 0
+      : hitsPayload?.hitsToday != null
+        ? Number(hitsPayload.hitsToday) || 0
+        : null;
+  const uniqueIps =
+    data?.uniqueIpsToday != null
+      ? Number(data.uniqueIpsToday) || 0
+      : Number(hitsPayload?.uniqueIpsToday) || 0;
   const logins = Number(data?.loginsToday) || 0;
-  const day = escapeHtml(data?.day || '');
-  return `
-    <div class="usage-card usage-card--logins">
-      <p class="usage-card__label">Inicios de sesión</p>
-      <p class="usage-card__metric">${logins.toLocaleString('es-ES')}</p>
-      <p class="usage-card__meta">hoy UTC${day ? ` · ${day}` : ''}</p>
-    </div>`;
-}
+  const ticketsToday =
+    data?.ticketsToday != null
+      ? Number(data.ticketsToday) || 0
+      : countTicketsCreatedToday(tickets);
 
-function usageWorkerBlock(data) {
-  if (!data || data.configured === false) {
-    return `
-      <div class="usage-card">
-        <p class="usage-card__label">Consultas Worker</p>
-        <p class="usage-card__note"><strong>Métricas CF no configuradas</strong></p>
-      </div>`;
-  }
-  if (data.error) {
-    return `
-      <div class="usage-card">
-        <p class="usage-card__label">Consultas Worker</p>
-        <p class="usage-card__note"><strong>Error</strong></p>
-        <p class="usage-card__meta">${escapeHtml(data.error)}</p>
-      </div>`;
-  }
-  const n = Number(data.requests) || 0;
-  const errors = Number(data.errors) || 0;
-  return `
-    <div class="usage-card">
-      <p class="usage-card__label">Consultas Worker</p>
-      <p class="usage-card__metric">${n.toLocaleString('es-ES')}</p>
-      <p class="usage-card__meta"><code>${escapeHtml(data.scriptName || 'houdini-bet')}</code> · hoy UTC ${escapeHtml(data.day || '')}</p>
-      <p class="usage-card__meta">Errores: ${errors.toLocaleString('es-ES')}</p>
-    </div>`;
-}
+  const visitsMetric =
+    hitsToday != null ? hitsToday.toLocaleString('es-ES') : uniqueIps.toLocaleString('es-ES');
+  const visitsMeta =
+    hitsToday != null
+      ? `${uniqueIps.toLocaleString('es-ES')} IP únicas · D1 page_hits · ${day}`
+      : `IP únicas (hitsToday pendiente de Worker) · ${day}`;
 
-function renderUsage(data, visits) {
   usagePanel.innerHTML = `
     <div class="usage-grid">
-      ${usageVisitsBlock(visits)}
-      ${usageLoginsBlock(data || {})}
-      ${usageWorkerBlock(data)}
+      <div class="usage-card usage-card--visits">
+        <p class="usage-card__label">Visitas hoy</p>
+        <p class="usage-card__metric">${visitsMetric}</p>
+        <p class="usage-card__meta">${visitsMeta}</p>
+      </div>
+      <div class="usage-card usage-card--logins">
+        <p class="usage-card__label">Sesiones hoy</p>
+        <p class="usage-card__metric">${logins.toLocaleString('es-ES')}</p>
+        <p class="usage-card__meta">auth_sessions · hoy UTC · ${day}</p>
+      </div>
+      <div class="usage-card usage-card--tickets">
+        <p class="usage-card__label">Tickets soporte hoy</p>
+        <p class="usage-card__metric">${ticketsToday.toLocaleString('es-ES')}</p>
+        <p class="usage-card__meta">support_tickets · hoy UTC · ${day}</p>
+      </div>
     </div>`;
 }
 
@@ -694,12 +693,17 @@ async function loadTips() {
 }
 
 function setAdminScreen(name) {
-  const screen = name === 'hits' || name === 'tips' || name === 'stats' ? name : 'home';
+  const screen =
+    name === 'hits' || name === 'tips' || name === 'stats' || name === 'promo' || name === 'support'
+      ? name
+      : 'home';
   if (mainEl) mainEl.dataset.screen = screen;
   if (screenHome) screenHome.hidden = screen !== 'home';
   if (screenHits) screenHits.hidden = screen !== 'hits';
   if (screenTips) screenTips.hidden = screen !== 'tips';
   if (screenStats) screenStats.hidden = screen !== 'stats';
+  if (screenPromo) screenPromo.hidden = screen !== 'promo';
+  if (screenSupport) screenSupport.hidden = screen !== 'support';
 
   if (screen === 'hits') {
     if (location.hash !== '#hits') history.replaceState(null, '', '#hits');
@@ -710,7 +714,19 @@ function setAdminScreen(name) {
   } else if (screen === 'stats') {
     if (location.hash !== '#stats') history.replaceState(null, '', '#stats');
     loadStats().catch(() => {});
-  } else if (location.hash === '#hits' || location.hash === '#tips' || location.hash === '#stats') {
+  } else if (screen === 'promo') {
+    if (location.hash !== '#promo') history.replaceState(null, '', '#promo');
+    renderPromoFull();
+  } else if (screen === 'support') {
+    if (location.hash !== '#support') history.replaceState(null, '', '#support');
+    renderSupportFull();
+  } else if (
+    location.hash === '#hits' ||
+    location.hash === '#tips' ||
+    location.hash === '#stats' ||
+    location.hash === '#promo' ||
+    location.hash === '#support'
+  ) {
     history.replaceState(null, '', '#');
   }
 }
@@ -992,50 +1008,96 @@ function promoBenefitMeta(c) {
   return `<span>Efecto: <strong>${n}</strong> día${n === 1 ? '' : 's'} Premium gratis</span>`;
 }
 
-function renderPromoCodes(codes) {
+function promoSearchBlob(c) {
+  return [
+    c.code,
+    c.type,
+    promoTypeLabel(c.type),
+    c.days,
+    c.maxRedemptions,
+    c.redeemedCount,
+    Number(c.active) === 1 ? 'activo' : 'off',
+  ]
+    .map((x) => String(x ?? '').toLowerCase())
+    .join(' ');
+}
+
+function filteredPromoCodes() {
+  const q = String(promoQuery || '')
+    .trim()
+    .toLowerCase();
+  if (!q) return allPromoCodes;
+  return allPromoCodes.filter((c) => promoSearchBlob(c).includes(q));
+}
+
+function promoRowHtml(c) {
+  const redeemed = Number(c.redeemedCount || 0);
+  const maxRaw = c.maxRedemptions;
+  const hasMax = maxRaw != null && Number.isFinite(Number(maxRaw));
+  const redeemMeta = hasMax
+    ? `<span><strong>${redeemed}</strong> / ${escapeHtml(String(maxRaw))} canjes</span>`
+    : `<span><strong>${redeemed}</strong> canjes</span>`;
+  const isActive = Number(c.active) === 1;
+  const statusClass = isActive ? 'badge badge--ok' : 'badge badge--off';
+  const statusLabel = isActive ? 'Activo' : 'Off';
+  const type = String(c.type || 'free_days');
+  const delBtn = isActive
+    ? `<button type="button" class="btn btn--ghost btn--promo-del" data-promo-delete="${escapeHtml(c.code)}" aria-label="Eliminar ${escapeHtml(c.code)}">Eliminar</button>`
+    : '';
+  return `<li class="promo-row">
+    <div class="promo-row__main">
+      <p class="promo-row__code">
+        ${escapeHtml(c.code)}
+        <span class="promo-row__type badge">${escapeHtml(promoTypeLabel(type))}</span>
+      </p>
+      <p class="promo-row__meta">
+        ${promoBenefitMeta(c)}
+        ${redeemMeta}
+      </p>
+    </div>
+    <div class="promo-row__aside">
+      <span class="promo-row__status ${statusClass}">${statusLabel}</span>
+      ${delBtn}
+    </div>
+  </li>`;
+}
+
+function promoListHtml(codes) {
+  if (!codes.length) return '<p class="promo-list__empty">Sin cupones</p>';
+  return `<ul class="promo-list__ul">${codes.map(promoRowHtml).join('')}</ul>`;
+}
+
+function renderPromoPreview() {
+  const total = allPromoCodes.length;
   if (promoMeta) {
-    promoMeta.textContent = codes.length
-      ? `${codes.length} cupón${codes.length === 1 ? '' : 'es'}`
-      : '';
+    promoMeta.textContent = total ? `${total} cupón${total === 1 ? '' : 'es'}` : '';
   }
   if (!promoList) return;
-  if (!codes.length) {
+  if (!total) {
     promoList.innerHTML = '<p class="promo-list__empty">Sin cupones</p>';
     return;
   }
-  promoList.innerHTML = `<ul class="promo-list__ul">${codes
-    .map((c) => {
-      const redeemed = Number(c.redeemedCount || 0);
-      const maxRaw = c.maxRedemptions;
-      const hasMax = maxRaw != null && Number.isFinite(Number(maxRaw));
-      const redeemMeta = hasMax
-        ? `<span><strong>${redeemed}</strong> / ${escapeHtml(String(maxRaw))} canjes</span>`
-        : `<span><strong>${redeemed}</strong> canjes</span>`;
-      const isActive = Number(c.active) === 1;
-      const statusClass = isActive ? 'badge badge--ok' : 'badge badge--off';
-      const statusLabel = isActive ? 'Activo' : 'Off';
-      const type = String(c.type || 'free_days');
-      const delBtn = isActive
-        ? `<button type="button" class="btn btn--ghost btn--promo-del" data-promo-delete="${escapeHtml(c.code)}" aria-label="Eliminar ${escapeHtml(c.code)}">Eliminar</button>`
-        : '';
-      return `<li class="promo-row">
-        <div class="promo-row__main">
-          <p class="promo-row__code">
-            ${escapeHtml(c.code)}
-            <span class="promo-row__type badge">${escapeHtml(promoTypeLabel(type))}</span>
-          </p>
-          <p class="promo-row__meta">
-            ${promoBenefitMeta(c)}
-            ${redeemMeta}
-          </p>
-        </div>
-        <div class="promo-row__aside">
-          <span class="promo-row__status ${statusClass}">${statusLabel}</span>
-          ${delBtn}
-        </div>
-      </li>`;
-    })
-    .join('')}</ul>`;
+  promoList.innerHTML = promoListHtml(allPromoCodes.slice(0, PROMO_PREVIEW));
+}
+
+function renderPromoFull() {
+  if (!promoFullList) return;
+  const list = filteredPromoCodes();
+  const total = allPromoCodes.length;
+  if (promoFullCount) {
+    if (!total) promoFullCount.textContent = '';
+    else if (promoQuery.trim()) promoFullCount.textContent = `${list.length} / ${total}`;
+    else promoFullCount.textContent = `${total} cupón${total === 1 ? '' : 'es'}`;
+  }
+  if (!total) {
+    promoFullList.innerHTML = '<p class="promo-list__empty">Sin cupones</p>';
+    return;
+  }
+  if (!list.length) {
+    promoFullList.innerHTML = '<p class="promo-list__empty">Ninguna coincidencia</p>';
+    return;
+  }
+  promoFullList.innerHTML = promoListHtml(list);
 }
 
 function syncPromoTypeUi() {
@@ -1076,22 +1138,82 @@ function supportTicketHtml(t) {
     </article>`;
 }
 
-async function loadSupportTickets() {
+function supportSearchBlob(t) {
+  return [
+    t.subject,
+    t.name,
+    t.email,
+    t.message,
+    t.ticket_type,
+    t.status,
+    t.user_id,
+    t.created_at,
+  ]
+    .map((x) => String(x ?? '').toLowerCase())
+    .join(' ');
+}
+
+function filteredSupportTickets() {
+  const q = String(supportQuery || '')
+    .trim()
+    .toLowerCase();
+  if (!q) return allSupportTickets;
+  return allSupportTickets.filter((t) => supportSearchBlob(t).includes(q));
+}
+
+function supportListHtml(items) {
+  if (!items.length) return '<p class="muted">Sin mensajes aún.</p>';
+  return `<div class="support-list">${items.map(supportTicketHtml).join('')}</div>`;
+}
+
+function renderSupportPreview() {
+  const total = allSupportTickets.length;
+  if (supportMeta) {
+    supportMeta.textContent = total ? `${total} ticket${total === 1 ? '' : 's'}` : '';
+  }
   if (!supportPanel) return;
-  supportPanel.innerHTML = '<p class="muted">Cargando…</p>';
+  if (!total) {
+    supportPanel.innerHTML = '<p class="muted">Sin mensajes aún.</p>';
+    return;
+  }
+  supportPanel.innerHTML = supportListHtml(allSupportTickets.slice(0, SUPPORT_PREVIEW));
+}
+
+function renderSupportFull() {
+  if (!supportFullPanel) return;
+  const list = filteredSupportTickets();
+  const total = allSupportTickets.length;
+  if (supportFullCount) {
+    if (!total) supportFullCount.textContent = '';
+    else if (supportQuery.trim()) supportFullCount.textContent = `${list.length} / ${total}`;
+    else supportFullCount.textContent = `${total} ticket${total === 1 ? '' : 's'}`;
+  }
+  if (!total) {
+    supportFullPanel.innerHTML = '<p class="muted">Sin mensajes aún.</p>';
+    return;
+  }
+  if (!list.length) {
+    supportFullPanel.innerHTML = '<p class="muted">Ninguna coincidencia</p>';
+    return;
+  }
+  supportFullPanel.innerHTML = supportListHtml(list);
+}
+
+async function loadSupportTickets() {
+  if (supportPanel) supportPanel.innerHTML = '<p class="muted">Cargando…</p>';
   try {
     const data = await adminFetch('/api/v1/admin/support/tickets?limit=100');
-    const items = Array.isArray(data.items) ? data.items : [];
-    if (supportMeta) {
-      supportMeta.textContent = `${items.length} ticket${items.length === 1 ? '' : 's'}`;
-    }
-    if (!items.length) {
-      supportPanel.innerHTML = '<p class="muted">Sin mensajes aún.</p>';
-      return;
-    }
-    supportPanel.innerHTML = `<div class="support-list">${items.map(supportTicketHtml).join('')}</div>`;
+    allSupportTickets = Array.isArray(data.items) ? data.items : [];
+    renderSupportPreview();
+    if (mainEl?.dataset.screen === 'support') renderSupportFull();
   } catch (err) {
-    supportPanel.innerHTML = `<p class="muted">${escapeHtml(err.message || 'Error')}</p>`;
+    allSupportTickets = [];
+    if (supportPanel) {
+      supportPanel.innerHTML = `<p class="muted">${escapeHtml(err.message || 'Error')}</p>`;
+    }
+    if (supportFullPanel && mainEl?.dataset.screen === 'support') {
+      supportFullPanel.innerHTML = `<p class="muted">${escapeHtml(err.message || 'Error')}</p>`;
+    }
   }
 }
 
@@ -1099,10 +1221,16 @@ async function loadPromoCodes() {
   if (promoList) promoList.innerHTML = '<p class="promo-list__empty">Cargando…</p>';
   try {
     const res = await adminFetch('/api/v1/admin/promo');
-    renderPromoCodes(Array.isArray(res.codes) ? res.codes : []);
+    allPromoCodes = Array.isArray(res.codes) ? res.codes : [];
+    renderPromoPreview();
+    if (mainEl?.dataset.screen === 'promo') renderPromoFull();
   } catch (err) {
+    allPromoCodes = [];
     if (promoList) {
       promoList.innerHTML = `<p class="promo-list__empty">${escapeHtml(err.message || 'Error')}</p>`;
+    }
+    if (promoFullList && mainEl?.dataset.screen === 'promo') {
+      promoFullList.innerHTML = `<p class="promo-list__empty">${escapeHtml(err.message || 'Error')}</p>`;
     }
   }
 }
@@ -1115,16 +1243,15 @@ async function loadDashboard() {
   usersBody.innerHTML = '<tr><td colspan="9" class="muted">Cargando…</td></tr>';
   if (usersCards) usersCards.innerHTML = '<p class="muted users-cards__empty">Cargando…</p>';
   try {
-    const [usage, visits, hits, usersRes] = await Promise.all([
+    const [usage, hits, usersRes] = await Promise.all([
       adminFetch('/api/v1/admin/usage/today'),
-      adminFetch('/api/v1/admin/usage/visits').catch(() => ({ configured: false })),
       adminFetch(`/api/v1/admin/visits/recent?limit=${HITS_HISTORY_LIMIT}`).catch(() => ({
         uniqueIpsToday: 0,
+        hitsToday: null,
         hits: [],
       })),
       adminFetch('/api/v1/admin/users'),
     ]);
-    renderUsage(usage, visits);
     hitsUniqueToday = Number(hits?.uniqueIpsToday) || 0;
     allHits = Array.isArray(hits?.hits) ? hits.hits : [];
     renderHitsPreview();
@@ -1132,6 +1259,9 @@ async function loadDashboard() {
     allUsers = Array.isArray(usersRes.users) ? usersRes.users : [];
     renderUsers();
     await Promise.all([loadTips(), loadStats(), loadPromoCodes(), loadSupportTickets()]);
+    // Usage after support tickets so fallback can count today's tickets from the list
+    // if Worker still serves the old /usage/today shape (pre-D1 deploy).
+    renderUsage(usage, hits, allSupportTickets);
   } catch (err) {
     const msg = err.message || 'Error al cargar';
     usagePanel.innerHTML = `<p class="muted">${escapeHtml(msg)}</p>`;
@@ -1144,37 +1274,55 @@ async function loadDashboard() {
   }
 }
 
+function revealAppShell() {
+  if (entryEl) {
+    entryEl.classList.remove('is-playing');
+    entryEl.hidden = true;
+    entryEl.setAttribute('aria-hidden', 'true');
+  }
+  if (gateEl) gateEl.hidden = true;
+  if (!appEl) return;
+  appEl.hidden = false;
+  appEl.classList.remove('is-entering');
+  appEl.classList.add('is-revealed');
+}
+
 function playEntryThenReveal() {
   return new Promise((resolve) => {
-    gateEl.hidden = true;
-    appEl.hidden = false;
-    appEl.classList.remove('is-revealed');
-    appEl.classList.add('is-entering');
-
-    if (preferReducedMotion()) {
-      entryEl.hidden = true;
-      appEl.classList.remove('is-entering');
-      appEl.classList.add('is-revealed');
-      resolve();
-      return;
-    }
-
-    entryEl.hidden = false;
-    entryEl.setAttribute('aria-hidden', 'false');
-    entryEl.classList.remove('is-playing');
-    void entryEl.offsetWidth;
-    entryEl.classList.add('is-playing');
-
-    const done = () => {
-      entryEl.classList.remove('is-playing');
-      entryEl.hidden = true;
-      entryEl.setAttribute('aria-hidden', 'true');
-      appEl.classList.remove('is-entering');
-      appEl.classList.add('is-revealed');
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      revealAppShell();
       resolve();
     };
 
-    window.setTimeout(done, 1300);
+    try {
+      if (gateEl) gateEl.hidden = true;
+      if (!appEl) {
+        finish();
+        return;
+      }
+      appEl.hidden = false;
+      appEl.classList.remove('is-revealed');
+      appEl.classList.add('is-entering');
+
+      if (preferReducedMotion() || !entryEl) {
+        finish();
+        return;
+      }
+
+      entryEl.hidden = false;
+      entryEl.setAttribute('aria-hidden', 'false');
+      entryEl.classList.remove('is-playing');
+      void entryEl.offsetWidth;
+      entryEl.classList.add('is-playing');
+      window.setTimeout(finish, 1300);
+      // Failsafe: never leave .app at opacity:0 if the animation path stalls.
+      window.setTimeout(finish, 2200);
+    } catch {
+      finish();
+    }
   });
 }
 
@@ -1185,16 +1333,20 @@ function clearPinField() {
 }
 
 function showGate() {
-  appEl.hidden = true;
-  appEl.classList.remove('is-revealed', 'is-entering');
-  entryEl.hidden = true;
-  entryEl.classList.remove('is-playing');
-  entryEl.setAttribute('aria-hidden', 'true');
-  gateEl.hidden = false;
+  if (appEl) {
+    appEl.hidden = true;
+    appEl.classList.remove('is-revealed', 'is-entering');
+  }
+  if (entryEl) {
+    entryEl.hidden = true;
+    entryEl.classList.remove('is-playing');
+    entryEl.setAttribute('aria-hidden', 'true');
+  }
+  if (gateEl) gateEl.hidden = false;
   clearPinField();
   clearGateError();
   try {
-    pinInput.focus({ preventScroll: true });
+    pinInput?.focus({ preventScroll: true });
   } catch {
     /* ignore */
   }
@@ -1207,22 +1359,34 @@ function lockSession() {
 
 async function enterWithPin(pin) {
   clearGateError();
-  gateSubmit.disabled = true;
+  if (gateSubmit) gateSubmit.disabled = true;
+  let unlocked = false;
   try {
     await validatePin(pin);
     setSecret(pin);
+    unlocked = true;
     await playEntryThenReveal();
     await loadDashboard();
     if (location.hash === '#hits') setAdminScreen('hits');
     else if (location.hash === '#tips') setAdminScreen('tips');
     else if (location.hash === '#stats') setAdminScreen('stats');
+    else if (location.hash === '#promo') setAdminScreen('promo');
+    else if (location.hash === '#support') setAdminScreen('support');
   } catch (err) {
     setSecret('');
-    clearPinField();
-    pinInput.focus();
-    showGateError('PIN incorrecto. Inténtalo de nuevo.');
+    showGate();
+    const msg =
+      unlocked && err?.status !== 401
+        ? err?.message || 'Error al cargar el panel.'
+        : 'PIN incorrecto. Inténtalo de nuevo.';
+    showGateError(msg);
+    try {
+      pinInput?.focus({ preventScroll: true });
+    } catch {
+      /* ignore */
+    }
   } finally {
-    gateSubmit.disabled = false;
+    if (gateSubmit) gateSubmit.disabled = false;
   }
 }
 
@@ -1231,10 +1395,6 @@ gateForm.addEventListener('submit', (e) => {
   const pin = String(pinInput.value || '').trim();
   if (!pin) {
     showGateError('Introduce el PIN.');
-    return;
-  }
-  if (!/^\d+$/.test(pin)) {
-    showGateError('El PIN debe ser numérico.');
     return;
   }
   enterWithPin(pin);
@@ -1338,12 +1498,14 @@ promoForm?.addEventListener('submit', async (e) => {
   }
 });
 
-promoList?.addEventListener('click', async (e) => {
+async function onPromoDeleteClick(e) {
   const t = e.target instanceof Element ? e.target.closest('[data-promo-delete]') : null;
-  if (!(t instanceof HTMLElement)) return;
+  if (!(t instanceof HTMLElement)) return false;
   const code = t.getAttribute('data-promo-delete');
-  if (!code) return;
-  if (!confirm(`¿Desactivar el cupón «${code}»? Los canjes ya hechos se conservan.`)) return;
+  if (!code) return true;
+  e.preventDefault();
+  e.stopPropagation();
+  if (!confirm(`¿Desactivar el cupón «${code}»? Los canjes ya hechos se conservan.`)) return true;
   t.disabled = true;
   try {
     await adminFetch(`/api/v1/admin/promo/${encodeURIComponent(code)}`, { method: 'DELETE' });
@@ -1351,7 +1513,20 @@ promoList?.addEventListener('click', async (e) => {
     await loadPromoCodes();
   } catch (err) {
     t.disabled = false;
-    showToast(err.message || 'Error al eliminar', 'error');  }
+    showToast(err.message || 'Error al eliminar', 'error');
+  }
+  return true;
+}
+
+promoList?.addEventListener('click', async (e) => {
+  if (await onPromoDeleteClick(e)) return;
+  const row = e.target instanceof Element ? e.target.closest('.promo-row') : null;
+  if (!row) return;
+  setAdminScreen('promo');
+});
+
+promoFullList?.addEventListener('click', async (e) => {
+  await onPromoDeleteClick(e);
 });
 
 hitsSearch?.addEventListener('input', () => {
@@ -1377,10 +1552,32 @@ document.getElementById('btn-stats-all')?.addEventListener('click', () => {
 document.getElementById('btn-stats-close')?.addEventListener('click', () => {
   setAdminScreen('home');
 });
+document.getElementById('btn-promo-all')?.addEventListener('click', () => {
+  setAdminScreen('promo');
+});
+document.getElementById('btn-promo-close')?.addEventListener('click', () => {
+  setAdminScreen('home');
+});
+document.getElementById('btn-support-all')?.addEventListener('click', () => {
+  setAdminScreen('support');
+});
+document.getElementById('btn-support-close')?.addEventListener('click', () => {
+  setAdminScreen('home');
+});
 
 tipsSearch?.addEventListener('input', () => {
   tipsQuery = String(tipsSearch.value || '');
   renderTipsFull();
+});
+
+promoSearch?.addEventListener('input', () => {
+  promoQuery = String(promoSearch.value || '');
+  renderPromoFull();
+});
+
+supportSearch?.addEventListener('input', () => {
+  supportQuery = String(supportSearch.value || '');
+  renderSupportFull();
 });
 
 hitsPanel?.addEventListener('click', (e) => {
@@ -1397,6 +1594,12 @@ tipsPanel?.addEventListener('click', (e) => {
 
 statsPanel?.addEventListener('click', () => {
   setAdminScreen('stats');
+});
+
+supportPanel?.addEventListener('click', (e) => {
+  const t = e.target instanceof Element ? e.target.closest('.support-card') : null;
+  if (!t) return;
+  setAdminScreen('support');
 });
 
 deleteModal?.addEventListener('click', (e) => {
@@ -1429,10 +1632,14 @@ window.addEventListener('hashchange', () => {
   if (location.hash === '#hits') setAdminScreen('hits');
   else if (location.hash === '#tips') setAdminScreen('tips');
   else if (location.hash === '#stats') setAdminScreen('stats');
+  else if (location.hash === '#promo') setAdminScreen('promo');
+  else if (location.hash === '#support') setAdminScreen('support');
   else if (
     mainEl?.dataset.screen === 'hits' ||
     mainEl?.dataset.screen === 'tips' ||
-    mainEl?.dataset.screen === 'stats'
+    mainEl?.dataset.screen === 'stats' ||
+    mainEl?.dataset.screen === 'promo' ||
+    mainEl?.dataset.screen === 'support'
   ) {
     setAdminScreen('home');
   }
@@ -1451,14 +1658,13 @@ window.addEventListener('pageshow', () => {
       return;
     }
     await validatePin(cached);
-    gateEl.hidden = true;
-    appEl.hidden = false;
-    appEl.classList.remove('is-entering');
-    appEl.classList.add('is-revealed');
+    revealAppShell();
     await loadDashboard();
     if (location.hash === '#hits') setAdminScreen('hits');
     else if (location.hash === '#tips') setAdminScreen('tips');
     else if (location.hash === '#stats') setAdminScreen('stats');
+    else if (location.hash === '#promo') setAdminScreen('promo');
+    else if (location.hash === '#support') setAdminScreen('support');
   } catch {
     setSecret('');
     showGate();

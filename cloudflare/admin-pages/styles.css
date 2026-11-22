@@ -375,8 +375,9 @@ select.field-input {
   opacity: 1;
   background: var(--bg);
 }
+/* Keep shell readable even if JS stalls before .is-revealed (was opacity:0 → blank page). */
 .app.is-entering {
-  opacity: 0;
+  opacity: 1;
 }
 .app.is-revealed {
   opacity: 1;
@@ -977,13 +978,17 @@ select.field-input {
 }
 .panel--hits-preview #hits-panel,
 .panel--tips-preview #tips-panel,
-.panel--stats-preview #stats-panel {
+.panel--stats-preview #stats-panel,
+.panel--promo-preview #promo-list,
+.panel--support-preview #support-panel {
   cursor: pointer;
 }
 .panel--hits-preview #hits-panel tr,
 .panel--hits-preview #hits-panel .hit-card,
 .panel--tips-preview #tips-panel tr,
-.panel--tips-preview #tips-panel .stat-card {
+.panel--tips-preview #tips-panel .stat-card,
+.panel--promo-preview #promo-list .promo-row,
+.panel--support-preview #support-panel .support-card {
   cursor: pointer;
 }
 
@@ -1174,6 +1179,10 @@ select.field-input {
 .panel--tips-full,
 .screen--stats,
 .panel--stats-full,
+.screen--promo,
+.panel--promo-full,
+.screen--support,
+.panel--support-full,
 .panel__body--public-stats,
 .stats-cards {
   max-width: 100%;
@@ -1183,7 +1192,11 @@ select.field-input {
 .screen--tips,
 .panel--tips-full,
 .screen--stats,
-.panel--stats-full {
+.panel--stats-full,
+.screen--promo,
+.panel--promo-full,
+.screen--support,
+.panel--support-full {
   overflow-x: hidden;
 }
 .stats-cards {
@@ -1491,23 +1504,31 @@ select.field-input {
   }
   .panel--usage,
   .panel--hits-preview,
-  .panel--stats-preview {
+  .panel--stats-preview,
+  .panel--promo-preview,
+  .panel--support-preview {
     padding: 10px 10px;
   }
   .panel--usage .panel__title,
   .panel--hits-preview .panel__title,
-  .panel--stats-preview .panel__title {
+  .panel--stats-preview .panel__title,
+  .panel--promo-preview .panel__title,
+  .panel--support-preview .panel__title {
     margin: 0 0 8px;
     font-size: 16px;
     line-height: 1.25;
   }
   .panel--hits-preview .panel__head--wrap,
-  .panel--stats-preview .panel__head--wrap {
+  .panel--stats-preview .panel__head--wrap,
+  .panel--promo-preview .panel__head--wrap,
+  .panel--support-preview .panel__head--wrap {
     margin-bottom: 8px;
     gap: 4px 8px;
   }
   .panel--hits-preview .panel__meta,
-  .panel--stats-preview .panel__meta {
+  .panel--stats-preview .panel__meta,
+  .panel--promo-preview .panel__meta,
+  .panel--support-preview .panel__meta {
     font-size: 12px;
     line-height: 1.3;
   }
@@ -1582,12 +1603,16 @@ select.field-input {
   }
   .panel--hits-preview .panel__footer,
   .panel--tips-preview .panel__footer,
-  .panel--stats-preview .panel__footer {
+  .panel--stats-preview .panel__footer,
+  .panel--promo-preview .panel__footer,
+  .panel--support-preview .panel__footer {
     margin-top: 8px;
   }
   .panel--hits-preview .panel__footer .btn,
   .panel--tips-preview .panel__footer .btn,
-  .panel--stats-preview .panel__footer .btn {
+  .panel--stats-preview .panel__footer .btn,
+  .panel--promo-preview .panel__footer .btn,
+  .panel--support-preview .panel__footer .btn {
     min-height: 36px;
     padding: 8px 12px;
     font-size: 13px;

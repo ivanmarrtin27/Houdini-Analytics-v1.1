@@ -6,8 +6,8 @@
 > `houdini-bet-admin` es **legacy**: no usar día a día; last-resort opcional. No borrar el proyecto remoto salvo petición explícita.
 
 1. Abre **`https://houdini-analytics-admin.pages.dev`** (proyecto Pages `houdini-analytics-admin`).
-2. Introduce el **PIN numérico** (= Worker `SYNC_SECRET`, máx. 32 dígitos), campo enmascarado (`type=password` + `inputmode=numeric`). Se envía como header `x-sync-secret`; se guarda en `sessionStorage` solo para esa pestaña. Valor operativo actual (no en git): el PIN acordado en ops — actualizar solo con `wrangler secret put SYNC_SECRET`.
-3. Tras validar: dashboard (uso CF hoy + Tips rendimiento preview + Stats públicos teaser + visitantes + cupones + **soporte/contacto** + cuentas). `#tips` = tip performance completo; `#stats` = Stats públicos; `#hits` = historial visitas.
+2. Introduce el **PIN** (= Worker `SYNC_SECRET`, hasta 128 caracteres), campo enmascarado (`type=password`). Se envía como header `x-sync-secret`; se guarda en `sessionStorage` solo para esa pestaña. Valor operativo actual (no en git): el PIN acordado en ops — actualizar solo con `wrangler secret put SYNC_SECRET`.
+3. Tras validar: dashboard (**Uso de hoy** D1: visitas / sesiones / tickets + Tips preview + Stats teaser + hits + cupones + **soporte** + cuentas). `#tips` = tip performance; `#stats` = Stats públicos; `#hits` = historial visitas.
 4. UI: DocuForge layout, fondo negro `#0a0a0a`, primary rojo `#DC2626`. Branding **Houdini Analytics**. Código: [`cloudflare/admin-pages/`](../admin-pages/).
 5. API base: `https://houdini-bet.ivanmarrtin2703.workers.dev`.
 6. QR privado: carpeta local [`admin-qr/`](../../admin-qr/) (`mi-qr.html` + PNG). Apunta al microsite **sin** embeber el secret. Está en `.gitignore`.
@@ -45,53 +45,24 @@ Sin `?admin=1`, la vista `#admin` no se muestra ni se enruta.
 
 ### Admin (`x-sync-secret`)
 
-- `GET /api/v1/admin/usage/today` — requests Worker hoy UTC + **`loginsToday`** (D1)
-- `GET /api/v1/admin/usage/daily?from=&to=` — serie diaria Worker; default 7 días UTC; máx. 90
-- `GET /api/v1/admin/usage/visits?day=` — Web Analytics agregadas; requiere `CF_WEB_ANALYTICS_SITE_TAG`
-- `GET /api/v1/admin/visits/recent?limit=` — hits D1 con IP + `uniqueIpsToday` + `device` (label best-effort desde UA; no modelo iPhone exacto ni nombre del aparato). `limit` máx. **500** (default 50). Preview UI = 5; `#hits` carga el historial.
+- `GET /api/v1/admin/usage/today` — métricas **D1** hoy UTC: `hitsToday`, `uniqueIpsToday`, `loginsToday`, `ticketsToday` (`source: "d1"`)
+- `GET /api/v1/admin/usage/daily?from=&to=` — serie diaria Worker (CF GraphQL; opcional / legacy)
+- `GET /api/v1/admin/usage/visits?day=` — Web Analytics agregadas (legacy; UI dashboard ya no las usa)
+- `GET /api/v1/admin/visits/recent?limit=` — hits D1 + `uniqueIpsToday` + `hitsToday` + `device`. `limit` máx. **500**. Preview UI = 5; `#hits` = historial
 - `GET /api/v1/admin/support/tickets?limit=` — tickets del formulario `#contacto` (D1 `support_tickets`)
 - `GET /api/v1/admin/users` — listado (sin password_hash)
 - `POST /api/v1/admin/users/:id/revoke` — `disabled=1` + revoca sesiones
 - `POST /api/v1/admin/users/:id/enable` — reactiva
 - `DELETE /api/v1/admin/users/:id` — hard delete user + sessions
 
-### Definición de métricas
+### Definición de métricas (tarjetas «Uso de hoy»)
 
 | Métrica | Qué cuenta | Nota |
 |---------|------------|------|
-| Visitas (tarjeta) | CF Web Analytics `sum.visits` (+ page views) | Agregado; sin IP |
-| Hits con IP | Beacon app → D1 `page_hits` | Path + IP + país + UA; 30d |
-| Inicios de sesión | Filas `auth_sessions` creadas hoy UTC | Solo login auth |
-| Consultas Worker | Invocaciones del script | API + assets; ≠ visitantes únicos |
-
-## Secrets Wrangler (métricas)
-
-```bash
-cd cloudflare
-npx wrangler secret put CF_ACCOUNT_ID
-npx wrangler secret put CF_API_TOKEN
-# visitas agregadas (opcional):
-npx wrangler secret put CF_WEB_ANALYTICS_SITE_TAG
-# opcional:
-# npx wrangler secret put CF_WORKER_SCRIPT_NAME
-# valor por defecto: houdini-bet
-```
-
-Token: permiso **Account Analytics · Read**.  
-Site tag: activar **Web Analytics** en Pages `houdini-analytics` (o legacy `houdini-bet`) y copiar el `siteTag`.
-
-Sin `CF_ACCOUNT_ID`/`CF_API_TOKEN`: UI corta «Métricas CF no configuradas» (logins + hits D1 sí).  
-Sin site tag: Visitas «No configuradas». Comprobar: `npx wrangler secret list`.
-
-`CF_ACCOUNT_ID` ya suele estar; `CF_API_TOKEN` se crea en Dashboard → API Tokens (**Account Analytics · Read**):
-
-```bash
-cd cloudflare
-npx wrangler secret put CF_API_TOKEN
-npx wrangler secret put CF_WEB_ANALYTICS_SITE_TAG
-```
-
-Sin redeploy tras `secret put`.
+| Visitas hoy | Filas `page_hits` hoy UTC (+ IP únicas en meta) | Beacon app → D1; no CF Web Analytics |
+| Sesiones hoy | Filas `auth_sessions` creadas hoy UTC | Login password / Google |
+| Tickets soporte hoy | Filas `support_tickets` creadas hoy UTC | Formulario `#contacto` |
+| Hits con IP (lista) | Mismo `page_hits` | Path + IP + país + UA; retención 30d |
 
 ## Privacidad (checklist)
 
@@ -106,9 +77,8 @@ Los hits con IP son datos personales. Antes de producto público / dominio custo
 
 Cuando actives `houdini-bet.dev`:
 
-1. Añadir el hostname al sitio Web Analytics.
-2. Revisar filtros `requestHost` si un tag cubre varios hosts.
-3. El beacon ya usa la API del Worker; no bloquea métricas actuales.
+1. El beacon de visitas ya usa la API del Worker → D1 `page_hits`.
+2. Revisar política de privacidad / retención si el dominio custom amplía audiencia.
 
 ## Migración
 

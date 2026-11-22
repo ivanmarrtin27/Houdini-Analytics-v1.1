@@ -98,14 +98,32 @@ export async function recordHit(db, { ip, path, country, ua, host, referrerHost 
   return { ok: true, id };
 }
 
-export async function countUniqueIpsToday(db, { now = new Date() } = {}) {
+function utcDayWindow({ now = new Date(), startIso, endIso } = {}) {
+  if (startIso && endIso) return { start: String(startIso), end: String(endIso) };
   const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const end = new Date(start.getTime() + 86400000);
+  return { start: start.toISOString(), end: end.toISOString() };
+}
+
+export async function countUniqueIpsToday(db, opts = {}) {
+  const { start, end } = utcDayWindow(opts);
   const row = await db.first(
     `SELECT COUNT(DISTINCT ip) AS n FROM page_hits
      WHERE created_at >= ?1 AND created_at < ?2`,
-    start.toISOString(),
-    end.toISOString()
+    start,
+    end
+  );
+  return Number(row?.n) || 0;
+}
+
+/** Total page_hits rows in the UTC day window (beacon → D1). */
+export async function countHitsToday(db, opts = {}) {
+  const { start, end } = utcDayWindow(opts);
+  const row = await db.first(
+    `SELECT COUNT(*) AS n FROM page_hits
+     WHERE created_at >= ?1 AND created_at < ?2`,
+    start,
+    end
   );
   return Number(row?.n) || 0;
 }

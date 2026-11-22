@@ -11081,19 +11081,31 @@ async function adminApi(path, { method = 'GET', body, secret } = {}) {
 function renderAdminUsage(data) {
   const el = document.getElementById('admin-usage');
   if (!el) return;
-  if (!data || data.configured === false) {
-    el.innerHTML =
-      '<p><strong>Métricas CF no configuradas</strong></p><p class="muted">Añade secrets <code>CF_ACCOUNT_ID</code> y <code>CF_API_TOKEN</code> en Wrangler.</p>';
+  if (!data) {
+    el.innerHTML = '<p class="muted">Sin datos</p>';
     return;
   }
-  if (data.error) {
+  if (data.error && data.hitsToday == null && data.loginsToday == null) {
     el.innerHTML = `<p><strong>Error de métricas</strong></p><p class="muted">${escapeAdminHtml(data.error)}</p>`;
+    return;
+  }
+  // Prefer D1-backed usage/today (hits / sesiones / tickets).
+  if (data.source === 'd1' || data.hitsToday != null || data.ticketsToday != null) {
+    el.innerHTML = `
+      <p class="muted">D1 · hoy UTC ${escapeAdminHtml(data.day || '')}</p>
+      <p><strong>${Number(data.hitsToday) || 0}</strong> visitas · <strong>${Number(data.uniqueIpsToday) || 0}</strong> IP</p>
+      <p><strong>${Number(data.loginsToday) || 0}</strong> sesiones · <strong>${Number(data.ticketsToday) || 0}</strong> tickets</p>`;
+    return;
+  }
+  if (data.configured === false) {
+    el.innerHTML =
+      '<p><strong>Métricas CF no configuradas</strong></p><p class="muted">Usa el microsite admin (D1) o añade secrets CF en Wrangler.</p>';
     return;
   }
   el.innerHTML = `
     <p class="muted">Worker <code>${escapeAdminHtml(data.scriptName || 'houdini-bet')}</code> · hoy UTC ${escapeAdminHtml(data.day || '')}</p>
     <p><strong>${Number(data.requests) || 0}</strong> consultas</p>
-    <p class="muted">Errores: ${Number(data.errors) || 0}</p>`;
+    <p class="muted">Errores: ${Number(data.errors) || 0} · logins ${Number(data.loginsToday) || 0}</p>`;
 }
 
 function renderAdminUsers(users) {

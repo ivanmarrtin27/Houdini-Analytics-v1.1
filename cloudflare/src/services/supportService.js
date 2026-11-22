@@ -99,6 +99,26 @@ export async function listTickets(db, { limit = 100 } = {}) {
   return Array.isArray(rows) ? rows : rows?.results || [];
 }
 
+/** Tickets created in [startIso, endIso) — UTC day window. */
+export async function countTicketsToday(db, { startIso, endIso } = {}) {
+  let start = startIso;
+  let end = endIso;
+  if (!start || !end) {
+    const dayStart = new Date(
+      Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate())
+    );
+    start = start || dayStart.toISOString();
+    end = end || new Date(dayStart.getTime() + 24 * 60 * 60 * 1000).toISOString();
+  }
+  const row = await db.first(
+    `SELECT COUNT(*) AS n FROM support_tickets
+     WHERE created_at >= ?1 AND created_at < ?2`,
+    String(start),
+    String(end)
+  );
+  return Number(row?.n) || 0;
+}
+
 export async function buildUserExport(db, user) {
   if (!user) return null;
   const sessions = await db.all(

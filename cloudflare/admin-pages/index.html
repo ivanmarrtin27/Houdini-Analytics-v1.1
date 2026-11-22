@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./styles.css?v=adm12" />
-  <link rel="stylesheet" href="./stats-public.css?v=adm12" />
+  <link rel="stylesheet" href="./styles.css?v=adm15" />
+  <link rel="stylesheet" href="./stats-public.css?v=adm15" />
   <!-- Canonical admin Pages project: houdini-analytics-admin (legacy: houdini-bet-admin — do not use day-to-day) -->
   <link rel="icon" href="https://houdini-analytics.pages.dev/icons/favicon-32.png" type="image/png" />
 </head>
@@ -31,12 +31,11 @@
           class="field-input"
           name="admin_pin"
           type="password"
-          inputmode="numeric"
-          pattern="[0-9]*"
           autocomplete="new-password"
-          maxlength="32"
+          maxlength="128"
           placeholder="Introduce el PIN"
           required
+          spellcheck="false"
         />
         <button type="submit" class="btn btn--primary btn--lg gate__enter" id="gate-submit">Entrar</button>
         <p id="gate-error" class="field-helper field-helper--error" role="alert" hidden></p>
@@ -120,7 +119,7 @@
           </div>
         </section>
 
-        <section class="panel panel--promo" aria-labelledby="promo-heading">
+        <section class="panel panel--promo panel--promo-preview" aria-labelledby="promo-heading">
           <div class="panel__head panel__head--wrap">
             <h2 id="promo-heading" class="panel__title">Cupones Premium</h2>
             <p id="promo-meta" class="panel__meta muted"></p>
@@ -162,9 +161,14 @@
           <div id="promo-list" class="promo-list" aria-live="polite">
             <p class="muted">Cargando…</p>
           </div>
+          <div class="panel__footer">
+            <button type="button" class="btn btn--secondary btn--block" id="btn-promo-all">
+              Ver cupones
+            </button>
+          </div>
         </section>
 
-        <section class="panel panel--support" aria-labelledby="support-heading">
+        <section class="panel panel--support panel--support-preview" aria-labelledby="support-heading">
           <div class="panel__head panel__head--wrap">
             <h2 id="support-heading" class="panel__title">Soporte / contacto</h2>
             <p id="support-meta" class="panel__meta muted"></p>
@@ -174,6 +178,11 @@
           </p>
           <div id="support-panel" class="panel__body" aria-live="polite">
             <p class="muted">Cargando…</p>
+          </div>
+          <div class="panel__footer">
+            <button type="button" class="btn btn--secondary btn--block" id="btn-support-all">
+              Ver tickets
+            </button>
           </div>
         </section>
 
@@ -361,6 +370,58 @@
           </div>
         </section>
       </div>
+
+      <div id="screen-promo" class="screen screen--promo" hidden>
+        <section class="panel panel--promo panel--promo-full" aria-labelledby="promo-full-heading">
+          <div class="panel__head panel__head--detail">
+            <h2 id="promo-full-heading" class="panel__title">Cupones Premium</h2>
+            <button type="button" class="btn btn--ghost btn--icon-close" id="btn-promo-close" aria-label="Cerrar">×</button>
+          </div>
+          <div class="panel__head panel__head--users">
+            <label class="users-search promo-search" for="promo-search">
+              <span class="visually-hidden">Buscar cupones</span>
+              <input
+                id="promo-search"
+                class="field-input users-search__input"
+                type="search"
+                placeholder="Buscar código, tipo…"
+                autocomplete="off"
+                spellcheck="false"
+              />
+            </label>
+            <p id="promo-full-count" class="panel__meta muted"></p>
+          </div>
+          <div id="promo-full-list" class="promo-list" aria-live="polite">
+            <p class="muted">Cargando…</p>
+          </div>
+        </section>
+      </div>
+
+      <div id="screen-support" class="screen screen--support" hidden>
+        <section class="panel panel--support panel--support-full" aria-labelledby="support-full-heading">
+          <div class="panel__head panel__head--detail">
+            <h2 id="support-full-heading" class="panel__title">Soporte / contacto</h2>
+            <button type="button" class="btn btn--ghost btn--icon-close" id="btn-support-close" aria-label="Cerrar">×</button>
+          </div>
+          <div class="panel__head panel__head--users">
+            <label class="users-search support-search" for="support-search">
+              <span class="visually-hidden">Buscar tickets</span>
+              <input
+                id="support-search"
+                class="field-input users-search__input"
+                type="search"
+                placeholder="Buscar asunto, email, tipo…"
+                autocomplete="off"
+                spellcheck="false"
+              />
+            </label>
+            <p id="support-full-count" class="panel__meta muted"></p>
+          </div>
+          <div id="support-full-panel" class="panel__body" aria-live="polite">
+            <p class="muted">Cargando…</p>
+          </div>
+        </section>
+      </div>
     </main>
 
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
@@ -408,7 +469,7 @@
     </div>
   </div>
 
-  <script src="./stats-public.js?v=adm12" defer></script>
-  <script src="./app.js?v=adm12" defer></script>
+  <script src="./stats-public.js?v=adm15" defer></script>
+  <script src="./app.js?v=adm15" defer></script>
 </body>
 </html>
