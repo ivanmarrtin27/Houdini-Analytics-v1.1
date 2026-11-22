@@ -19,8 +19,8 @@ const DATA_TTL_MS = 60_000;
 const SHELL_ASSETS = [
   '/',
   '/index.html',
-  '/app.js?v=hb208',
-  '/styles.css?v=hb208',
+  '/app.js?v=hb209',
+  '/styles.css?v=hb209',
   '/manifest.webmanifest',
   '/icons/icon.svg',
   '/icons/icon-192.png',

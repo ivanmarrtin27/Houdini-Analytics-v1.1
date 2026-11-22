@@ -614,6 +614,10 @@ let bestBetsHasMore = false;
 let livePollTimer = null;
 /** Match open in the analysis panel — used to refresh its live block in place. */
 let panelLiveCtx = null;
+/** Client gate mirroring server LIVE_REFRESH_COOLDOWN_MS — avoid hammering refresh-live. */
+const LIVE_CLIENT_COOLDOWN_MS = 45_000;
+let lastLiveRefreshClientAt = 0;
+let liveRefreshInFlight = null;
 /** Market tab on Hoy: top | 1x2 | ou25 | btts | valor */
 let hoyMarketTab = 'top';
 /** Soft-gate caps (ignored while PREMIUM_UNLOCKED). */
@@ -699,7 +703,7 @@ function hbCensorWrap(html, { block = false, elongated = false } = {}) {
   )}">
     <div class="hb-censor__veil" aria-hidden="true">${html}</div>
     <div class="hb-censor__lock" aria-hidden="true">
-      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb208" width="16" height="16" alt="" decoding="async" />
+      <img class="hb-censor__lock-icon" src="/icons/ui/premium-crown.png?v=hb209" width="16" height="16" alt="" decoding="async" />
       <span class="hb-censor__lock-title">${escapeHtml(t('censor.title'))}</span>
       <span class="hb-censor__lock-sub">${escapeHtml(t('censor.sub'))}</span>
     </div>
@@ -1944,6 +1948,17 @@ function matchStatusPill(m) {
   return '';
 }
 
+/** Structured HTML for `.mp-status` (live clock + EN VIVO chip). */
+function matchStatusPillHtml(m) {
+  if (m.status === 'live') {
+    const min = m.elapsedMinute != null ? `${Number(m.elapsedMinute)}'` : 'LIVE';
+    return `<span class="mp-status__clock">${escapeHtml(min)}</span><span class="mp-status__live">${escapeHtml(
+      t('chip.liveFull')
+    )}</span>`;
+  }
+  return escapeHtml(matchStatusPill(m));
+}
+
 function mpVsMidLabel(m, live) {
   if (m.status === 'postponed' || m.status === 'cancelled') {
     return {
@@ -1964,16 +1979,17 @@ function mpVsMidLabel(m, live) {
 }
 
 function mpVsBrandMarkHtml() {
-  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb208" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
+  return `<img class="mp-vs__brand" src="/brand/houdini-analytics-mark.png?v=hb209" width="120" height="68" alt="" aria-hidden="true" decoding="async" />`;
 }
 
 function mpVsMidHtml(m, live) {
   const mid = mpVsMidLabel(m, live);
   const labelCls = mid.score ? ' mp-vs__label--score' : '';
+  const statusCls = m.status === 'live' ? ' mp-status--live' : '';
   return `<div class="mp-vs">
     <span class="mp-vs__label${labelCls}">${escapeHtml(mid.text)}</span>
     ${mpVsBrandMarkHtml()}
-    <span class="mp-status">${escapeHtml(matchStatusPill(m))}</span>
+    <span class="mp-status${statusCls}">${matchStatusPillHtml(m)}</span>
   </div>`;
 }
 
@@ -1987,7 +2003,10 @@ function refreshMpVsMid(root, m, live) {
     label.textContent = mid.text;
     label.classList.toggle('mp-vs__label--score', mid.score);
   }
-  if (status) status.textContent = matchStatusPill(m);
+  if (status) {
+    status.classList.toggle('mp-status--live', m.status === 'live');
+    status.innerHTML = matchStatusPillHtml(m);
+  }
 }
 
 function refreshMpLiveEvents(root, events, m) {
@@ -2267,7 +2286,7 @@ function sumRecentAvg(recentAvgs, key) {
   return Number(((Number(h) || 0) + (Number(a) || 0)).toFixed(2));
 }
 
-const UI_ICON_V = 'hb208';
+const UI_ICON_V = 'hb209';
 const MP_STAT_ICON_PX = 20;
 const mpStatImg = (file) =>
   `<img class="mp-stat__icon mp-stat__icon--img" src="/icons/ui/${file}?v=${UI_ICON_V}" width="${MP_STAT_ICON_PX}" height="${MP_STAT_ICON_PX}" alt="" aria-hidden="true" decoding="async" />`;
@@ -7671,7 +7690,7 @@ function perfTipDisplayHtml(tip) {
   )}">
     <span class="perf-row__tip-blur" aria-hidden="true">${tip}</span>
     <span class="perf-row__tip-premium" aria-hidden="true">
-      <img src="/icons/ui/premium-crown.png?v=hb208" width="13" height="13" alt="" />
+      <img src="/icons/ui/premium-crown.png?v=hb209" width="13" height="13" alt="" />
       Premium
     </span>
   </span>`;
@@ -8283,9 +8302,9 @@ function closePanel() {
   backdrop.classList.remove('is-open');
   backdrop.setAttribute('aria-hidden', 'true');
   document.body.classList.remove('panel-open');
+  // Flush SSoT into list while ctx still known; then clear.
+  if (hadLiveCtx) syncLiveOnPanelLeave({ batchOthers: true });
   panelLiveCtx = null;
-  // Flush panel live minute/score/status into Partidos list on exit.
-  if (hadLiveCtx) flushPartidosListLive();
 }
 
 function isLegalViewId(id) {
@@ -8337,7 +8356,7 @@ function syncNavIndicator({ instant = false } = {}) {
     indicator.style.opacity = '0';
     return;
   }
-  // Never scroll the tab strip or the page (hb208). Desktop nav must stay put
+  // Never scroll the tab strip or the page (hb209). Desktop nav must stay put
   // when switching to Aciertos/Stats; scrollIntoView used to pan overflow-x:auto.
   if (nav.scrollLeft) nav.scrollLeft = 0;
   const navRect = nav.getBoundingClientRect();
@@ -8468,7 +8487,7 @@ function setActiveNav(hash, { pushHash = true } = {}) {
     if (location.hash !== want) history.replaceState(null, '', want);
   }
   // Instant reset — html { scroll-behavior: smooth } + hash targets inside a
-  // translated .views-track would otherwise pan/jank the fixed .v2-nav (hb208).
+  // translated .views-track would otherwise pan/jank the fixed .v2-nav (hb209).
   lockShellScroll();
   if (view !== 'ligas') document.body.classList.remove('has-ligas-selection');
   // Shared selectedDate / windowMode across Partidos · Top10 · Aciertos · Stats.
@@ -9224,6 +9243,10 @@ function bindCuotasTargetControls() {
 }
 
 async function openPrediction(id) {
+  // Leaving another match: push its cached live minute into the list first (no API).
+  if (panelLiveCtx && Number(panelLiveCtx.id) !== Number(id)) {
+    syncLiveOnPanelLeave({ batchOthers: false });
+  }
   openPanel(`<div class="muted">${escapeHtml(t('empty.loadingAnalysis'))}</div>`);
   try {
     const bundle = await api(`/api/v1/matches/${id}/prediction`);
@@ -9232,6 +9255,9 @@ async function openPrediction(id) {
     const homeName = m.homeTeam?.name || '';
     const awayName = m.awayTeam?.name || '';
     panelLiveCtx = { id: Number(id), homeName, awayName };
+    // Align list SSoT with prediction payload immediately.
+    mergeMatchLiveIntoCache(m, bundle.live);
+    paintPartidosLiveRow(id);
     const home = escapeHtml(homeName);
     const away = escapeHtml(awayName);
     const leagueLine = formatLeagueLine(
@@ -9517,6 +9543,10 @@ async function openPrediction(id) {
     wireMatchPanelTabs(root);
     runPanelEntrance(root);
     loadPanelLineups(id, homeName, awayName, root).catch(() => {});
+    // If live (or already has a live block), refresh this match once — shares server 45s cooldown.
+    if (m.status === 'live' || bundle.live) {
+      refreshOpenPanelLive().catch(() => {});
+    }
   } catch (err) {
     openPanel(`<div class="conf-lo">${escapeHtml(err.message)}. Cierra e inténtalo de nuevo.</div>`);
   }
@@ -9648,7 +9678,12 @@ async function load() {
   const activeDate = resolveSelectedDate();
   const refreshP =
     activeDate === todayYmd() || activeDate === yesterdayYmd()
-      ? api('/api/v1/matches/refresh-live', { method: 'POST' }).catch(() => null)
+      ? api('/api/v1/matches/refresh-live', { method: 'POST' })
+          .then((r) => {
+            markLiveRefreshClient(r);
+            return r;
+          })
+          .catch(() => null)
       : null;
 
   // Critical path for first screen: partidos + chips + header badge
@@ -9754,6 +9789,37 @@ function applyLiveFieldsToCached(target, freshMatch, live) {
   target.live = live || null;
 }
 
+/** Single source of truth: write live fields into cachedMatches + cachedBets. */
+function mergeMatchLiveIntoCache(freshMatch, live) {
+  if (!freshMatch) return;
+  const id = Number(freshMatch.id ?? freshMatch.matchId);
+  if (!Number.isFinite(id) || id <= 0) return;
+  for (const m of cachedMatches) {
+    if (Number(m.id) === id) {
+      applyLiveFieldsToCached(m, { ...freshMatch, id }, live);
+      break;
+    }
+  }
+  for (const b of cachedBets) {
+    if (Number(b.matchId || b.id) === id) {
+      applyLiveFieldsToCached(b, { ...freshMatch, id }, live);
+      break;
+    }
+  }
+}
+
+function liveClientCooldownOk() {
+  return Date.now() - lastLiveRefreshClientAt >= LIVE_CLIENT_COOLDOWN_MS;
+}
+
+function markLiveRefreshClient(result) {
+  // Count real starts or completed refreshes; skip pure cooldown reads.
+  if (!result) return;
+  if (result.skipped && result.reason === 'cooldown') return;
+  if (result.ok === false) return;
+  lastLiveRefreshClientAt = Date.now();
+}
+
 /** Patch Partidos list row mid/score/minute/strip from cache (cheap while panel open). */
 function paintPartidosLiveRow(matchId) {
   const id = Number(matchId);
@@ -9781,6 +9847,29 @@ function flushPartidosListLive() {
   if (typeof renderPartidosList === 'function') renderPartidosList();
 }
 
+/**
+ * Leave panel / switch match: push cached live minute into the list.
+ * Optionally batch-refresh all live matches once if client cooldown allows.
+ */
+function syncLiveOnPanelLeave({ batchOthers = true } = {}) {
+  const openId = panelLiveCtx?.id;
+  if (openId != null) paintPartidosLiveRow(openId);
+  else flushPartidosListLive();
+  if (!batchOthers) return;
+  if (document.visibilityState !== 'visible') return;
+  if (!liveClientCooldownOk()) return;
+  const hasOtherLive = cachedMatches.some(
+    (m) => m.status === 'live' && (openId == null || Number(m.id) !== Number(openId))
+  );
+  const hasAnyLive = cachedMatches.some((m) => m.status === 'live');
+  if (!hasOtherLive && !hasAnyLive) {
+    flushPartidosListLive();
+    return;
+  }
+  flushPartidosListLive();
+  refreshLiveAndReload().catch(() => {});
+}
+
 /** Refresh the live block of the open analysis panel without reloading it. */
 async function refreshOpenPanelLive() {
   if (!panelLiveCtx) return;
@@ -9789,6 +9878,7 @@ async function refreshOpenPanelLive() {
   const { id, homeName, awayName } = panelLiveCtx;
   try {
     const data = await api(`/api/v1/matches/${id}/live`, { method: 'POST' });
+    // Do not mark client cooldown here — /live hides skip/cooldown; leave batch uses refresh-live.
     const html = livePanelHtml(data.live, homeName, awayName);
     const current = root.querySelector('.mp-live');
     if (html) {
@@ -9802,18 +9892,7 @@ async function refreshOpenPanelLive() {
     if (freshMatch) {
       refreshMpVsMid(root, freshMatch, data.live);
       refreshMpLiveEvents(root, freshMatch.events || [], freshMatch);
-      for (const m of cachedMatches) {
-        if (Number(m.id) === Number(id)) {
-          applyLiveFieldsToCached(m, freshMatch, data.live);
-          break;
-        }
-      }
-      for (const b of cachedBets) {
-        if (Number(b.matchId || b.id) === Number(id)) {
-          applyLiveFieldsToCached(b, freshMatch, data.live);
-          break;
-        }
-      }
+      mergeMatchLiveIntoCache(freshMatch, data.live);
       paintPartidosLiveRow(id);
     }
   } catch (_) {
@@ -9823,29 +9902,54 @@ async function refreshOpenPanelLive() {
 
 async function refreshLiveAndReload() {
   if (document.visibilityState !== 'visible') return;
-  try {
-    await api('/api/v1/matches/refresh-live', { method: 'POST' });
-  } catch (_) {
-    /* ignore refresh errors */
-  }
-  try {
-    const q = matchListQuery();
-    const today = await api(`/api/v1/matches/today?${q}`);
-    const fresh = today.matches || [];
-    const changed = !sameMatches(cachedMatches, fresh);
-    cachedMatches = fresh;
-    cachedBets = cachedMatches.filter((m) => m.suggestedBet);
-    cachedMode = today.mode || cachedMode;
-    matchesFetchLeagueId = desiredMatchesFetchLeagueId();
-    matchesFetchDate = resolveSelectedDate();
-    if (changed) {
-      renderLeagueCategories(cachedMatches);
-      renderHoyBoard();
+  if (liveRefreshInFlight) return liveRefreshInFlight;
+  liveRefreshInFlight = (async () => {
+    try {
+      const result = await api('/api/v1/matches/refresh-live', { method: 'POST' });
+      markLiveRefreshClient(result);
+    } catch (_) {
+      /* ignore refresh errors */
     }
-  } catch (_) {
-    /* ignore */
+    try {
+      const q = matchListQuery();
+      const today = await api(`/api/v1/matches/today?${q}`);
+      const fresh = today.matches || [];
+      const changed = !sameMatches(cachedMatches, fresh);
+      // Preserve fresher panel-open minute if list poll raced an in-panel /live.
+      const openId = panelLiveCtx?.id != null ? Number(panelLiveCtx.id) : null;
+      const openCached =
+        openId != null ? cachedMatches.find((m) => Number(m.id) === openId) : null;
+      cachedMatches = fresh;
+      if (openCached && openId != null) {
+        const row = cachedMatches.find((m) => Number(m.id) === openId);
+        if (row && openCached.elapsedMinute != null) {
+          const incoming = row.elapsedMinute != null ? Number(row.elapsedMinute) : -1;
+          const kept = Number(openCached.elapsedMinute);
+          if (kept >= incoming) {
+            applyLiveFieldsToCached(row, openCached, openCached.live);
+          }
+        }
+      }
+      cachedBets = cachedMatches.filter((m) => m.suggestedBet);
+      cachedMode = today.mode || cachedMode;
+      matchesFetchLeagueId = desiredMatchesFetchLeagueId();
+      matchesFetchDate = resolveSelectedDate();
+      if (changed) {
+        renderLeagueCategories(cachedMatches);
+        renderHoyBoard();
+      } else if (openId != null) {
+        paintPartidosLiveRow(openId);
+      }
+    } catch (_) {
+      /* ignore */
+    }
+    await refreshOpenPanelLive();
+  })();
+  try {
+    await liveRefreshInFlight;
+  } finally {
+    liveRefreshInFlight = null;
   }
-  await refreshOpenPanelLive();
 }
 
 /** Poll faster while there is football on, slower when there is not. */
