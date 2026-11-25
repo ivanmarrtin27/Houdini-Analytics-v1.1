@@ -10,30 +10,21 @@
 </p>
 
 <p align="center">
-  <a href="https://houdini-analytics.pages.dev"><img src="https://img.shields.io/badge/%E2%96%B6_Abrir_app_en_vivo-DC2626?style=for-the-badge&labelColor=0A0A0A" alt="Abrir app en vivo"></a>
+  <a href="https://houdini-analytics.pages.dev"><img src="https://img.shields.io/badge/Abrir_aplicaci%C3%B3n-DC2626?style=for-the-badge" alt="Abrir aplicación" /></a>
 </p>
 
 <p align="center">
-  <a href="https://houdini-analytics.pages.dev"><img src="https://img.shields.io/badge/Live-houdini--analytics.pages.dev-DC2626?style=flat-square&labelColor=0A0A0A" alt="Live"></a>
-  <img src="https://img.shields.io/badge/Stack-Workers%20%2B%20D1%20%2B%20Pages-0A0A0A?style=flat-square&labelColor=1A1A1A" alt="Stack">
-  <img src="https://img.shields.io/badge/v1.1-MVP-DC2626?style=flat-square&labelColor=0A0A0A" alt="v1.1">
-  <img src="https://img.shields.io/badge/PWA-ready-1A1A1A?style=flat-square&labelColor=0A0A0A" alt="PWA">
+  <a href="#el-proyecto"><img src="https://img.shields.io/badge/v1.1-21262D?style=flat" alt="Versión 1.1" /></a>
+  &nbsp;
+  <a href="docs/MODEL.md"><img src="https://img.shields.io/badge/Poisson-21262D?style=flat" alt="Modelo Poisson" /></a>
+  &nbsp;
+  <a href="docs/ARCHITECTURE.md"><img src="https://img.shields.io/badge/Cloudflare-21262D?style=flat" alt="Arquitectura Cloudflare" /></a>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Poisson-0A0A0A?style=flat-square&labelColor=1A1A1A" alt="Poisson">
-  <img src="https://img.shields.io/badge/Tip_78%E2%80%9395%25-DC2626?style=flat-square&labelColor=0A0A0A" alt="Tip 78-95%">
-  <img src="https://img.shields.io/badge/Top_10-0A0A0A?style=flat-square&labelColor=1A1A1A" alt="Top 10">
-  <img src="https://img.shields.io/badge/Aciertos-0A0A0A?style=flat-square&labelColor=1A1A1A" alt="Aciertos">
-  <img src="https://img.shields.io/badge/Stats-0A0A0A?style=flat-square&labelColor=1A1A1A" alt="Stats">
-  <img src="https://img.shields.io/badge/Ligas-0A0A0A?style=flat-square&labelColor=1A1A1A" alt="Ligas">
-  <img src="https://img.shields.io/badge/Premium-DC2626?style=flat-square&labelColor=0A0A0A" alt="Premium">
-</p>
-
-<p align="center">
-  <a href="#inicio-rápido">Desarrollo local</a> ·
+  <a href="#inicio-rápido">Desarrollo</a> ·
   <a href="#documentación">Documentación</a> ·
-  <a href="docs/QUALITY.md">Estado de verificación</a>
+  <a href="docs/QUALITY.md">Calidad</a>
 </p>
 
 ![Partidos y panel de análisis de Houdini Analytics](docs/screenshots/partidos-desktop.png)
