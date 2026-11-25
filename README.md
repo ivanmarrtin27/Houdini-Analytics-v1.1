@@ -1,137 +1,153 @@
 <p align="center">
-  <img src="cloudflare/public/brand/houdini-analytics-icon.png" alt="Houdini Analytics" width="108" />
+  <img src="cloudflare/public/brand/houdini-analytics-icon.png" alt="Houdini Analytics" width="96" />
 </p>
 
 <h1 align="center">Houdini Analytics</h1>
 
 <p align="center">
-  <strong>Predicciones de fútbol con modelo Poisson</strong><br>
-  <sub>Tip lane 78–95% · en vivo · PWA dark/red en Cloudflare</sub>
+  <strong>Análisis de fútbol con modelos probabilísticos y seguimiento en directo.</strong><br />
+  Partidos · Top 10 · Aciertos · Estadísticas · Ligas
 </p>
 
 <p align="center">
-  <a href="https://houdini-analytics.pages.dev"><img src="https://img.shields.io/badge/%E2%96%B6_Abrir_app_en_vivo-DC2626?style=for-the-badge&labelColor=0A0A0A" alt="Abrir app en vivo"></a>
+  <a href="https://houdini-analytics.pages.dev">Abrir la aplicación</a> ·
+  <a href="#inicio-rápido">Desarrollo local</a> ·
+  <a href="#documentación">Documentación</a> ·
+  <a href="docs/QUALITY.md">Estado de verificación</a>
 </p>
 
-<p align="center">
-  <a href="https://houdini-analytics.pages.dev"><img src="https://img.shields.io/badge/Live-houdini--analytics.pages.dev-DC2626?style=flat-square&labelColor=0A0A0A" alt="Live"></a>
-  <img src="https://img.shields.io/badge/Stack-Workers%20%2B%20D1%20%2B%20Pages-0A0A0A?style=flat-square&labelColor=1A1A1A" alt="Stack">
-  <img src="https://img.shields.io/badge/v1.1-MVP-DC2626?style=flat-square&labelColor=0A0A0A" alt="v1.1">
-  <img src="https://img.shields.io/badge/PWA-ready-1A1A1A?style=flat-square&labelColor=0A0A0A" alt="PWA">
+![Partidos y panel de análisis de Houdini Analytics](docs/screenshots/partidos-desktop.png)
+
+## El proyecto
+
+Houdini Analytics reúne calendario, resultados, estadísticas y estimaciones de mercados de fútbol en una interfaz web adaptable. El motor combina Poisson, ajuste Dixon–Coles e información histórica; el seguimiento en vivo actualiza las proyecciones a partir del estado del partido.
+
+El frontend está desarrollado con HTML, CSS y JavaScript. La aplicación utiliza Cloudflare Pages, una API en Workers y una base D1. El backend Express/MySQL se conserva como legado, separado del runtime actual.
+
+**Interpretar las cifras:** el intervalo 78–95 % corresponde a la banda de probabilidad estimada que utiliza el modelo para seleccionar tips. La evaluación de aciertos, calibración y cobertura requiere resultados históricos y muestras suficientes. No se ofrece una garantía de resultados o rentabilidad.
+
+## Experiencia de producto
+
+| Área                 | Qué permite consultar                                                                                        |
+| -------------------- | ------------------------------------------------------------------------------------------------------------ |
+| **Partidos**         | Calendario, estados, resultados y acceso al análisis de cada encuentro                                       |
+| **Top 10**           | Hasta diez selecciones del día elegido, ordenadas por probabilidad del modelo y dentro del universo admitido |
+| **Aciertos**         | Seguimiento diario de selecciones: acertada, fallada, anulada o pendiente                                    |
+| **Estadísticas**     | Medias por partido y métricas de goles, tiros, tiros a puerta, córners y tarjetas                            |
+| **Ligas**            | Catálogo, buscador, clasificaciones y navegación por equipos                                                 |
+| **Cuenta y Premium** | Sesiones de usuario, Google OAuth opcional, gestión de perfil e integración de suscripciones con Stripe      |
+| **Móvil y PWA**      | Navegación inferior, paneles adaptados, manifest y service worker                                            |
+
+La disponibilidad de las integraciones depende de su configuración y de los proveedores. El [estado de verificación](docs/QUALITY.md) identifica las comprobaciones realizadas y los pendientes.
+
+### Capturas
+
+Las imágenes proceden de las capturas ya incluidas en el proyecto y representan una versión concreta de la interfaz.
+
+| Top 10                                                                  | Ligas                                                                    |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| ![Selecciones Top 10 en escritorio](docs/screenshots/top10-desktop.png) | ![Catálogo y clasificación de ligas](docs/screenshots/ligas-desktop.png) |
+
+<details>
+<summary>Ver la experiencia móvil y el análisis</summary>
+
+<p>
+  <img src="docs/screenshots/partidos-mobile.jpg" alt="Lista de partidos en móvil" width="220" />
+  <img src="docs/screenshots/analisis-general-mobile.jpg" alt="Panel de análisis general en móvil" width="220" />
+  <img src="docs/screenshots/analisis-goles-mobile.jpg" alt="Mercados de goles en móvil" width="220" />
 </p>
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Poisson-0A0A0A?style=flat-square&labelColor=1A1A1A" alt="Poisson">
-  <img src="https://img.shields.io/badge/Tip_78%E2%80%9395%25-DC2626?style=flat-square&labelColor=0A0A0A" alt="Tip 78-95%">
-  <img src="https://img.shields.io/badge/Top_10-0A0A0A?style=flat-square&labelColor=1A1A1A" alt="Top 10">
-  <img src="https://img.shields.io/badge/Aciertos-0A0A0A?style=flat-square&labelColor=1A1A1A" alt="Aciertos">
-  <img src="https://img.shields.io/badge/Stats-0A0A0A?style=flat-square&labelColor=1A1A1A" alt="Stats">
-  <img src="https://img.shields.io/badge/Ligas-0A0A0A?style=flat-square&labelColor=1A1A1A" alt="Ligas">
-  <img src="https://img.shields.io/badge/Premium-DC2626?style=flat-square&labelColor=0A0A0A" alt="Premium">
-</p>
+</details>
 
-<p align="center">
-  <a href="#producto">Producto</a>
-  ·
-  <a href="#stack">Stack</a>
-  ·
-  <a href="#desarrollo">Dev</a>
-  ·
-  <a href="#deploy">Deploy</a>
-  ·
-  <a href="#capturas">Capturas</a>
-</p>
+## Arquitectura de un vistazo
 
----
-
-## Producto
-
-App de predicciones (Poisson + Dixon–Coles). Tips rankeados solo por **P del modelo** (banda playable **78–95%**).
-
-| | |
-|---|---|
-| **App** | [houdini-analytics.pages.dev](https://houdini-analytics.pages.dev) |
-| **API** | `houdini-bet…workers.dev` → `/api/v1/…` · `/status` |
-
-Hay un **panel de administración** protegido con contraseña para operaciones y control del producto (uso interno; sin enlace público).
-
-- **Partidos** — hoy + 14 días · top5 + Segunda + Championship + UNL/UCL/UEL · live
-- **Top 10 / Aciertos** — tip primary allowlist · hit / miss / void / pending
-- **Stats · Ligas · Panel** — medias, tablas, 1X2 / O-U / BTTS / córners / tarjetas / SOT
-- **Auth · Premium** — cookie + Google · Stripe (Mensual / Trimestral / Anual)
-- **Datos** — cron FixtureDownload + FotMob · enrich opcional API-Football
-
-Docs: [Auth](./cloudflare/docs/AUTH_SETUP.md) · [Stripe](./cloudflare/docs/STRIPE_SETUP.md)
-
-> Pronósticos **informativos**. No son asesoramiento financiero. Juega con responsabilidad.
-
-## Stack
-
-| | |
-|---|---|
-| Frontend | Pages `houdini-analytics` (`cloudflare/public` → `pages/`) |
-| API | Worker `houdini-bet` |
-| DB | D1 `houdini-bet-db` (aislado) |
-| Admin | Microsite interno con contraseña (ops) |
-| Cron | sync `0 6 * * *` · enrich `30 6 * * *` |
-| Ligas | `140,141,39,40,135,78,61,5,2,3` |
-
-Producción en [`cloudflare/`](./cloudflare). Legacy Express/MySQL en [`legacy/`](./legacy/).
-
-```
-cloudflare/
-├── public/          # PWA
-├── pages/           # deploy Pages
-├── admin-pages/     # admin
-├── src/             # Worker + servicios
-├── migrations/      # D1
-├── docs/            # setup
-└── scripts/
+```mermaid
+flowchart LR
+  Browser[Navegador / PWA] --> Pages[Cloudflare Pages]
+  Pages -->|API del mismo origen| Worker[Cloudflare Worker]
+  Worker --> D1[(D1)]
+  Cron[Cron programado] --> Worker
+  Sources[FixtureDownload / FotMob] --> Worker
+  Optional[API-Football opcional] --> Worker
+  Worker --> Services[OAuth / Stripe / notificaciones]
 ```
 
-## Desarrollo
+| Componente        | Implementación                                                        |
+| ----------------- | --------------------------------------------------------------------- |
+| Interfaz          | HTML, CSS y JavaScript, sin framework de frontend                     |
+| API               | Cloudflare Worker con rutas `/api/v1`                                 |
+| Persistencia      | D1 y migraciones SQL versionadas                                      |
+| Modelo            | Poisson, Dixon–Coles y estimaciones separadas para mercados de conteo |
+| Datos             | FixtureDownload y FotMob; enriquecimiento opcional con API-Football   |
+| Identidad y pagos | Sesiones opacas, OAuth de Google e integración Stripe                 |
+| Regresión         | Scripts Node.js de lógica y comprobaciones de interfaz estáticas      |
 
-Node.js LTS + [Wrangler](https://developers.cloudflare.com/workers/wrangler/).
+Más detalle en [arquitectura](docs/ARCHITECTURE.md), [modelo](docs/MODEL.md) y [datos](docs/DATA_MODEL.md).
 
-```bash
-cd cloudflare
-npm install
-npx wrangler d1 migrations apply houdini-bet-db --local
-npm run dev          # o: npx wrangler dev
+## Inicio rápido
+
+Requisitos: Git, Node.js 22 y npm. El entorno de comprobación utilizó Node.js 22.22.2.
+
+La rama predeterminada de este repositorio es **`analytics-hb139`**. La rama remota `main` conserva otra base; usar la rama predeterminada para reproducir la versión documentada.
+
+```sh
+git clone --branch analytics-hb139 https://github.com/ivanmarrtin27/Houdini-Analytics-v1.1.git
+cd Houdini-Analytics-v1.1/cloudflare
+npm ci
+npm run db:local
+npm run dev
+```
+
+Wrangler imprime la URL local, normalmente `http://localhost:8787`. La base local es independiente de producción. Las credenciales y servicios externos se configuran por entorno: consultar [desarrollo](docs/DEVELOPMENT.md).
+
+```sh
 npm test
 ```
 
-## Deploy
+La suite tiene incidencias previas documentadas. Ver [pruebas y calidad](docs/QUALITY.md) para resultados, límites y reproducción; no se presenta como una validación integral de producción.
 
-```bash
-cd cloudflare
-npx wrangler deploy
-npx wrangler pages deploy pages --project-name houdini-analytics --branch main
-npx wrangler d1 migrations apply houdini-bet-db --remote
+## Documentación
+
+| Quiero…                                              | Guía                                           |
+| ---------------------------------------------------- | ---------------------------------------------- |
+| Entender las pantallas y los estados                 | [Producto](docs/PRODUCT.md)                    |
+| Preparar el entorno y trabajar en el repositorio     | [Desarrollo](docs/DEVELOPMENT.md)              |
+| Conocer componentes, flujos y cron                   | [Arquitectura](docs/ARCHITECTURE.md)           |
+| Interpretar probabilidades y selección de tips       | [Modelo probabilístico](docs/MODEL.md)         |
+| Entender tablas y migraciones                        | [Modelo de datos](docs/DATA_MODEL.md)          |
+| Consultar rutas y contratos de lectura               | [Referencia de API](docs/API.md)               |
+| Preparar un despliegue o diagnosticar una incidencia | [Operación y despliegue](docs/OPERATIONS.md)   |
+| Configurar cuentas y OAuth                           | [Autenticación](cloudflare/docs/AUTH_SETUP.md) |
+| Configurar suscripciones                             | [Stripe](cloudflare/docs/STRIPE_SETUP.md)      |
+| Consultar lo verificado y lo pendiente               | [Pruebas y calidad](docs/QUALITY.md)           |
+| Proponer cambios                                     | [Contribución](CONTRIBUTING.md)                |
+| Gestionar secretos y datos sensibles                 | [Seguridad](SECURITY.md)                       |
+
+## Estructura del repositorio
+
+```text
+cloudflare/
+  src/             API, acceso a datos y servicios de dominio
+  public/          Fuentes de la interfaz y recursos estáticos
+  pages/           Archivos preparados para el despliegue de Pages
+  admin-pages/     Interfaz interna de operación
+  migrations/      Evolución del esquema D1
+  scripts/         Pruebas, comprobaciones y herramientas
+  docs/            Configuración específica de integraciones
+docs/              Documentación pública y capturas
+legacy/backend/    Backend Express/MySQL y CLI conservados como legado
 ```
 
-El panel admin se despliega por separado (interno). Secrets (`wrangler secret put`, nunca en git): `AUTH_SECRET`, Google OAuth, `STRIPE_*`, opcional `API_FOOTBALL_KEY` / `CF_*` (+ secret de sync/admin).
+`public/` y `pages/` son directorios distintos. Antes de publicar hay que verificar qué archivos se despliegan y preservar el proxy de Pages. No existe un comando `build` en el `package.json` actual; el proceso está descrito en [operación](docs/OPERATIONS.md).
 
-### API (resumen)
+## Estado y límites
 
-| | Ruta |
-|---|---|
-| GET | `/api/v1/status` · `/matches/today` · `/matches/best-bets` |
-| GET | `/tips/day-results` · `/stats/match-averages` · `/matches/:id/prediction` |
-| GET | `/leagues/:apiId/table` |
-| POST | `/sync/manual` · `/premium/checkout` (+ webhook Stripe) |
+La revisión documental del **25 de noviembre de 2026** confirmó respuestas HTTP 200 de la aplicación, `/health` y `/api/v1/status`. El estado público indicó datos de FixtureDownload y autenticación rechazada para el enriquecimiento opcional de API-Football. La configuración de pagos, OAuth y correo debe verificarse por separado.
 
-## Capturas
+La documentación distingue implementación, configuración y evidencia. Los informes de calidad no equivalen a una auditoría de seguridad o certificación del modelo.
 
-| Vista | | |
-|-------|---|---|
-| Partidos | <img src="docs/screenshots/partidos-desktop.png" alt="Partidos desktop" width="220" /> | Lista del día + panel de análisis |
-| Ligas | <img src="docs/screenshots/ligas-desktop.png" alt="Ligas desktop" width="200" /> | Catálogo, logos y tablas |
-| Móvil | <img src="docs/screenshots/partidos-mobile.jpg" alt="Partidos móvil" width="108" /> | Chips, escudos, tabbar |
-| Análisis | <img src="docs/screenshots/analisis-general-mobile.jpg" alt="Análisis móvil" width="108" /> | O1.5 · O2.5 · BTTS · medias |
+## Autor y uso
 
-## Autor
+Desarrollado por **[Iván Martín Molina](https://github.com/ivanmarrtin27)**.
 
-[Iván Martín Molina](https://ivanmartin.pages.dev/) · [@ivanmarrtin27](https://github.com/ivanmarrtin27)
-
-Uso personal / portfolio — sin licencia open-source por ahora.
+Proyecto de uso personal y portfolio. No se ha concedido una licencia open source en este repositorio. Los pronósticos tienen finalidad informativa; deben interpretarse con sus supuestos, cobertura y limitaciones.

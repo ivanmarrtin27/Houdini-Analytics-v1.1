@@ -1,108 +1,66 @@
-# Stripe setup — Houdini Analytics Premium
+# Suscripciones Premium con Stripe
 
-Checkout usa **`mode: subscription`** (Mensual / Trimestral / Anual).  
-No pongas secretos en git: solo `wrangler secret put` (o Dashboard → Workers → Settings → Variables).
+El flujo implementado utiliza Checkout con `mode: subscription`, referencias de sesión Premium y sincronización mediante webhook. La presencia del código no certifica que precios, credenciales o cobros reales estén configurados.
 
-## Precios de producto (deben coincidir con la UI)
+## Planes e identidades
 
-| Plan UI (`plan`) | Cobro | Env Price ID |
-|---|---|---|
-| `monthly` | **7,99 €/mes** (flat, sin intro) | `STRIPE_PRICE_ID_MONTHLY` |
-| `quarterly` | **19,99 € / 3 meses** (~6,66 €/mes; vs 3×7,99 = 23,97) | `STRIPE_PRICE_ID_QUARTERLY` |
-| `annual` | **69,99 € / año** (~5,83 €/mes; vs 12×7,99 = 95,88) | `STRIPE_PRICE_ID_ANNUAL` |
+La interfaz del código revisado el 25 de noviembre de 2026 contiene estas referencias. Verificar que producto, moneda, periodicidad y precio reales del entorno coinciden antes de habilitar cobros.
 
-## 1. Crear producto y precios (Test mode primero)
+| Clave       | Referencia de la UI       | Variable de precio          |
+| ----------- | ------------------------- | --------------------------- |
+| `monthly`   | 7,99 EUR cada mes         | `STRIPE_PRICE_ID_MONTHLY`   |
+| `quarterly` | 19,99 EUR cada tres meses | `STRIPE_PRICE_ID_QUARTERLY` |
+| `annual`    | 69,99 EUR cada año        | `STRIPE_PRICE_ID_ANNUAL`    |
 
-1. Stripe Dashboard → **Test mode** ON.
-2. **Productos** → Crear producto `Houdini Analytics Premium`.
-3. Añadir **3 precios recurrentes** (EUR):
+Los importes son configuración de este producto, no una garantía de su disponibilidad actual. El código conserva compatibilidad con variables anteriores; para una configuración nueva utilizar los tres IDs dedicados y revisar los fallbacks del servicio.
 
-### Mensual
+## Preparar el entorno de prueba
 
-- Recurrente: **7,99 €** cada **mes** → `STRIPE_PRICE_ID_MONTHLY`.
-- Sin precio introductorio ni cupón de primer mes.
+1. Preparar producto y tres precios recurrentes en el modo de pruebas de Stripe.
+2. Guardar la clave de prueba y los IDs correspondientes fuera de Git.
+3. Configurar el endpoint del webhook del entorno y su secreto de firma.
+4. Aplicar las migraciones pendientes; `0041_stripe_subscription.sql` añade la referencia de suscripción.
+5. Comprobar la URL de éxito/cancelación para que vuelva al origen público correcto.
 
-> `STRIPE_COUPON_FIRST_MONTH` ya no se usa con este pricing (opcional/legacy; no hace falta crearlo).
+| Secreto o variable          | Finalidad                                             |
+| --------------------------- | ----------------------------------------------------- |
+| `STRIPE_SECRET_KEY`         | Acceso de servidor a Stripe                           |
+| `STRIPE_WEBHOOK_SECRET`     | Validar firma del evento recibido                     |
+| `STRIPE_PRICE_ID_MONTHLY`   | Precio mensual                                        |
+| `STRIPE_PRICE_ID_QUARTERLY` | Precio trimestral                                     |
+| `STRIPE_PRICE_ID_ANNUAL`    | Precio anual                                          |
+| `AUTH_PUBLIC_ORIGIN`        | Origen público de referencia cuando existe proxy      |
+| `PREMIUM_SUCCESS_URL`       | Retorno explícito opcional, si el entorno lo necesita |
 
-### Trimestral
+Utilizar `wrangler secret put` o el gestor del entorno sin incluir valores en documentación. Las claves, precios y secretos de modo test y live son diferentes.
 
-- Recurrente: **19,99 €** cada **3 meses** → `STRIPE_PRICE_ID_QUARTERLY`.
+## Rutas y webhook
 
-### Anual
+La aplicación inicia la operación mediante `POST /api/v1/premium/session`. La respuesta puede incluir `stripeConfigured`, `checkoutUrl` y detalles de error. Una URL creada o una página de retorno no demuestran por sí solas que el acceso esté activado.
 
-- Recurrente: **69,99 €** cada **año** → `STRIPE_PRICE_ID_ANNUAL`.
-
-## 2. Webhook
-
-Endpoint Worker:
+Configurar un endpoint que llegue al Worker:
 
 ```text
-https://houdini-bet.ivanmarrtin2703.workers.dev/api/v1/premium/webhook
+<origen-del-entorno>/api/v1/premium/webhook
 ```
 
-(Cuando el dominio custom esté listo, añade también la URL pública equivalente.)
+El código verifica la firma sobre el cuerpo recibido y procesa, entre otros, `checkout.session.completed`, `invoice.paid`, `customer.subscription.updated`, `customer.subscription.deleted` y `charge.refunded`. Revisar `premiumService.js` al cambiar el contrato o versión de eventos.
 
-Eventos a escuchar:
+Stripe recomienda resolver el cumplimiento mediante eventos de servidor, y su documentación explica el diagnóstico de firmas y entregas: [Checkout](https://docs.stripe.com/checkout/fulfillment), [gestión de webhooks](https://docs.stripe.com/events/manage-webhook-endpoints).
 
-- `checkout.session.completed`
-- `invoice.paid` (renovaciones)
-- `customer.subscription.updated`
-- `customer.subscription.deleted`
-- `charge.refunded`
+## Promociones
 
-Copia el **Signing secret** (`whsec_…`) → `STRIPE_WEBHOOK_SECRET`.
+Los descuentos porcentuales utilizan cupones Stripe aplicados al checkout. El flujo del producto los configura para un cobro (`duration: once`); no reducen automáticamente todas las renovaciones. Los códigos de días o mes gratuito se aplican como concesión en la aplicación.
 
-## 3. Secrets en Cloudflare (Phase 2)
+Revisar creación, consumo y limpieza de promociones en el servicio antes de alterar reglas. Si un descuento solicitado no puede aplicarse, el flujo debe explicar el fallo en lugar de cobrar silenciosamente otra condición.
 
-Desde `cloudflare/`:
+## Aceptación
 
-```bash
-npx wrangler secret put STRIPE_SECRET_KEY
-# sk_test_… (pruebas) o sk_live_… (producción)
+- Comprobar cada plan y su retorno al origen correcto.
+- Verificar firma válida y rechazo de eventos inválidos.
+- Confirmar persistencia de sesión, usuario, suscripción y vigencia.
+- Comprobar renovación, cancelación y reembolso en el modo de pruebas.
+- Comprobar descuento inicial y renovación a la condición prevista.
+- Separar explícitamente la configuración live y repetir las comprobaciones acordadas antes de habilitarla.
 
-npx wrangler secret put STRIPE_WEBHOOK_SECRET
-# whsec_…
-
-npx wrangler secret put STRIPE_PRICE_ID_MONTHLY
-npx wrangler secret put STRIPE_PRICE_ID_QUARTERLY
-npx wrangler secret put STRIPE_PRICE_ID_ANNUAL
-```
-
-Legacy opcionales (no necesarios si ya tienes los tres Price ID):  
-`STRIPE_PRICE_ID`, `STRIPE_PRICE_ID_WEEKLY`, `PREMIUM_DAYS`.  
-`STRIPE_COUPON_FIRST_MONTH` no se aplica con el pricing flat 7,99 €.
-
-## 4. Migración D1
-
-```bash
-npx wrangler d1 migrations apply houdini-bet-db --remote
-```
-
-Incluye `0041_stripe_subscription.sql` (`stripe_subscription_id` para sync de renovaciones/cancelación).
-
-## 5. Cupones Houdini (`discount_20` / `discount_40`)
-
-Al iniciar Checkout (subscription), el Worker aplica `discounts[0][coupon]` — nunca cambia `price`/`unit_amount` a mano.
-
-Resolución del cupón Stripe:
-1. Opcional: `STRIPE_COUPON_DISCOUNT_20` / `STRIPE_COUPON_DISCOUNT_40` (precreados en Dashboard)
-2. Si no: cupón idempotente `houdini_pct_20_once` / `houdini_pct_40_once` (`percent_off` + `duration=once`)
-
-`discount_40` sobre **7,99 €** → primer mes **4,79 €** (no 2,99: eso era la UI vieja con intro 4,99).  
-Los `free_days` / `free_month` no pasan por Stripe (grant directo en app).
-
-## 6. Test → Live
-
-1. Completa el flujo en **Test** (tarjeta `4242…`).
-2. Repite productos/precios/webhook en **Live mode**.
-3. Sustituye secrets `sk_live_…` / `whsec_…` / `price_…` live.
-4. Deploy Worker (+ Pages si cambió UI) y smoke: botones Mensual/Trimestral/Anual → Checkout → webhook → Premium activo.
-
-## Checklist rápido
-
-- [ ] 3 Prices recurrentes EUR (mensual **7,99** flat · trimestral **19,99** · anual **69,99**)
-- [ ] Webhook URL + eventos + `STRIPE_WEBHOOK_SECRET`
-- [ ] `STRIPE_SECRET_KEY` + 3 `STRIPE_PRICE_ID_*`
-- [ ] Migración `0041` aplicada
-- [ ] Test checkout + renovación/cancelación razonables
-- [ ] (Luego) Live secrets + deploy
+Esta revisión documental no realizó compras ni operaciones de Stripe. Ver [operación](../../docs/OPERATIONS.md) y [calidad](../../docs/QUALITY.md).

@@ -1,77 +1,70 @@
-# Auth setup (Houdini Bet)
+# Autenticación y cuentas
 
-## Secrets (nunca en git)
+Guía del flujo implementado en `src/services/authService.js` y las rutas de `src/index.js`. Describe configuración; no confirma que OAuth o notificaciones estén operativos en un entorno concreto.
 
-```bash
-cd cloudflare
-# 32+ bytes random hex
-npx wrangler secret put AUTH_SECRET
-npx wrangler secret put GOOGLE_CLIENT_ID
-npx wrangler secret put GOOGLE_CLIENT_SECRET
-# optional fixed public origin for OAuth redirect:
-# npx wrangler secret put AUTH_PUBLIC_ORIGIN
-# value e.g. https://houdini-bet.ivanmarrtin2703.workers.dev
+## Persistencia y secretos
+
+Usuarios y sesiones se guardan en D1. Aplicar las migraciones del entorno según la guía de [operación](../../docs/OPERATIONS.md); el esquema de cuentas comienza en `0029` y se amplía en migraciones posteriores.
+
+Definir fuera de Git:
+
+| Nombre                 | Uso                                                             |
+| ---------------------- | --------------------------------------------------------------- |
+| `AUTH_SECRET`          | Firma de estado OAuth; configurar un secreto propio del entorno |
+| `GOOGLE_CLIENT_ID`     | Cliente OAuth de Google                                         |
+| `GOOGLE_CLIENT_SECRET` | Credencial privada del cliente                                  |
+| `AUTH_PUBLIC_ORIGIN`   | Origen público utilizado para construir el retorno              |
+
+Desde `cloudflare/`, los valores se introducen mediante el gestor de secretos del entorno, por ejemplo `npx wrangler secret put AUTH_SECRET`. No escribir valores en comandos publicados, capturas o documentación.
+
+## Google OAuth
+
+1. Preparar un proyecto y un cliente OAuth de aplicación web en Google Cloud.
+2. Configurar el consentimiento y los usuarios permitidos según el estado del proyecto.
+3. Elegir el origen público del entorno y fijarlo en `AUTH_PUBLIC_ORIGIN` cuando exista proxy.
+4. Autorizar exactamente el callback que genera el código: `<origen-publico>/api/v1/auth/google/callback`.
+5. Configurar las credenciales del cliente y comprobar inicio, retorno, cookie y salida con una cuenta de prueba.
+
+Para la aplicación pública actual, el callback previsto es:
+
+```text
+https://houdini-analytics.pages.dev/api/v1/auth/google/callback
 ```
 
-## Google Cloud
+El código solicita `openid email profile`. No es necesario añadir permisos de otras API de Google para describir este flujo. Los entornos locales o personalizados necesitan su propia configuración de origen y retorno. [Referencia oficial de OpenID Connect de Google](https://developers.google.com/identity/openid-connect/openid-connect).
 
-1. Create OAuth client (Web application).
-2. Authorized redirect URIs:
-   - `https://houdini-bet.ivanmarrtin2703.workers.dev/api/v1/auth/google/callback`
-   - `https://houdini-bet.pages.dev/api/v1/auth/google/callback` (if Host is pages.dev)
-3. Enable Google+ / People API / userinfo scopes (openid email profile).
+## Registro y sesión
 
-## Migrate
+- Registro: identificador `username`, nombre, correo, teléfono, contraseña y confirmación.
+- Identificador: letras minúsculas, números y guion bajo, entre 3 y 20 caracteres.
+- Acceso: `identifier` acepta identificador o correo; el backend conserva compatibilidad con el campo `email` anterior.
+- La sesión se entrega mediante cookie opaca `hb_auth`; el servidor verifica su secreto persistido.
+- Cambiar contraseña requiere la contraseña actual en las cuentas compatibles.
 
-```bash
-npx wrangler d1 migrations apply houdini-bet-db --remote
-```
+La interfaz presenta consentimiento y acceso antes del producto. Los permisos efectivos se revisan por ruta, no únicamente por la pantalla visible.
 
-Includes `0029_users_auth.sql` (users + sessions) and `0030_users_username.sql` (`username` UNIQUE, nullable for Google).
+## Autoservicio
 
-## Register / login
+| Método | Ruta                           | Efecto                                          |
+| ------ | ------------------------------ | ----------------------------------------------- |
+| GET    | `/api/v1/auth/me`              | Cuenta de la sesión actual                      |
+| POST   | `/api/v1/auth/logout`          | Revoca la sesión                                |
+| POST   | `/api/v1/auth/change-password` | Cambia contraseña con verificación de la actual |
+| GET    | `/api/v1/auth/export`          | Exporta perfil y referencias de cuenta          |
+| POST   | `/api/v1/auth/delete`          | Elimina cuenta y trata referencias relacionadas |
 
-- Register fields: **username** (ID, `^[a-z0-9_]{3,20}$`, UI example `ej. usuario01`), name, email, phone, password (+ confirm).
-- Login accepts **username or email** in `identifier` (legacy body `email` still accepted).
-- Password managers: `autocomplete="username"` on ID / login identifier; `new-password` / `current-password` on passwords.
-- After email register: welcome banner ~3s, then centered Premium upsell modal (`POST /api/v1/premium/session`).
-- Stripe subscriptions (Mensual/Trimestral/Anual): see [`STRIPE_SETUP.md`](./STRIPE_SETUP.md).
+Estas rutas no implementan recuperación de contraseña por correo. Las operaciones de cambio o eliminación deben verificarse únicamente con cuentas de prueba autorizadas.
 
-## Account self-service
+## Notificación de soporte
 
-- `POST /api/v1/auth/change-password` — body `{ currentPassword, newPassword, newPassword2 }` (password accounts only).
-- `GET /api/v1/auth/export` — JSON portability dump (profile, sessions, premium refs, support tickets).
-- `POST /api/v1/auth/delete` — hard-delete user + sessions; scrub linked support tickets when table exists.
-- `POST /api/v1/support/tickets` — contact / complaint form (D1 `support_tickets`, migration `0042`). After insert, Worker tries to email the inbox (see Support email below). Response includes `emailed: true|false`.
+Los tickets se guardan en D1. La entrega de un aviso se gestiona aparte y puede fallar aunque el ticket exista. La respuesta distingue `emailed`.
 
-## Support email (inbox notify)
+Configurar `SUPPORT_INBOX_EMAIL` como secreto privado. Para la vía Resend, configurar `RESEND_API_KEY` y un remitente autorizado mediante `SUPPORT_FROM_EMAIL` cuando corresponda. Respetar las restricciones del proveedor y del dominio del entorno. El código contempla un binding de correo alternativo si se configura expresamente.
 
-Tickets always land in D1 (admin panel → Soporte). To also receive them in Gmail:
+No publicar el destinatario real ni asumir entrega de correo por el resultado del guardado del ticket.
 
-```bash
-cd cloudflare
-# Inbox (secret; never shown in public UI)
-npx wrangler secret put SUPPORT_INBOX_EMAIL
-# value: <private inbox email — never expose in UI/docs to users>
+## Verificación
 
-# Resend API key (required for real inbox delivery today)
-# 1) Create free account at https://resend.com
-# 2) API Keys → Create → copy
-# 3) With free sandbox from-address, Resend only delivers to your verified Resend email
-npx wrangler secret put RESEND_API_KEY
+Comprobar registro, acceso por identificador y correo, consulta de sesión, cierre, cambio de contraseña y exportación. Verificar Google por separado tras configurar callback. La prueba de eliminación usa una cuenta desechable y una comprobación de datos relacionados.
 
-# Optional: custom from after verifying a domain in Resend
-# npx wrangler secret put SUPPORT_FROM_EMAIL
-# value e.g. Houdini Analytics <noreply@yourdomain.com>
-```
-
-Without `RESEND_API_KEY`, the ticket is still saved (`ok: true`, `emailed: false`) and visible in admin. Optional Cloudflare Email Sending binding (`EMAIL` + onboarded domain + `SUPPORT_FROM_EMAIL`) is a fallback if configured later.
-
-## Smoke
-
-- Register via UI → `GET /api/v1/auth/me` returns user with `username`
-- Login with username or email
-- Logout → me returns `{ user: null }`
-- Google only works after secrets + redirect URIs
-- Change password (password provider) + export JSON from Perfil
-
+Las verificaciones locales conocidas y las pendientes están en [calidad](../../docs/QUALITY.md). La configuración de [Stripe](STRIPE_SETUP.md) es independiente del éxito del acceso.
